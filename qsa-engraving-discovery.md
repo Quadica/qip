@@ -195,14 +195,14 @@ Things can go wrong during the engraving process. A module may not be positioned
 - None of these actions affect other rows in the queue
 
 ### SVG Generation
-The SVG file sent to Lightburn is generated on demand when the operator clicks the Engrave button on the Engraving Queue screen.
+The SVG file sent to LightBurn is generated on demand when the operator clicks the Engrave button on the Engraving Queue screen.
 
-Referencing the [QSA design reference](docs/reference/quadica-standard-array.jpg) configuration graphic. The SVG file will contain the following elements:
+Referencing the [QSA design reference](docs/reference/quadica-standard-array.jpg) configuration graphic. The SVG file will contain the following elements for each LED module:
 - Module Serial Number Micro-ID Code
 - LED Code(s)
 - Module ID
 - Module Serial Number URL
-- Module Serial Number ECC 200 Data matris
+- Module Serial Number ECC 200 Data matrix
 
 These elements are created using the following data:
 - Unique serial number
@@ -210,119 +210,43 @@ These elements are created using the following data:
 - Base ID
 - Base Configuration Code
 
-### Unique Serial Number Management
+#### Unique Serial Number Generation
+- A unique serial number is generated for each LED module to be engraved at the time that the SVG file is created and sent to LightBurn
+- Serial numbers are generated using the following rules:
+  - **Minimum Value**: 00000001 (1)
+  - **Maximum Value**: 01048575 (2^20 - 1)
+  - **Total Capacity**: 1,048,575 unique serial numbers
+  - **Format**: 8-character zero-padded string
+  - **Constraining Source**: Micro-ID 20-bit encoding limit
+  - **Sequentially Generated**: Serial numbers are sequentially created
+  - **No Duplicates**: Ensure that duplicate serial numbers are never generated
+- The system will store the following data for each generated serial number in a database table named `lw_quad_serial_numbers`:
+  - **Serial Number**: Zero-padded string (e.g., "00123456")
+  - **Module ID**: Associated module identifier (e.g., "STAR-34924")
+  - **Batch ID**: Reference to source production batch
+  - **Order ID**: Reference to customer order
+  - **Array Position**: Position number (1-8) on the QSA
+  - **Created Timestamp**: Creation Date/Time
 
-#### Serial Number Generation
-- **Minimum Value**: 00000001 (1)
-- **Maximum Value**: 01048575 (2^20 - 1)
-- **Total Capacity**: 1,048,575 unique serial numbers
-- **Format**: 8-character zero-padded string
-- **Constraining Source**: Micro-ID 20-bit encoding limit
-- **Sequentially Generated**: Serial numbers are sequentially created
-- **No Duplicates**: Ensure that duplicate serial numbers are never generated
+#### Micro-ID Code Generation
+- Micro-ID codes are generated using the [Quadica 5x5 Micro ID specification](docs/reference/quadica-micro-id-specs.md)
+- **QSA Coordinate Origin**: Top-left corner
+- **Micro ID Insertion Point**: Top-Left corner
+- **Units**: Millimeters
+- **Position Coordinates**: Micro ID codes are engraved in each LED module position using the following coordinates:
+  | Position | Origin X (mm) | Origin Y (mm) |
+  |----------|---------------|---------------|
+  | 1 | TBD | TBD |
+  | 2 | TBD | TBD |
+  | 3 | TBD | TBD |
+  | 4 | TBD | TBD |
+  | 5 | TBD | TBD |
+  | 6 | TBD | TBD |
+  | 7 | TBD | TBD |
+  | 8 | TBD | TBD |
 
-#### Serial Number Data Storage
-The system will store serial number records with the following data in a database table named lw_quad_serial_numbers:
-
-- **Serial Number**: Zero-padded string (e.g., "00123456")
-- **Module ID**: Associated module identifier (e.g., "STAR-34924")
-- **Batch ID**: Reference to source production batch
-- **Order ID**: Reference to customer order
-- **Array Position**: Position number (1-8) on the QSA
-- **Created Timestamp**: Creation Date/Time
-
-### Micro-ID Encoding
-
-#### Micro-ID Grid Specification
-The system will generate Micro-ID codes according to the Quadica 5x5 specification.
-
-**Supporting Information:**
-- **Visual Reference**: [Micro-ID Grid Layout](docs/screenshots/dev/micro-id-grid.png) (placeholder)
-- **Grid Size**: 1.0mm x 1.0mm total area
-- **Dot Diameter**: 0.10mm
-- **Dot Pitch**: 0.225mm center-to-center
-- **Grid Layout**: 5x5 matrix (25 positions)
-
-#### Micro-ID Encoding Capacity
-The system will encode serial numbers using 20-bit binary representation.
-
-**Supporting Information:**
-- **Encoding Capacity**: 20 bits = 0 to 1,048,575
-- **Data Bits**: 20 bits for serial number
-- **Parity Bit**: 1 bit for error detection (even parity)
-- **Total Data**: 21 bits mapped to grid positions
-
-**Encoding Formula:**
-```
-binary_value = serial_integer (20 bits)
-parity_bit = (popcount(binary_value) % 2) XOR to make even
-data_bits = binary_value + (parity_bit << 20)
-```
-
-#### Micro-ID Anchor Dots
-The system will include 4 corner anchor dots that are always ON.
-
-**Supporting Information:**
-- **Purpose**: Provide fixed reference points for decoding
-- **Positions**: Four corners of 5x5 grid
-- **State**: Always filled (ON) regardless of data
-- **Coordinates** (relative to grid origin):
-  - Top-left: (0.05, 0.05)
-  - Top-right: (0.95, 0.05)
-  - Bottom-left: (0.05, 0.95)
-  - Bottom-right: (0.95, 0.95)
-
-#### Micro-ID Orientation Marker
-The system will include an orientation marker dot outside the main grid.
-
-**Supporting Information:**
-- **Purpose**: Indicate correct reading orientation
-- **Position**: (-0.175mm, 0.05mm) relative to grid origin
-- **State**: Always filled (ON)
-- **Diameter**: Same as data dots (0.10mm)
-
-#### Micro-ID Bit-to-Grid Mapping
-The system will map the 21 data bits to specific grid positions.
-
-**Supporting Information:**
-- **Available Positions**: 21 positions (25 total - 4 corner anchors)
-- **Mapping Order**: Left-to-right, top-to-bottom, skipping corners
-- **Bit 0**: Position (0, 1) - second column, first row
-- **Bit 20**: Parity bit at final mapped position
-
-**Grid Position Map (0-indexed, excluding corners):**
-```
-Row 0: [anchor] [bit0]  [bit1]  [bit2]  [anchor]
-Row 1: [bit3]   [bit4]  [bit5]  [bit6]  [bit7]
-Row 2: [bit8]   [bit9]  [bit10] [bit11] [bit12]
-Row 3: [bit13]  [bit14] [bit15] [bit16] [bit17]
-Row 4: [anchor] [bit18] [bit19] [bit20] [anchor]
-```
-
-#### Micro-ID SVG Output
-The system will render Micro-ID as SVG circle elements.
-
-**Supporting Information:**
-- **Element Type**: `<circle>` for each dot
-- **Grouping**: Wrapped in `<g>` element with ID
-- **Fill**: `black` for ON dots
-- **Positioning**: `transform="translate(x,y)"` on group
-
-**SVG Output Example:**
-```xml
-<g id="micro-id-1" transform="translate(5.2,8.1)">
-  <!-- Orientation marker -->
-  <circle cx="-0.175" cy="0.05" r="0.05" fill="black"/>
-  <!-- Corner anchors -->
-  <circle cx="0.05" cy="0.05" r="0.05" fill="black"/>
-  <circle cx="0.95" cy="0.05" r="0.05" fill="black"/>
-  <circle cx="0.05" cy="0.95" r="0.05" fill="black"/>
-  <circle cx="0.95" cy="0.95" r="0.05" fill="black"/>
-  <!-- Data dots (example for serial 00123456) -->
-  <circle cx="0.275" cy="0.05" r="0.05" fill="black"/>
-  <!-- ... additional data dots based on encoding -->
-</g>
-```
+---
+**!!! CONTENT BELOW THIS POINT IS STILL BEING WORKED ON !!!**
 
 ### Data Matrix Barcode
 
