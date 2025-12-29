@@ -73,3 +73,6 @@ vendor/
 
 # Local configuration
 CONFIG.md
+
+# Claude Code configuration
+.claude/
