@@ -1,4 +1,4 @@
-# Quadica Standard Array Engraving- Discovery1
+# Quadica Standard Array Engraving- Discovery
 
 **Last Update:** Dec 28, 2025  
 **Author:** Ron Warris  
