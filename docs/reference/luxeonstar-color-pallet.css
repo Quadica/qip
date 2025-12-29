@@ -1,0 +1,20 @@
+# Colour Pallet From luxeonstar.com
+
+:root {
+    --trus-primary: #01236d;
+    --tech-primary: #092dc9;
+    --soph-primary: #109cf6;
+    --serv-primary: #005fe4;
+    --button-checkout: #65CC07;
+    --button-checkout-hover: #7EE320;
+    --white-primary: #ffffff;
+    --trus-shade-1: #4d6599;
+    --trus-shade-2: #8091b6;
+    --trus-shade-3: #b3bdd3;
+    --trus-shade-4: #e6e9f0;
+    --soph-shade-1: #58baf9;
+    --soph-shade-2: #88cefb;
+    --soph-shade-3: #cfebfd;
+    --soph-shade-4: #e7f5fe;
+    --soph-shade-5: #f5fbff;
+}
