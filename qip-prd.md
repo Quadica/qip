@@ -1,4 +1,4 @@
-# Quadica Integrated Platform (QIP) - Requirements Document1
+# Quadica Integrated Platform (QIP) - Requirements Document
 
 **Version:** 2.0
 **Last Update:** December 11, 2025
