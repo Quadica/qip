@@ -3,7 +3,7 @@
 **Version:** 2.0
 **Last Update:** December 11, 2025
 **Author:** Ron Warris, Chris Warris + Claude Code
-**Status:** Draft - Pending Review
+**Status:** Draft/ON HOLD - We are working on the qsa discovery document instead
 **Previous Versions:** docs/archive/
 
 ## Revisions
