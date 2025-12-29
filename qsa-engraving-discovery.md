@@ -194,7 +194,7 @@ Things can go wrong during the engraving process. A module may not be positioned
 - Using "Rerun" clears the completed status and resets progress, allowing the operator to also change the starting position before re-engraving
 - None of these actions affect other rows in the queue
 
-### SVG Generation
+### SVG Generation1
 The SVG file sent to LightBurn is generated on demand when the operator clicks the Engrave button on the Engraving Queue screen.
 
 Referencing the [QSA design reference](docs/reference/quadica-standard-array.jpg) configuration graphic. The SVG file will contain the following elements for each LED module:
