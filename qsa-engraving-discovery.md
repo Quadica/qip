@@ -189,7 +189,7 @@ Things can go wrong during the engraving process. A module may not be positioned
 - None of these actions affect other rows in the queue
 - Voided and scrapped serial numbers return to the available pool for future use
 
-### SVG Generation1
+### SVG Generation
 The SVG file sent to LightBurn is generated on demand when the operator clicks the Engrave button on the Engraving Queue screen.
 
 Referencing the [QSA design reference](docs/reference/quadica-standard-array.jpg) configuration graphic. The SVG file will contain the following elements for each module position to be engraved:
