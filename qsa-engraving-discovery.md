@@ -1,6 +1,6 @@
 # Quadica Standard Array Engraving- Discovery
  
-**Last Update:** Dec 28, 2025  
+**Last Update:** Dec 29, 2025
 **Author:** Ron Warris  
 
 This is a project startup document that contains a 'brain dump' from all project stakeholders. It includes thoughts, ideas, specific wants, project considerations, concerns, identified problems, etc. These are just captured thoughts about the project in no particular order that are indented to help define exactly what are we trying to build. This captured information is then used to generate the first draft of a formal requirements document.
@@ -43,11 +43,10 @@ The process will only process LED modules that use the QSA.
 
 ### SVG Engraving
 - The operator selects the modules that are included in the batch using the [Module Selection page](https://claude.ai/public/artifacts/ec02119d-ab5b-44cd-918d-c598b2d2dd94)
-- Each module type selected by the operator will need to have its own SVG file generated
 - Each QSA accommodates up to 8 LED modules
-- The process will generate as many SVG files as need to engrave all of the modules for a specific module type in the batch.
-- If there are more than 8 modules in the batch that have the same unique ID e.g., CORE-91247, then the process will only generate one SVG file for the modules as the same file can be used to engrave all of the QSAs.For example, if there are 26 CORE-91247 in the batch, then the process will generate a single SVG file that will be used for 3 QSAs, and then one additional SVG file for a QSA for the remaining 2 LED modules.
-- If there are fewer than 8 modules of the same unique ID, then the process will combine different module types onto arrays and create as many SVG files as needed. E.g., if the batch contains the following CORE type modules:
+- **Every QSA requires its own unique SVG file** because each module has a unique serial number embedded in the engraving (Micro-ID, Data Matrix, URL text). Even if the module type is identical across multiple QSAs, the serial numbers are different, so each QSA needs a fresh SVG.
+- When the operator starts engraving a row, the system pre-generates all SVG files for that row so they are ready for instant loading.
+- If there are fewer than 8 modules of the same unique ID, the system will combine different module types onto arrays. E.g., if the batch contains:
 
   | Module | Quantity |
   |--------|----------|
@@ -58,9 +57,9 @@ The process will only process LED modules that use the QSA.
   | CORE-45946 | 3 |
   | **Total** | **13** |
 
-  Then it will create two SVG files:
+  Then it will create two QSAs (and two unique SVG files):
 
-  **SVG 1** (8 modules - full array)
+  **QSA 1** (8 modules - full array)
   | Module | Quantity |
   |--------|----------|
   | CORE-91247 | 2 |
@@ -68,7 +67,7 @@ The process will only process LED modules that use the QSA.
   | CORE-98546 | 3 |
   | CORE-23405 | 2 |
 
-  **SVG 2** (5 modules - partial array)
+  **QSA 2** (5 modules - partial array)
   | Module | Quantity |
   |--------|----------|
   | CORE-23405 | 2 |
@@ -78,16 +77,16 @@ The process will only process LED modules that use the QSA.
 After creating an engraving batch, the operator sees an Engraving Queue interface listing all QSAs to be engraved.
 
 #### QSA Grouping
-QSAs are grouped into rows based on SVG reusability:
+QSAs are grouped into rows to organize the work for the operator:
 
-| Group Type | Description | SVG Behavior |
-|------------|-------------|--------------|
-| **Same ID × Full** | 8 identical modules | One SVG, reused for multiple arrays |
-| **Same ID × Partial** | <8 identical modules | One SVG, single array |
-| **Mixed ID × Full** | 8 different modules | Unique SVG per array |
-| **Mixed ID × Partial** | <8 different modules | Unique SVG, single array |
+| Group Type | Description |
+|------------|-------------|
+| **Same ID × Full** | 8 identical modules per QSA |
+| **Same ID × Partial** | <8 identical modules (final QSA) |
+| **Mixed ID × Full** | 8 different module types per QSA |
+| **Mixed ID × Partial** | <8 different module types (final QSA) |
 
-Each row displays: module count, array count, and an "Engrave" button.
+Each row displays: module count, array count, and an "Engrave" button. Each QSA in the row will have its own unique SVG file (generated with unique serial numbers).
 
 #### QSA Starting Offset
 QSAs may have unused positions from previous batches. The operator can specify a **Starting Position** (1-8) for the first QSA in a run.
@@ -105,67 +104,57 @@ QSAs may have unused positions from previous batches. The operator can specify a
 - No persistence — operator manually provides starting position each time
 
 **Example:** 26 identical modules, Starting Position = 5
-1. **SVG 1** — First QSA, positions 5-8 (4 modules)
-2. **SVG 2** — Full QSAs, positions 1-8 (reused for 2 arrays = 16 modules)
-3. **SVG 3** — Final QSA, positions 1-6 (6 modules)
+1. **QSA 1** — positions 5-8 (4 modules, 4 unique serials)
+2. **QSA 2** — positions 1-8 (8 modules, 8 unique serials)
+3. **QSA 3** — positions 1-8 (8 modules, 8 unique serials)
+4. **QSA 4** — positions 1-6 (6 modules, 6 unique serials)
 
-Total: 4 + 16 + 6 = 26 modules across 4 QSAs
+Total: 4 + 8 + 8 + 6 = 26 modules across 4 QSAs, each with its own SVG file.
 
 A fully functional React mockup of this webpage is here:
-- https://claude.ai/public/artifacts/114216a3-b9e4-4121-8e51-6681388a084a
+- https://claude.ai/public/artifacts/8319e841-26b2-4ae9-a7d6-8df243b19cf8
 
-#### Multi-SVG Workflow
+#### Array-by-Array Workflow
 
-**Constraint:** LightBurn can only load one SVG file at a time. When a row requires multiple unique SVG files (due to starting offset or partial final arrays), the operator must step through each SVG sequentially.
+**Constraint:** LightBurn can only load one SVG file at a time, and each QSA needs unique serial numbers. The operator steps through each QSA sequentially.
 
-**SVG Breakdown Calculation:**
-
-The system calculates how many unique SVG files are needed for a row based on:
-- Total modules in the row
-- Starting position (1-8)
-
-| Scenario | SVG Files Generated |
-|----------|---------------------|
-| Start = 1, modules ≤ 8 | 1 SVG (single array) |
-| Start = 1, modules = multiple of 8 | 1 SVG (reused for N arrays) |
-| Start = 1, modules not divisible by 8 | 2 SVGs (full + partial) |
-| Start > 1 | Up to 3 SVGs (offset + full + partial) |
+**SVG Count = QSA Count:** Every QSA in a row requires its own SVG file. The system pre-generates all SVGs when the operator starts the row.
 
 **Example:** 26 modules, Starting Position = 5
 
-| SVG | Positions | Modules | Arrays | Reusable? |
-|-----|-----------|---------|--------|-----------|
-| SVG 1 | 5-8 | 4 | 1 | No (offset start) |
-| SVG 2 | 1-8 | 8 | 2 | Yes (identical) |
-| SVG 3 | 1-6 | 6 | 1 | No (partial end) |
+| QSA | Positions | Modules | Serials |
+|-----|-----------|---------|---------|
+| QSA 1 | 5-8 | 4 | 00000001-00000004 |
+| QSA 2 | 1-8 | 8 | 00000005-00000012 |
+| QSA 3 | 1-8 | 8 | 00000013-00000020 |
+| QSA 4 | 1-6 | 6 | 00000021-00000026 |
 
-**Total:** 3 unique SVG files, 4 QSAs, 26 modules
+**Total:** 4 QSAs, 4 SVG files, 26 modules with unique serials
 
 #### Engraving Workflow
 
-**Single-SVG Row** (most common case):
-1. Operator clicks **Engrave** → System generates SVG and sends to LightBurn
-2. Operator engraves all arrays using that SVG (repeating for array count)
-3. Operator clicks **Complete** → Row marked done
+The operator steps through each QSA one at a time. The workflow is the same regardless of how many QSAs are in the row.
 
-**Multi-SVG Row** (when starting offset > 1 or partial arrays needed):
-1. Operator clicks **Engrave** → System generates first SVG and sends to LightBurn
-2. Interface shows: `SVG 1 of N` with positions and array count for current step
-3. Operator engraves the array(s) for current SVG
-4. Operator clicks **Next SVG** → System generates next SVG and sends to LightBurn
-5. Repeat steps 3-4 until all SVG steps complete
-6. After final SVG step, operator clicks **Complete** → Row marked done
+**Workflow Steps:**
+1. Operator clicks **Engrave** → System pre-generates all SVGs for the row, loads first SVG into LightBurn
+2. Interface shows: `Array 1 of N` with current positions and module details
+3. Operator uses **footswitch** to engrave the QSA
+4. Operator swaps in the next blank QSA
+5. Operator presses **Spacebar** (or clicks **Next Array**) → System loads next SVG into LightBurn
+6. Repeat steps 3-5 until all QSAs are engraved
+7. After final QSA, operator clicks **Complete** → Row marked done, serial numbers committed
 
-**Interface Elements During Multi-SVG Processing:**
+**Keyboard Shortcut:** The **Spacebar** advances to the next array. This allows the operator to keep hands near the work area without reaching for the mouse. The UI must clearly display this shortcut (e.g., "Press SPACEBAR or click Next Array").
+
+**Interface Elements During Engraving:**
 
 | Element | Description |
 |---------|-------------|
-| **SVG Step Indicator** | Shows "SVG X of Y" with progress dots |
-| **Positions** | Current SVG's position range (e.g., "5-8") |
-| **Modules** | Module count for current SVG step |
-| **Arrays** | How many arrays to engrave with current SVG |
-| **Next SVG Button** | Advances to next SVG (appears between steps) |
-| **Complete Button** | Finalizes row (appears only after last SVG step) |
+| **Progress Indicator** | Shows "Array X of Y" with visual progress |
+| **Positions** | Current QSA's position range (e.g., "5-8" or "1-8") |
+| **Module Details** | Module IDs and serial numbers for current QSA |
+| **Next Array Button** | Advances to next QSA (Spacebar shortcut) |
+| **Complete Button** | Finalizes row (appears only on last QSA) |
 
 Operator repeats workflow for all rows in the batch.
 
@@ -174,30 +163,36 @@ Operator repeats workflow for all rows in the batch.
 Things can go wrong during the engraving process. A module may not be positioned correctly, the laser may skip a step, or the operator may notice a quality issue that requires re-engraving. The interface needs to provide controls to handle these situations without starting the entire batch over.
 
 **Why Error Recovery Is Needed:**
-- Modules may shift during engraving, causing misalignment
 - Laser communication issues may require resending the file
-- Quality inspection may reveal a defective engraving
-- Operator may accidentally advance before completing an array
-- A completed row may need to be re-done due to discovered defects
+- QSA shifted during engraving — need to scrap and use a fresh QSA
+- Quality inspection reveals a defective engraving
+- Operator accidentally advanced before completing an array
+- A completed row needs to be re-done due to discovered defects
 
 **Recovery Controls:**
 
-| Control | When Available | What It Does |
-|---------|----------------|--------------|
-| **Resend** | During engraving (in progress) | Sends the current SVG file to LightBurn again without changing steps. Use when the laser didn't receive the file properly or communication was interrupted. |
-| **Back** | During engraving (after first SVG step) | Returns to the previous SVG step and resends that file to LightBurn. Use when the operator needs to re-engrave the previous array. |
-| **Rerun** | After row is completed | Resets the entire row back to pending status, allowing the operator to adjust the starting position if needed and begin the row again from the first SVG. Use when a completed row needs to be re-engraved entirely. |
+| Control | When Available | What It Does | Serial Number Impact |
+|---------|----------------|--------------|---------------------|
+| **Resend** | During engraving | Sends the current SVG to LightBurn again. Use when the file didn't transfer properly but the QSA is still usable. | No change — same serials |
+| **Retry** | During engraving | Scraps the current QSA and generates a fresh SVG with new serial numbers. Use when the QSA is ruined and you need a fresh substrate. | Current serials returned to pool, new serials reserved |
+| **Back** | After first array | Returns to the previous array. The previous array's serials remain committed; you'll re-engrave on a new QSA with new serials. | Previous stays committed, new serials reserved for re-do |
+| **Rerun** | After row complete | Resets selected arrays (or entire row) back to pending. Allows adjusting starting position. | Selected serials returned to pool, new serials reserved |
+
+**Resend vs Retry — Key Distinction:**
+- **Resend** = Same QSA, same serials, just re-transmit the file (communication issue)
+- **Retry** = New QSA, new serials, the old QSA is scrapped (physical failure)
 
 **Important Behaviors:**
-- The "Back" button only appears after the first SVG step (cannot go back before the beginning)
-- The "Resend" button is always available during an in-progress row
-- Using "Rerun" clears the completed status and resets progress, allowing the operator to also change the starting position before re-engraving
+- The "Back" button only appears after the first array
+- The "Resend" and "Retry" buttons are available during an in-progress row
+- Using "Rerun" allows selecting which arrays to redo, or redoing the entire row
 - None of these actions affect other rows in the queue
+- Voided and scrapped serial numbers return to the available pool for future use
 
 ### SVG Generation
 The SVG file sent to LightBurn is generated on demand when the operator clicks the Engrave button on the Engraving Queue screen.
 
-Referencing the [QSA design reference](docs/reference/quadica-standard-array.jpg) configuration graphic. The SVG file will contain the following elements for each LED module:
+Referencing the [QSA design reference](docs/reference/quadica-standard-array.jpg) configuration graphic. The SVG file will contain the following elements for each module position to be engraved:
 - Module Serial Number Micro-ID Code
 - LED Code(s)
 - Module ID
@@ -211,22 +206,57 @@ These elements are created using the following data:
 - Base Configuration Code
 
 #### Unique Serial Number Generation
-- A unique serial number is generated for each LED module to be engraved at the time that the SVG file is created and sent to LightBurn
+- A unique serial number is generated for each LED module to be engraved at the time that the SVG file is created
 - Serial numbers are generated using the following rules:
   - **Minimum Value**: 00000001 (1)
   - **Maximum Value**: 01048575 (2^20 - 1)
   - **Total Capacity**: 1,048,575 unique serial numbers
   - **Format**: 8-character zero-padded string
   - **Constraining Source**: Micro-ID 20-bit encoding limit
-  - **Sequentially Generated**: Serial numbers are sequentially created
-  - **No Duplicates**: Ensure that duplicate serial numbers are never generated
-- The system will store the following data for each generated serial number in a database table named `lw_quad_serial_numbers`:
+  - **Sequentially Generated**: Serial numbers are sequentially created from the pool of available numbers
+  - **No Duplicates in Production**: Only one physical module in production can have a given serial number
+  - **Voided/Scrapped Serials Return to Pool**: Serials that were never engraved (voided) or were engraved on scrapped modules return to the available pool for future use
+
+#### Serial Number Lifecycle
+Serial numbers move through the following states:
+
+| Status | Meaning |
+|--------|---------|
+| **Reserved** | Serial allocated and embedded in SVG, engraving not yet confirmed |
+| **Engraved** | Physically engraved on a module, confirmed by operator |
+| **Shipped** | Module shipped to customer (future functionality) |
+| **Available** | Serial returned to pool (was voided or scrapped) |
+
+**State Transitions:**
+- Reserved → Engraved (operator confirms successful engraving)
+- Reserved → Available (operator uses Retry before engraving, or row cancelled — serial was never physically used)
+- Engraved → Shipped (future: module ships to customer)
+- Engraved → Available (module scrapped/destroyed — serial can be reused since physical module is gone)
+
+#### Serial Number Assignment
+Serial numbers are assigned using a "reserve then commit" approach:
+
+1. **When operator clicks Engrave:** System pre-generates all SVGs for the row. Serial numbers are reserved and embedded in the SVG files.
+
+2. **When operator presses Spacebar/Next Array:** The current array's serials are committed (Reserved → Engraved), and the next SVG is loaded.
+
+3. **When operator clicks Complete:** The final array's serials are committed. The row is done.
+
+4. **If operator clicks Retry:** Current array's reserved serials are returned to the available pool, new serials are reserved, and a new SVG is created.
+
+5. **If operator clicks Rerun (after complete):** Selected engraved serials are returned to the available pool (physical modules scrapped), new serials are reserved, and new SVGs are created.
+
+#### Serial Number Data Storage
+The system will store serial number data in a database table named `lw_quad_serial_numbers`:
   - **Serial Number**: Zero-padded string (e.g., "00123456")
-  - **Module ID**: Associated module identifier (e.g., "STAR-34924")
-  - **Batch ID**: Reference to source production batch
+  - **Module ID**: Associated module identifier (e.g., "STAR-34924") — cleared when returned to available
+  - **Batch ID**: Reference to source production batch — cleared when returned to available
   - **Order ID**: Reference to customer order
-  - **Array Position**: Position number (1-8) on the QSA
-  - **Created Timestamp**: Creation Date/Time
+  - **QSA ID**: The array that the LED module is part of — cleared when returned to available
+  - **Array Position**: Position number (1-8) on the QSA — cleared when returned to available
+  - **Status**: Current lifecycle state (available, reserved, engraved, shipped)
+  - **Reserved Timestamp**: When serial was last reserved (nullable)
+  - **Engraved Timestamp**: When engraving was confirmed (nullable)
 
 #### Micro-ID Code Generation
 - Micro-ID codes are generated using the [Quadica 5x5 Micro ID specification](docs/reference/quadica-micro-id-specs.md)
