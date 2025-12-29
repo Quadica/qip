@@ -70,3 +70,6 @@ wp-config.php
 
 # Composer dependencies
 vendor/
+
+# Local configuration
+CONFIG.md
