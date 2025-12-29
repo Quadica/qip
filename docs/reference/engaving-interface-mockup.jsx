@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, Play, CheckCircle, Loader2, FileCode, Layers, Grid3X3, Clock, RefreshCw } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ChevronLeft, ChevronRight, Play, CheckCircle, Loader2, FileCode, Layers, Grid3X3, Clock, RefreshCw, RotateCcw } from 'lucide-react';
 
 /*
  * Luxeon Star LEDs / Quadica LEDs Brand Guidelines - DARK THEME
@@ -103,64 +103,92 @@ export default function EngravingQueue() {
   const [queueItems, setQueueItems] = useState(mockQueueData);
   const [activeItemId, setActiveItemId] = useState(null);
   const [startOffsets, setStartOffsets] = useState({});
-  const [currentSvgStep, setCurrentSvgStep] = useState({}); // Track which SVG step we're on for each row
+  const [currentArray, setCurrentArray] = useState({}); // Track which array we're on for each row
 
-  // Calculate SVG breakdown for a row based on total modules and start offset
-  const calculateSvgBreakdown = (totalModules, startOffset) => {
-    const svgSteps = [];
+  // Keyboard shortcut: Spacebar advances to next array
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.code === 'Space' && activeItemId !== null) {
+        e.preventDefault();
+        
+        const item = queueItems.find(i => i.id === activeItemId);
+        if (!item || item.status !== 'in_progress') return;
+        
+        const offset = startOffsets[activeItemId] !== undefined ? startOffsets[activeItemId] : 1;
+        const totalModules = item.totalModules;
+        
+        // Calculate total arrays
+        let remaining = totalModules;
+        let arrayCount = 0;
+        if (offset > 1) {
+          arrayCount++;
+          remaining -= Math.min(remaining, 9 - offset);
+        }
+        if (remaining > 0) {
+          arrayCount += Math.ceil(remaining / 8);
+        }
+        
+        const current = currentArray[activeItemId] || 0;
+        const isLastArray = current >= arrayCount;
+        
+        if (!isLastArray) {
+          // Advance to next array
+          setCurrentArray(prev => ({ ...prev, [activeItemId]: current + 1 }));
+          console.log('Spacebar: Advance to Array', current + 1);
+        }
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeItemId, queueItems, startOffsets, currentArray]);
+
+  // Calculate array breakdown for a row based on total modules and start offset
+  // Each array requires its own unique SVG (due to unique serial numbers per module)
+  const calculateArrayBreakdown = (totalModules, startOffset) => {
+    const arrays = [];
     let remainingModules = totalModules;
-    let currentPosition = startOffset;
+    let serialStart = 1; // Mock serial number starting point
     
-    // First SVG - may be partial if starting offset > 1
+    // First array - may be partial if starting offset > 1
     if (startOffset > 1) {
-      const firstSvgModules = Math.min(remainingModules, 9 - startOffset); // positions startOffset to 8
-      svgSteps.push({
-        step: 1,
+      const firstArrayModules = Math.min(remainingModules, 9 - startOffset); // positions startOffset to 8
+      arrays.push({
+        arrayNum: 1,
         startPos: startOffset,
-        endPos: startOffset + firstSvgModules - 1,
-        moduleCount: firstSvgModules,
-        arrayCount: 1,
-        isPartial: true,
-        description: `Positions ${startOffset}-${startOffset + firstSvgModules - 1}`
+        endPos: startOffset + firstArrayModules - 1,
+        moduleCount: firstArrayModules,
+        serialStart: serialStart,
+        serialEnd: serialStart + firstArrayModules - 1,
+        description: `Positions ${startOffset}-${startOffset + firstArrayModules - 1}`
       });
-      remainingModules -= firstSvgModules;
-      currentPosition = 1;
+      serialStart += firstArrayModules;
+      remainingModules -= firstArrayModules;
     }
     
-    // Middle SVGs - full arrays (8 modules each), can be reused
-    if (remainingModules >= 8) {
-      const fullArrayCount = Math.floor(remainingModules / 8);
-      svgSteps.push({
-        step: svgSteps.length + 1,
+    // Subsequent arrays - full arrays (8 modules each) or final partial
+    while (remainingModules > 0) {
+      const arrayModules = Math.min(remainingModules, 8);
+      const endPos = arrayModules;
+      arrays.push({
+        arrayNum: arrays.length + 1,
         startPos: 1,
-        endPos: 8,
-        moduleCount: 8,
-        arrayCount: fullArrayCount,
-        isPartial: false,
-        description: 'Positions 1-8'
+        endPos: endPos,
+        moduleCount: arrayModules,
+        serialStart: serialStart,
+        serialEnd: serialStart + arrayModules - 1,
+        description: `Positions 1-${endPos}`
       });
-      remainingModules -= fullArrayCount * 8;
+      serialStart += arrayModules;
+      remainingModules -= arrayModules;
     }
     
-    // Final SVG - partial array if there are remaining modules
-    if (remainingModules > 0) {
-      svgSteps.push({
-        step: svgSteps.length + 1,
-        startPos: 1,
-        endPos: remainingModules,
-        moduleCount: remainingModules,
-        arrayCount: 1,
-        isPartial: true,
-        description: `Positions 1-${remainingModules}`
-      });
-    }
-    
-    return svgSteps;
+    return arrays;
   };
 
-  // Get current SVG step for an item (defaults to 0 = not started)
-  const getCurrentSvgStep = (itemId) => {
-    return currentSvgStep[itemId] || 0;
+  // Get current array number for an item (defaults to 0 = not started)
+  const getCurrentArray = (itemId) => {
+    return currentArray[itemId] || 0;
   };
 
   // Calculate total arrays needed based on modules and start offset
@@ -183,74 +211,86 @@ export default function EngravingQueue() {
     return arrayCount;
   };
 
-  // Start engraving for an item (begins first SVG step)
+  // Start engraving for an item (begins first array)
   const startEngraving = (itemId) => {
     const item = queueItems.find(i => i.id === itemId);
     const offset = getStartOffset(itemId);
-    const svgSteps = calculateSvgBreakdown(item.totalModules, offset);
+    const arrays = calculateArrayBreakdown(item.totalModules, offset);
     
     setActiveItemId(itemId);
-    setCurrentSvgStep(prev => ({ ...prev, [itemId]: 1 }));
+    setCurrentArray(prev => ({ ...prev, [itemId]: 1 }));
     setQueueItems(prev => prev.map(item => 
       item.id === itemId ? { ...item, status: 'in_progress' } : item
     ));
     
-    // TODO: Generate first SVG and send to LightBurn
-    console.log('Generate SVG step 1 of', svgSteps.length, 'for item:', itemId);
-    console.log('SVG details:', svgSteps[0]);
+    // TODO: Pre-generate all SVGs for the row and load first SVG into LightBurn
+    console.log('Pre-generate', arrays.length, 'SVG files for item:', itemId);
+    console.log('Load Array 1 -', arrays[0]);
   };
 
-  // Advance to next SVG step
-  const nextSvgStep = (itemId) => {
+  // Advance to next array (commits current array's serials)
+  const nextArray = (itemId) => {
     const item = queueItems.find(i => i.id === itemId);
     const offset = getStartOffset(itemId);
-    const svgSteps = calculateSvgBreakdown(item.totalModules, offset);
-    const currentStep = getCurrentSvgStep(itemId);
-    const nextStep = currentStep + 1;
+    const arrays = calculateArrayBreakdown(item.totalModules, offset);
+    const current = getCurrentArray(itemId);
+    const next = current + 1;
     
-    setCurrentSvgStep(prev => ({ ...prev, [itemId]: nextStep }));
+    setCurrentArray(prev => ({ ...prev, [itemId]: next }));
     
-    // TODO: Generate next SVG and send to LightBurn
-    console.log('Generate SVG step', nextStep, 'of', svgSteps.length, 'for item:', itemId);
-    console.log('SVG details:', svgSteps[nextStep - 1]);
+    // TODO: Commit current array's serials (Reserved → Engraved), load next SVG into LightBurn
+    console.log('Commit Array', current, 'serials, load Array', next, 'of', arrays.length, 'for item:', itemId);
+    console.log('Array details:', arrays[next - 1]);
   };
 
-  // Go back to previous SVG step
-  const prevSvgStep = (itemId) => {
+  // Go back to previous array (previous serials stay committed, new serials for re-do)
+  const prevArray = (itemId) => {
     const item = queueItems.find(i => i.id === itemId);
     const offset = getStartOffset(itemId);
-    const svgSteps = calculateSvgBreakdown(item.totalModules, offset);
-    const currentStep = getCurrentSvgStep(itemId);
-    const prevStep = Math.max(1, currentStep - 1);
+    const arrays = calculateArrayBreakdown(item.totalModules, offset);
+    const current = getCurrentArray(itemId);
+    const prev = Math.max(1, current - 1);
     
-    setCurrentSvgStep(prev => ({ ...prev, [itemId]: prevStep }));
+    setCurrentArray(prevState => ({ ...prevState, [itemId]: prev }));
     
-    // TODO: Generate previous SVG and send to LightBurn
-    console.log('Go back to SVG step', prevStep, 'of', svgSteps.length, 'for item:', itemId);
-    console.log('SVG details:', svgSteps[prevStep - 1]);
+    // TODO: Reserve new serials for the previous array position, generate new SVG
+    console.log('Go back to Array', prev, 'of', arrays.length, 'for item:', itemId);
+    console.log('Previous serials stay committed, new serials reserved for re-do');
   };
 
-  // Resend current SVG
+  // Resend current SVG (same QSA, same serials - communication issue)
   const resendCurrentSvg = (itemId) => {
     const item = queueItems.find(i => i.id === itemId);
     const offset = getStartOffset(itemId);
-    const svgSteps = calculateSvgBreakdown(item.totalModules, offset);
-    const currentStep = getCurrentSvgStep(itemId);
+    const arrays = calculateArrayBreakdown(item.totalModules, offset);
+    const current = getCurrentArray(itemId);
     
-    // TODO: Resend current SVG to LightBurn
-    console.log('Resend SVG step', currentStep, 'of', svgSteps.length, 'for item:', itemId);
-    console.log('SVG details:', svgSteps[currentStep - 1]);
+    // TODO: Resend current SVG to LightBurn (no serial changes)
+    console.log('Resend SVG for Array', current, 'of', arrays.length, 'for item:', itemId);
+    console.log('Same serials:', arrays[current - 1]);
+  };
+
+  // Retry current array (new QSA, new serials - physical failure)
+  const retryCurrentArray = (itemId) => {
+    const item = queueItems.find(i => i.id === itemId);
+    const offset = getStartOffset(itemId);
+    const arrays = calculateArrayBreakdown(item.totalModules, offset);
+    const current = getCurrentArray(itemId);
+    
+    // TODO: Return current serials to pool, reserve new serials, generate new SVG
+    console.log('Retry Array', current, 'of', arrays.length, 'for item:', itemId);
+    console.log('Old serials returned to pool, new serials reserved, new SVG generated');
   };
 
   // Rerun completed row - reset to pending so operator can adjust start position if needed
   const rerunEngraving = (itemId) => {
     setActiveItemId(null);
-    setCurrentSvgStep(prev => ({ ...prev, [itemId]: 0 }));
+    setCurrentArray(prev => ({ ...prev, [itemId]: 0 }));
     setQueueItems(prev => prev.map(item => 
       item.id === itemId ? { ...item, status: 'pending' } : item
     ));
-    
-    console.log('Rerun requested for item:', itemId, '- reset to pending, operator can adjust start position');
+    // TODO: Return engraved serials to pool (physical modules scrapped)
+    console.log('Rerun requested for item:', itemId, '- reset to pending, serials returned to pool');
   };
 
   // Get start offset for an item (defaults to 1)
@@ -268,15 +308,15 @@ export default function EngravingQueue() {
     }));
   };
 
-  // Complete engraving for an item (all SVG steps done)
+  // Complete engraving for an item (commits final array's serials, marks row done)
   const completeEngraving = (itemId) => {
     setQueueItems(prev => prev.map(item => 
       item.id === itemId ? { ...item, status: 'complete' } : item
     ));
     setActiveItemId(null);
-    setCurrentSvgStep(prev => ({ ...prev, [itemId]: 0 }));
-    // TODO: Update database records
-    console.log('Mark engraving complete for item:', itemId);
+    setCurrentArray(prev => ({ ...prev, [itemId]: 0 }));
+    // TODO: Commit final array's serials, mark row complete
+    console.log('Complete engraving for item:', itemId, '- all serials committed');
   };
 
   // Calculate totals
@@ -553,17 +593,17 @@ export default function EngravingQueue() {
                         </button>
                       )}
                       {item.status === 'in_progress' && (() => {
-                        const svgSteps = calculateSvgBreakdown(item.totalModules, getStartOffset(item.id));
-                        const currentStep = getCurrentSvgStep(item.id);
-                        const isLastStep = currentStep >= svgSteps.length;
-                        const isFirstStep = currentStep <= 1;
+                        const arrays = calculateArrayBreakdown(item.totalModules, getStartOffset(item.id));
+                        const currentArrayNum = getCurrentArray(item.id);
+                        const isLastArray = currentArrayNum >= arrays.length;
+                        const isFirstArray = currentArrayNum <= 1;
                         
                         return (
                           <div className="flex items-center gap-2">
-                            {/* Back Button - only show if not on first step */}
-                            {!isFirstStep && (
+                            {/* Back Button - only show if not on first array */}
+                            {!isFirstArray && (
                               <button
-                                onClick={() => prevSvgStep(item.id)}
+                                onClick={() => prevArray(item.id)}
                                 className="px-3 py-2 rounded font-medium text-sm flex items-center gap-1 transition-all"
                                 style={{ 
                                   backgroundColor: colors.bgElevated,
@@ -578,14 +618,14 @@ export default function EngravingQueue() {
                                   e.currentTarget.style.backgroundColor = colors.bgElevated;
                                   e.currentTarget.style.borderColor = colors.border;
                                 }}
-                                title="Go back to previous SVG"
+                                title="Go back to previous array (new serials)"
                               >
                                 <ChevronLeft className="w-4 h-4" />
                                 Back
                               </button>
                             )}
                             
-                            {/* Resend Button */}
+                            {/* Resend Button - same QSA, same serials */}
                             <button
                               onClick={() => resendCurrentSvg(item.id)}
                               className="px-3 py-2 rounded font-medium text-sm flex items-center gap-1 transition-all"
@@ -602,14 +642,37 @@ export default function EngravingQueue() {
                                 e.currentTarget.style.backgroundColor = colors.bgElevated;
                                 e.currentTarget.style.borderColor = `${colors.skyBlue}50`;
                               }}
-                              title="Resend current SVG to laser"
+                              title="Resend current SVG to laser (same serials)"
                             >
                               <RefreshCw className="w-4 h-4" />
                               Resend
                             </button>
                             
-                            {/* Next or Complete Button */}
-                            {isLastStep ? (
+                            {/* Retry Button - new QSA, new serials */}
+                            <button
+                              onClick={() => retryCurrentArray(item.id)}
+                              className="px-3 py-2 rounded font-medium text-sm flex items-center gap-1 transition-all"
+                              style={{ 
+                                backgroundColor: colors.bgElevated,
+                                color: colors.warmLed,
+                                border: `1px solid ${colors.warmLed}50`
+                              }}
+                              onMouseOver={(e) => {
+                                e.currentTarget.style.backgroundColor = `${colors.warmLed}20`;
+                                e.currentTarget.style.borderColor = colors.warmLed;
+                              }}
+                              onMouseOut={(e) => {
+                                e.currentTarget.style.backgroundColor = colors.bgElevated;
+                                e.currentTarget.style.borderColor = `${colors.warmLed}50`;
+                              }}
+                              title="Scrap current QSA and retry with new serials"
+                            >
+                              <RotateCcw className="w-4 h-4" />
+                              Retry
+                            </button>
+                            
+                            {/* Next Array or Complete Button */}
+                            {isLastArray ? (
                               <button
                                 onClick={() => completeEngraving(item.id)}
                                 className="px-4 py-2 rounded font-bold text-sm flex items-center gap-2 transition-all"
@@ -630,7 +693,7 @@ export default function EngravingQueue() {
                               </button>
                             ) : (
                               <button
-                                onClick={() => nextSvgStep(item.id)}
+                                onClick={() => nextArray(item.id)}
                                 className="px-4 py-2 rounded font-bold text-sm flex items-center gap-2 transition-all"
                                 style={{ 
                                   backgroundColor: colors.warmLed,
@@ -643,9 +706,10 @@ export default function EngravingQueue() {
                                 onMouseOut={(e) => {
                                   e.currentTarget.style.boxShadow = `0 0 15px ${colors.warmLed}30`;
                                 }}
+                                title="Press SPACEBAR or click to advance"
                               >
                                 <ChevronRight className="w-4 h-4" />
-                                Next SVG
+                                Next Array
                               </button>
                             )}
                           </div>
@@ -762,13 +826,16 @@ export default function EngravingQueue() {
                     </div>
                   </div>
                   
-                  {/* Current SVG Step Details - shown when in progress */}
+                  {/* Current Array Details - shown when in progress */}
                   {item.status === 'in_progress' && (() => {
-                    const svgSteps = calculateSvgBreakdown(item.totalModules, getStartOffset(item.id));
-                    const currentStep = getCurrentSvgStep(item.id);
-                    const currentSvgDetails = svgSteps[currentStep - 1];
+                    const arrays = calculateArrayBreakdown(item.totalModules, getStartOffset(item.id));
+                    const currentArrayNum = getCurrentArray(item.id);
+                    const currentArrayDetails = arrays[currentArrayNum - 1];
                     
-                    if (!currentSvgDetails) return null;
+                    if (!currentArrayDetails) return null;
+                    
+                    // Format serial numbers as 8-digit zero-padded strings
+                    const formatSerial = (num) => String(num).padStart(8, '0');
                     
                     return (
                       <div 
@@ -778,9 +845,9 @@ export default function EngravingQueue() {
                           border: `1px solid ${colors.warmLed}30`
                         }}
                       >
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center gap-4">
-                            {/* SVG Step Indicator */}
+                            {/* Array Progress Indicator */}
                             <div 
                               className="flex items-center gap-2 px-3 py-1 rounded-full"
                               style={{ 
@@ -788,9 +855,9 @@ export default function EngravingQueue() {
                                 color: '#000000'
                               }}
                             >
-                              <FileCode className="w-4 h-4" />
+                              <Grid3X3 className="w-4 h-4" />
                               <span className="font-bold text-sm">
-                                SVG {currentStep} of {svgSteps.length}
+                                Array {currentArrayNum} of {arrays.length}
                               </span>
                             </div>
                             
@@ -804,7 +871,7 @@ export default function EngravingQueue() {
                                   color: colors.textPrimary
                                 }}
                               >
-                                {currentSvgDetails.startPos} - {currentSvgDetails.endPos}
+                                {currentArrayDetails.startPos} - {currentArrayDetails.endPos}
                               </span>
                             </div>
                             
@@ -812,35 +879,35 @@ export default function EngravingQueue() {
                             <div className="flex items-center gap-2">
                               <span style={{ color: colors.textMuted }}>Modules:</span>
                               <span className="font-bold" style={{ color: colors.textPrimary }}>
-                                {currentSvgDetails.moduleCount}
+                                {currentArrayDetails.moduleCount}
                               </span>
                             </div>
                             
-                            {/* Array Count */}
-                            <div 
-                              className="flex items-center gap-2 px-3 py-1 rounded"
-                              style={{ 
-                                backgroundColor: colors.electricBlue,
-                                color: '#FFFFFF'
-                              }}
-                            >
-                              <Grid3X3 className="w-4 h-4" />
-                              <span className="font-bold">
-                                {currentSvgDetails.arrayCount} Array{currentSvgDetails.arrayCount > 1 ? 's' : ''}
+                            {/* Serial Numbers */}
+                            <div className="flex items-center gap-2">
+                              <span style={{ color: colors.textMuted }}>Serials:</span>
+                              <span 
+                                className="font-mono text-xs px-2 py-0.5 rounded"
+                                style={{ 
+                                  backgroundColor: colors.bgElevated,
+                                  color: colors.skyBlue
+                                }}
+                              >
+                                {formatSerial(currentArrayDetails.serialStart)} - {formatSerial(currentArrayDetails.serialEnd)}
                               </span>
                             </div>
                           </div>
                           
-                          {/* Step Progress Dots */}
+                          {/* Array Progress Dots */}
                           <div className="flex items-center gap-1">
-                            {svgSteps.map((_, idx) => (
+                            {arrays.map((_, idx) => (
                               <div 
                                 key={idx}
                                 className="w-2 h-2 rounded-full"
                                 style={{ 
-                                  backgroundColor: idx < currentStep 
+                                  backgroundColor: idx < currentArrayNum 
                                     ? colors.success 
-                                    : idx === currentStep - 1 
+                                    : idx === currentArrayNum - 1 
                                       ? colors.warmLed 
                                       : colors.bgElevated
                                 }}
@@ -848,6 +915,29 @@ export default function EngravingQueue() {
                             ))}
                           </div>
                         </div>
+                        
+                        {/* Spacebar Hint */}
+                        {currentArrayNum < arrays.length && (
+                          <div 
+                            className="flex items-center gap-2 text-xs mt-2 pt-2"
+                            style={{ 
+                              borderTop: `1px solid ${colors.warmLed}20`,
+                              color: colors.textMuted
+                            }}
+                          >
+                            <span 
+                              className="px-2 py-0.5 rounded font-mono"
+                              style={{ 
+                                backgroundColor: colors.bgElevated,
+                                color: colors.textSecondary,
+                                border: `1px solid ${colors.border}`
+                              }}
+                            >
+                              SPACEBAR
+                            </span>
+                            <span>Press spacebar or click Next Array to advance</span>
+                          </div>
+                        )}
                       </div>
                     );
                   })()}
