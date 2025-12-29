@@ -1,16 +1,16 @@
 ## Testing Environment
-   - **Testing Site**: `Add site URL`
-   - **GitHub Repository**: `Add repo name and branch`
-   - **PLUGIN_NAME**: `Add Plugin Name`
+   - **Testing Site**: `env-luxeonstarleds-rlux.kinsta.cloud`
+   - **GitHub Repository**: `https://github.com/warrisr/lmb (main branch)`
+   - **PLUGIN_NAME**: `led-module-builder`
    - **SSH Access**:
-     - **Basic connect**: `Add SSH terminal command string from Kinsta`
+     - **Basic connect**: `ssh luxeonstarleds@34.71.83.227 -p 21264`
      - **Testing Site Access Variables**
-       - **TESTING_SITE_URL:** `Add testing site URL`
+       - **TESTING_SITE_URL:** `env-luxeonstarleds-rlux.kinsta.cloud`
        - **HOST:** `34.71.83.227`
-       - **PORT:** `Add port from Kinsta`
-       - **USER:** `Add Username from Kinsta`
+       - **PORT:** `21264`
+       - **USER:** `luxeonstarleds`
        - **KEY:** `rlux`
-       - **PATH:** `Add Path from Kinsta`
+       - **PATH:** `/www/luxeonstarleds_546/public`
 
 ## Luxeon Star LEDs Live Site
    - **Live Site**: `luxeonstar.com`
