@@ -64,3 +64,9 @@ wp-config.php
 # Windows security metadata files
 *:Zone.Identifier
 *:mshield
+
+# IDE settings
+.vscode/
+
+# Composer dependencies
+vendor/
