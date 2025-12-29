@@ -1,0 +1,62 @@
+name: Deploy Main Branch to Testing Site
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  if: false # REMOVE THIS LINE TO ENABLE THIS WORKFLOW
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup SSH
+      uses: webfactory/ssh-agent@v0.8.0
+      with:
+        ssh-private-key: ${{ secrets.KINSTA_DEV_SSH_PRIVATE_KEY }}
+
+    - name: Add Kinsta to known hosts
+      run: |
+        ssh-keyscan -p ${{ secrets.KINSTA_DEV_SSH_PORT }} ${{ secrets.KINSTA_DEV_SSH_HOST }} >> ~/.ssh/known_hosts
+
+    - name: Deploy to Kinsta Development
+      run: |
+        # Create deployment directory structure
+        ssh -p ${{ secrets.KINSTA_DEV_SSH_PORT }} ${{ secrets.KINSTA_DEV_SSH_USERNAME }}@${{ secrets.KINSTA_DEV_SSH_HOST }} "
+          mkdir -p ${{ secrets.KINSTA_DEV_DOCUMENT_ROOT }}/wp-content/plugins/PLUGIN_NAME
+        "
+        
+        # Deploy plugin files (when they exist) - only add/update, don't delete existing
+        if [ -d "wp-content/plugins/" ]; then
+          rsync -avz -e "ssh -p ${{ secrets.KINSTA_DEV_SSH_PORT }}" \
+            wp-content/plugins/ \
+            ${{ secrets.KINSTA_DEV_SSH_USERNAME }}@${{ secrets.KINSTA_DEV_SSH_HOST }}:${{ secrets.KINSTA_DEV_DOCUMENT_ROOT }}/wp-content/plugins/
+        fi
+        
+        # Deploy theme files (when they exist) - only add/update, don't delete existing
+        if [ -d "wp-content/themes/generatepress_child/" ]; then
+          rsync -avz -e "ssh -p ${{ secrets.KINSTA_DEV_SSH_PORT }}" \
+            wp-content/themes/generatepress_child/ \
+            ${{ secrets.KINSTA_DEV_SSH_USERNAME }}@${{ secrets.KINSTA_DEV_SSH_HOST }}:${{ secrets.KINSTA_DEV_DOCUMENT_ROOT }}/wp-content/themes/generatepress_child/
+        fi
+
+    - name: Clear Kinsta Cache
+      run: |
+        # Kinsta cache clearing via SSH (if available)
+        ssh -p ${{ secrets.KINSTA_DEV_SSH_PORT }} ${{ secrets.KINSTA_DEV_SSH_USERNAME }}@${{ secrets.KINSTA_DEV_SSH_HOST }} "
+          echo 'Deployment completed at $(date)'
+          echo 'Clear cache manually in Kinsta dashboard if needed'
+        "
+
+    - name: Deployment Summary
+      run: |
+        echo "✅ Deployment completed successfully!"
+        echo "📁 Files deployed to: ${{ secrets.KINSTA_DEV_DOCUMENT_ROOT }}"
+        echo "🌐Development site: https://TEST_SITE/"
+        echo "⚡ Remember to clear cache in Kinsta dashboard"

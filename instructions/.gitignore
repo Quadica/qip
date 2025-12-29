@@ -1,0 +1,3 @@
+# Ignore all files in the instructions directory (only used to setup new repos)
+*
+!.gitignore

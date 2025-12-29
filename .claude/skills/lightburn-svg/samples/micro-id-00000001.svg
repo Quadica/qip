@@ -1,0 +1,22 @@
+<svg width="1.5mm" height="1.5mm" viewBox="-0.25 -0.1 1.35 1.2" xmlns="http://www.w3.org/2000/svg">
+  <!-- 
+       Value: 1
+       Display: "00000001"
+       Parity: 1
+  -->
+  
+  <!-- Orientation -->
+  <circle cx="-0.175" cy="0.05" r="0.05" fill="black" />
+
+  <!-- Row 0 -->
+  <circle cx="0.05" cy="0.05" r="0.05" fill="black" /> <!-- Anchor -->
+  <circle cx="0.95" cy="0.05" r="0.05" fill="black" /> <!-- Anchor -->
+
+  <!-- Rows 1, 2, 3 are empty -->
+
+  <!-- Row 4 -->
+  <circle cx="0.05" cy="0.95" r="0.05" fill="black" /> <!-- Anchor -->
+  <circle cx="0.50" cy="0.95" r="0.05" fill="black" /> <!-- Bit 0 -->
+  <circle cx="0.725" cy="0.95" r="0.05" fill="black" /> <!-- Parity -->
+  <circle cx="0.95" cy="0.95" r="0.05" fill="black" /> <!-- Anchor -->
+</svg>

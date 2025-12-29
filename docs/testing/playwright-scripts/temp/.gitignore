@@ -1,0 +1,3 @@
+# Ignore all files in temp directory (temporary test scripts)
+*
+!.gitignore
