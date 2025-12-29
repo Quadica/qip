@@ -6,7 +6,6 @@ Before we continue, carefully review the following documents
 - **AGENTS.md** (If you are GPT CODEX)
 - **SECURITY.md**
 - **TESTING.md**
-- **PROJECT.md**
 - The .prd document for the currently active project
 - The most recent session report in the `docs\project-history\` directory to understand what was completed during the last session
 
