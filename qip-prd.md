@@ -1,4 +1,4 @@
-# Quadica Order Management (QOM) - Product Requirements Document
+# Quadica Integrated Platform (QIP) - Requirements Document
 
 **Version:** 2.0
 **Last Update:** December 11, 2025
@@ -14,7 +14,7 @@
 
 ## 1. Overview
 
-The Quadica Order Management (QOM) plugin will eventually replace the legacy Order Management (OM) system located at `/om/`. This PRD covers **Part 1** of QOM development: establishing the plugin foundation and implementing the **Engraving Module** for generating SVG files used in laser engraving of new-style LED modules.
+The Quadica Integrated Platform (QIP) plugin will eventually replace the legacy Order Management (OM) system located at `/om/`. This PRD covers **Part 1** of QIP development: establishing the plugin foundation and implementing the **Engraving Module** for generating SVG files used in laser engraving of new-style LED modules.
 
 ### 1.1 Background
 
@@ -25,7 +25,7 @@ Quadica is transitioning from legacy LED module designs (SinkPAD, Rebel-based) t
 - **Quadica 5x5 Micro-ID**: Proprietary encoding for serial numbers engraved directly on modules
 - **Data Matrix barcodes**: URL-encoded barcodes linking to module information pages
 
-The existing engraving software handles legacy modules. QOM's Engraving Module will provide equivalent functionality for new-style modules, generating Lightburn-compatible SVG files.
+The existing engraving software handles legacy modules. QIP's Engraving Module will provide equivalent functionality for new-style modules, generating Lightburn-compatible SVG files.
 
 ---
 
@@ -113,7 +113,7 @@ The system shall retrieve LED codes and product data from WooCommerce.
 The system shall store serial numbers in a dedicated database table.
 
 **Supporting Information:**
-- **Table Name**: `{prefix}qom_serial_numbers`
+- **Table Name**: `{prefix}_quad_serial_numbers`
 - **Purpose**: Serial number generation, tracking, and uniqueness enforcement
 - **Relationship**: Links to engraving jobs and arrays
 
@@ -121,7 +121,7 @@ The system shall store serial numbers in a dedicated database table.
 The system shall store engraving job and array data in dedicated database tables.
 
 **Supporting Information:**
-- **Tables**: `{prefix}qom_engraving_jobs`, `{prefix}qom_engraving_arrays`
+- **Tables**: `{prefix}_quad_engraving_jobs`, `{prefix}_quad_engraving_arrays`
 - **Purpose**: Job tracking, SVG storage, status management
 - **Relationship**: Jobs contain arrays, arrays reference serial numbers
 
@@ -214,7 +214,7 @@ The system shall track remaining serial number capacity.
 The system shall store serial number records with the following data.
 
 **Supporting Information:**
-- **Database Table**: `{prefix}qom_serial_numbers`
+- **Database Table**: `{prefix}_quad_serial_numbers`
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -473,7 +473,7 @@ The system shall output SVG compatible with Lightburn auto-import.
 The system shall store generated SVG content in the database.
 
 **Supporting Information:**
-- **Storage Location**: `svg_content` column in `qom_engraving_arrays` table
+- **Storage Location**: `svg_content` column in `qip_engraving_arrays` table
 - **Format**: Complete SVG document as TEXT
 - **Compression**: None (human-readable for debugging)
 - **Export**: Optional filesystem export for Lightburn watched directory
@@ -493,7 +493,7 @@ The system shall generate descriptive filenames for exported SVG files.
 The system shall store engraving job records with the following data.
 
 **Supporting Information:**
-- **Database Table**: `{prefix}qom_engraving_jobs`
+- **Database Table**: `{prefix}_quad_engraving_jobs`
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -513,7 +513,7 @@ The system shall store engraving job records with the following data.
 The system shall store engraving array records with the following data.
 
 **Supporting Information:**
-- **Database Table**: `{prefix}qom_engraving_arrays`
+- **Database Table**: `{prefix}_quad_engraving_arrays`
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -758,7 +758,7 @@ The system shall log integration errors for debugging.
 The system shall display a dashboard widget with queue status.
 
 **Supporting Information:**
-- **Visual Reference**: [Dashboard Widget Mockup](docs/screenshots/dev/qom-dashboard-widget.png) (placeholder)
+- **Visual Reference**: [Dashboard Widget Mockup](docs/screenshots/dev/qip-dashboard-widget.png) (placeholder)
 - **Location**: WordPress admin dashboard
 - **Content**:
   - Jobs currently in progress (count)
@@ -770,7 +770,7 @@ The system shall display a dashboard widget with queue status.
 The system shall display a list of engraving jobs.
 
 **Supporting Information:**
-- **Visual Reference**: [Job List Mockup](docs/screenshots/dev/qom-job-list.png) (placeholder)
+- **Visual Reference**: [Job List Mockup](docs/screenshots/dev/qip-job-list.png) (placeholder)
 - **Columns**: Job ID, Name, Batch ID, Arrays, Modules, Status, Created, Actions
 - **Sorting**: Default by created date descending
 - **Filtering**: By status (All, Pending, Ready, In Progress, Completed, Failed, Cancelled)
@@ -780,7 +780,7 @@ The system shall display a list of engraving jobs.
 The system shall provide an interface for creating new engraving jobs.
 
 **Supporting Information:**
-- **Visual Reference**: [Create Job Mockup](docs/screenshots/dev/qom-create-job.png) (placeholder)
+- **Visual Reference**: [Create Job Mockup](docs/screenshots/dev/qip-create-job.png) (placeholder)
 - **Steps**:
   1. Select production batch from dropdown (pending batches only)
   2. System displays preview: module count, module types, array count
@@ -792,7 +792,7 @@ The system shall provide an interface for creating new engraving jobs.
 The system shall display detailed job information and array list.
 
 **Supporting Information:**
-- **Visual Reference**: [Job Detail Mockup](docs/screenshots/dev/qom-job-detail.png) (placeholder)
+- **Visual Reference**: [Job Detail Mockup](docs/screenshots/dev/qip-job-detail.png) (placeholder)
 - **Sections**:
   - Job summary (name, batch, status, timestamps)
   - Array list with status indicators
@@ -802,7 +802,7 @@ The system shall display detailed job information and array list.
 The system shall provide an interface for processing individual arrays.
 
 **Supporting Information:**
-- **Visual Reference**: [Process Array Mockup](docs/screenshots/dev/qom-process-array.png) (placeholder)
+- **Visual Reference**: [Process Array Mockup](docs/screenshots/dev/qip-process-array.png) (placeholder)
 - **Content**:
   - Job context (job name, progress "Array 2 of 5")
   - SVG preview (rendered in browser)
@@ -828,7 +828,7 @@ The system shall display prominent warnings when serial capacity is low.
   - Yellow banner on Engraving Module pages
   - Warning icon in dashboard widget
 - **Critical Level** (< 1,000 remaining):
-  - Red banner on all QOM pages
+  - Red banner on all QIP pages
   - Admin notification
   - Block new job creation with explanation
 
@@ -848,8 +848,8 @@ The system shall verify user capabilities before all actions.
 The system shall verify nonces for all form submissions and AJAX requests.
 
 **Supporting Information:**
-- **Nonce Action**: `qom_{action_name}`
-- **Nonce Field**: `qom_nonce`
+- **Nonce Action**: `qip_{action_name}`
+- **Nonce Field**: `qip_nonce`
 - **Verification**: `wp_verify_nonce()` on all handlers
 - **Failure Response**: wp_die() or WP_Error for AJAX
 
@@ -874,7 +874,7 @@ The system shall use prepared statements for all database queries.
 The system shall protect exported SVG files from unauthorized access.
 
 **Supporting Information:**
-- **Storage Directory**: `wp-content/uploads/qom-svg/`
+- **Storage Directory**: `wp-content/uploads/qip-svg/`
 - **Directory Protection**: .htaccess deny direct access
 - **Access Method**: Authenticated download handler only
 - **Filename**: Non-guessable (include job ID and hash)
@@ -958,18 +958,18 @@ The system shall document required test data.
 The system shall provide configurable settings via WordPress options.
 
 **Supporting Information:**
-- **Settings Location**: Settings > QOM or Quadica submenu
+- **Settings Location**: Settings > QIP or Quadica submenu
 - **Options**:
 
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
-| `qom_serial_warning_threshold` | Integer | 10000 | Remaining serials before warning |
-| `qom_serial_critical_threshold` | Integer | 1000 | Remaining serials before critical |
-| `qom_svg_export_path` | String | '' | Optional filesystem export directory |
-| `qom_default_text_size_module_id` | Float | 1.5 | Module ID text height (mm) |
-| `qom_default_text_size_serial` | Float | 1.2 | Serial URL text height (mm) |
-| `qom_default_text_size_led_code` | Float | 1.0 | LED code text height (mm) |
-| `qom_datamatrix_size` | Float | 3.0 | Data Matrix size (mm) |
+| `qip_serial_warning_threshold` | Integer | 10000 | Remaining serials before warning |
+| `qip_serial_critical_threshold` | Integer | 1000 | Remaining serials before critical |
+| `qip_svg_export_path` | String | '' | Optional filesystem export directory |
+| `qip_default_text_size_module_id` | Float | 1.5 | Module ID text height (mm) |
+| `qip_default_text_size_serial` | Float | 1.2 | Serial URL text height (mm) |
+| `qip_default_text_size_led_code` | Float | 1.0 | LED code text height (mm) |
+| `qip_datamatrix_size` | Float | 3.0 | Data Matrix size (mm) |
 
 ### REQ-075: Position Configuration
 The system should allow position coordinates to be configured.
@@ -1005,10 +1005,10 @@ When serial numbers approach 80% utilization (~838,000 used), consider:
 ### 10.3 Extensibility Hooks
 
 Document hooks for future module integration:
-- `qom_module_registered` - After module registration
-- `qom_serial_generated` - After serial number creation
-- `qom_svg_generated` - After SVG file creation
-- `qom_array_engraved` - After array marked complete
+- `qip_module_registered` - After module registration
+- `qip_serial_generated` - After serial number creation
+- `qip_svg_generated` - After SVG file creation
+- `qip_array_engraved` - After array marked complete
 
 ---
 
@@ -1023,9 +1023,9 @@ Document hooks for future module integration:
 
 ## Appendix B: Database Schema
 
-### Table: {prefix}qom_serial_numbers
+### Table: {prefix}_quad_serial_numbers
 ```sql
-CREATE TABLE {prefix}qom_serial_numbers (
+CREATE TABLE {prefix}_quad_serial_numbers (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     serial_number CHAR(8) NOT NULL,
     serial_integer INT UNSIGNED NOT NULL,
@@ -1048,9 +1048,9 @@ CREATE TABLE {prefix}qom_serial_numbers (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 ```
 
-### Table: {prefix}qom_engraving_jobs
+### Table: {prefix}_quad_engraving_jobs
 ```sql
-CREATE TABLE {prefix}qom_engraving_jobs (
+CREATE TABLE {prefix}_quad_engraving_jobs (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     batch_id BIGINT UNSIGNED NOT NULL,
     job_name VARCHAR(100) NOT NULL,
@@ -1069,9 +1069,9 @@ CREATE TABLE {prefix}qom_engraving_jobs (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 ```
 
-### Table: {prefix}qom_engraving_arrays
+### Table: {prefix}_quad_engraving_arrays
 ```sql
-CREATE TABLE {prefix}qom_engraving_arrays (
+CREATE TABLE {prefix}_quad_engraving_arrays (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     job_id BIGINT UNSIGNED NOT NULL,
     sequence INT UNSIGNED NOT NULL,

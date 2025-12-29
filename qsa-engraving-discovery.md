@@ -14,30 +14,34 @@ Create a WordPress/WooCommerce plugin that:
 1. Determine which modules need to be built
 2. Provide an interface that allows the laser operator to select the modules that will be included in the engraving batch
 3. Extracts module engraving details from order BOMs and product details
-4. Use the extracted data to generate an SVG file ready for engraving using Lightburn
+4. Use the extracted data to generate an SVG file ready for engraving using LightBurn
 5. Provides an interface that allows the laser operator to engrave the arrays using the SVG file
 
-## 3. Required Functionality
+## 3. Definitions
+- **QSA**: Quadica Standard Array - A MCPCB board with 8 LED module PCBs
+- **Base ID**: 4-letter word identifying a base design (e.g., STAR, NORD, ATOM, APEX)
+- **BOM**: Bill of Materials - components required to build a module
+- **Config Code**: 5-digit number identifying an LED configuration
+- **Fret**: Production slang for array
+- **LED Code**: 3-character code identifying an LED type for engraving (restricted character set)
+- **Lightburn**: Laser engraving software that consumes SVG files
+- **Micro-ID**: Quadica's proprietary 5x5 dot matrix serial encoding (20-bit capacity)
+- **Module ID**: Base ID + revision + Config Code (e.g., "STARa-34924")
+- **New-Style Module**: Module with SKU matching pattern: 4 uppercase letters + lowercase revision + hyphen + 5 digits
+- **Serial Number**: 8-digit unique identifier for each manufactured module (e.g., "00123456")
 
+## 4. Required Functionality
 ### Module Selection
 The process will only process LED modules that use the QSA.
 - [QSA design reference](docs/reference/quadica-standard-array.jpg)
+-Q SA compatible modules can be identified using the first 5 characters of the module SKU which will always be 4 upper case alpha characters followed by a dash. E.g., `CORE-`.
+- When the module engraving batch app is opened it will create a list of modules to be built from currently active production batches.
+- The operator will be able to refresh the list of modules by clicking on an refresh icon.
+- Needed modules can be determined by querying and comparing the values from the build_qty field with the value in the qty_recieved field in the oms_batch_items table. If the value in the qty_received field is less than the build_qty field, then the difference is what needs to be built and is included in the modules to build list.
+- The list of modules that need to be engraved will be presented to the operator using the Module Engraving Batch Creator webpage
+- A fully functional React mockup of this webpage is here https://claude.ai/public/artifacts/ec02119d-ab5b-44cd-918d-c598b2d2dd94
 
-QSA compatible modules can be identified using the first 5 characters of the module SKU which will always be 4 upper case alpha characters followed by a dash. E.g., `CORE-`.
-
-When the module engraving batch app is opened it will create a list of modules to be built from currently active production batches.
-
-The operator will be able to refresh the list of modules by clicking on an refresh icon.
-
-Needed modules can be determined by querying and comparing the values from the build_qty field with the value in the qty_recieved field in the oms_batch_items table. If the value in the qty_received field is less than the build_qty field, then the difference is what needs to be built and is included in the modules to build list.
-
-The list of modules that need to be engraved will be presented to the operator using the Module Engraving Batch Creator webpage
-
-A fully functional React mockup of this webpage is here:
-- https://claude.ai/public/artifacts/ec02119d-ab5b-44cd-918d-c598b2d2dd94
-
-
-### SVG Generation
+### SVG Engraving
 - The operator selects the modules that are included in the batch using the [Module Selection page](https://claude.ai/public/artifacts/ec02119d-ab5b-44cd-918d-c598b2d2dd94)
 - Each module type selected by the operator will need to have its own SVG file generated
 - Each QSA accommodates up to 8 LED modules
@@ -70,7 +74,7 @@ A fully functional React mockup of this webpage is here:
   | CORE-23405 | 2 |
   | CORE-45946 | 3 |
 
-### SVG Engraving
+### Engraving Queue
 After creating an engraving batch, the operator sees an Engraving Queue interface listing all QSAs to be engraved.
 
 #### QSA Grouping
@@ -189,6 +193,267 @@ Things can go wrong during the engraving process. A module may not be positioned
 - The "Resend" button is always available during an in-progress row
 - Using "Rerun" clears the completed status and resets progress, allowing the operator to also change the starting position before re-engraving
 - None of these actions affect other rows in the queue
+
+### SVG Generation
+The SVG file sent to Lightburn is generated on demand when the operator clicks the Engrave button on the Engraving Queue screen.
+
+Referencing the [QSA design reference](docs/reference/quadica-standard-array.jpg) configuration graphic. The SVG file will contain the following elements:
+- Module Serial Number Micro-ID Code
+- LED Code(s)
+- Module ID
+- Module Serial Number URL
+- Module Serial Number ECC 200 Data matris
+
+These elements are created using the following data:
+- Unique serial number
+- 3 digit LED code(s)
+- Base ID
+- Base Configuration Code
+
+### Unique Serial Number Management
+
+#### Serial Number Generation
+- **Minimum Value**: 00000001 (1)
+- **Maximum Value**: 01048575 (2^20 - 1)
+- **Total Capacity**: 1,048,575 unique serial numbers
+- **Format**: 8-character zero-padded string
+- **Constraining Source**: Micro-ID 20-bit encoding limit
+- **Sequentially Generated**: Serial numbers are sequentially created
+- **No Duplicates**: Ensure that duplicate serial numbers are never generated
+
+#### Serial Number Data Storage
+The system will store serial number records with the following data in a database table named lw_quad_serial_numbers:
+
+- **Serial Number**: Zero-padded string (e.g., "00123456")
+- **Module ID**: Associated module identifier (e.g., "STAR-34924")
+- **Batch ID**: Reference to source production batch
+- **Order ID**: Reference to customer order
+- **Array Position**: Position number (1-8) on the QSA
+- **Created Timestamp**: Creation Date/Time
+
+### Micro-ID Encoding
+
+#### Micro-ID Grid Specification
+The system will generate Micro-ID codes according to the Quadica 5x5 specification.
+
+**Supporting Information:**
+- **Visual Reference**: [Micro-ID Grid Layout](docs/screenshots/dev/micro-id-grid.png) (placeholder)
+- **Grid Size**: 1.0mm x 1.0mm total area
+- **Dot Diameter**: 0.10mm
+- **Dot Pitch**: 0.225mm center-to-center
+- **Grid Layout**: 5x5 matrix (25 positions)
+
+#### Micro-ID Encoding Capacity
+The system will encode serial numbers using 20-bit binary representation.
+
+**Supporting Information:**
+- **Encoding Capacity**: 20 bits = 0 to 1,048,575
+- **Data Bits**: 20 bits for serial number
+- **Parity Bit**: 1 bit for error detection (even parity)
+- **Total Data**: 21 bits mapped to grid positions
+
+**Encoding Formula:**
+```
+binary_value = serial_integer (20 bits)
+parity_bit = (popcount(binary_value) % 2) XOR to make even
+data_bits = binary_value + (parity_bit << 20)
+```
+
+#### Micro-ID Anchor Dots
+The system will include 4 corner anchor dots that are always ON.
+
+**Supporting Information:**
+- **Purpose**: Provide fixed reference points for decoding
+- **Positions**: Four corners of 5x5 grid
+- **State**: Always filled (ON) regardless of data
+- **Coordinates** (relative to grid origin):
+  - Top-left: (0.05, 0.05)
+  - Top-right: (0.95, 0.05)
+  - Bottom-left: (0.05, 0.95)
+  - Bottom-right: (0.95, 0.95)
+
+#### Micro-ID Orientation Marker
+The system will include an orientation marker dot outside the main grid.
+
+**Supporting Information:**
+- **Purpose**: Indicate correct reading orientation
+- **Position**: (-0.175mm, 0.05mm) relative to grid origin
+- **State**: Always filled (ON)
+- **Diameter**: Same as data dots (0.10mm)
+
+#### Micro-ID Bit-to-Grid Mapping
+The system will map the 21 data bits to specific grid positions.
+
+**Supporting Information:**
+- **Available Positions**: 21 positions (25 total - 4 corner anchors)
+- **Mapping Order**: Left-to-right, top-to-bottom, skipping corners
+- **Bit 0**: Position (0, 1) - second column, first row
+- **Bit 20**: Parity bit at final mapped position
+
+**Grid Position Map (0-indexed, excluding corners):**
+```
+Row 0: [anchor] [bit0]  [bit1]  [bit2]  [anchor]
+Row 1: [bit3]   [bit4]  [bit5]  [bit6]  [bit7]
+Row 2: [bit8]   [bit9]  [bit10] [bit11] [bit12]
+Row 3: [bit13]  [bit14] [bit15] [bit16] [bit17]
+Row 4: [anchor] [bit18] [bit19] [bit20] [anchor]
+```
+
+#### Micro-ID SVG Output
+The system will render Micro-ID as SVG circle elements.
+
+**Supporting Information:**
+- **Element Type**: `<circle>` for each dot
+- **Grouping**: Wrapped in `<g>` element with ID
+- **Fill**: `black` for ON dots
+- **Positioning**: `transform="translate(x,y)"` on group
+
+**SVG Output Example:**
+```xml
+<g id="micro-id-1" transform="translate(5.2,8.1)">
+  <!-- Orientation marker -->
+  <circle cx="-0.175" cy="0.05" r="0.05" fill="black"/>
+  <!-- Corner anchors -->
+  <circle cx="0.05" cy="0.05" r="0.05" fill="black"/>
+  <circle cx="0.95" cy="0.05" r="0.05" fill="black"/>
+  <circle cx="0.05" cy="0.95" r="0.05" fill="black"/>
+  <circle cx="0.95" cy="0.95" r="0.05" fill="black"/>
+  <!-- Data dots (example for serial 00123456) -->
+  <circle cx="0.275" cy="0.05" r="0.05" fill="black"/>
+  <!-- ... additional data dots based on encoding -->
+</g>
+```
+
+### Data Matrix Barcode
+
+#### Data Matrix Format
+The system will generate Data Matrix ECC 200 barcodes.
+
+**Supporting Information:**
+- **Format**: ECC 200 (error correction capable)
+- **Library**: `tecnickcom/tc-lib-barcode` via Composer
+- **Error Correction**: Built-in to ECC 200 standard
+
+#### Data Matrix Content
+The system will encode module URLs in Data Matrix barcodes.
+
+**Supporting Information:**
+- **URL Format**: `https://quadi.ca/{serial_number}`
+- **Example**: `https://quadi.ca/00123456`
+- **Validation**: Serial number must be valid 8-digit format
+
+#### Data Matrix Size
+The system will render Data Matrix at configurable size.
+
+**Supporting Information:**
+- **Default Size**: 3.0mm x 3.0mm
+- **Configurable**: Size specified per element in job data
+- **Scaling**: Library output scaled to target dimensions
+- **Aspect Ratio**: Always 1:1 (square)
+
+#### Data Matrix SVG Output
+The system will output Data Matrix as SVG elements.
+
+**Supporting Information:**
+- **Element Type**: `<rect>` elements for modules
+- **Grouping**: Wrapped in `<g>` element with ID
+- **Fill**: `black` for filled modules
+- **Positioning**: `transform="translate(x,y)"` on group
+
+### Text Rendering
+
+#### Character Set Support
+The system will support a restricted character set for engraving.
+
+**Supporting Information:**
+- **Uppercase Letters**: A-Z (26 characters)
+- **Lowercase Letters**: a (revision suffix only)
+- **Digits**: 0-9 (10 characters)
+- **Punctuation**: . - / : (4 characters)
+- **Total**: 41 characters
+
+#### LED Code Character Set
+The system will validate LED codes against the restricted character set.
+
+**Supporting Information:**
+- **Valid Characters**: `1234789CEFHJKLPRT` (17 characters)
+- **Code Length**: Exactly 3 characters
+- **Validation**: Reject invalid characters with error message
+- **Source**: `led_shortcode` product meta field
+
+#### Text Sizing
+The system will support configurable text sizes.
+
+**Supporting Information:**
+- **Size Unit**: Millimeters
+- **Default Sizes**:
+  - Module ID: 1.5mm height
+  - Serial URL: 1.2mm height
+  - LED Code: 1.0mm height
+- **Scaling**: Character paths scaled proportionally
+
+#### Text Anchor Positions
+The system will support text anchor positioning.
+
+**Supporting Information:**
+- **Options**: start, middle, end
+- **Default**: start (left-aligned)
+- **Calculation**: Adjust X position based on text width and anchor
+
+### SVG Generation
+
+#### SVG Document Structure
+The system will generate valid SVG documents with millimeter units.
+
+**Supporting Information:**
+- **Dimensions**: `width="148mm" height="113.7mm"`
+- **ViewBox**: `viewBox="0 0 148 113.7"`
+- **Namespace**: `xmlns="http://www.w3.org/2000/svg"`
+- **Encoding**: UTF-8
+
+**SVG Document Template:**
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="148mm" height="113.7mm"
+     viewBox="0 0 148 113.7">
+  <!-- Module groups -->
+</svg>
+```
+
+#### Element Grouping
+The system will logically group SVG elements by module position.
+
+**Supporting Information:**
+- **Module Group**: `<g id="module-{position}">`
+- **Element Groups**: Nested groups for micro-id, datamatrix, text
+- **Purpose**: Organize output, enable selective editing in Lightburn
+
+#### Element Positioning
+The system will position elements using transform attributes.
+
+**Supporting Information:**
+- **Method**: `transform="translate(x,y)"` on group elements
+- **Coordinate System**: Origin at top-left of array
+- **Units**: Millimeters matching viewBox
+
+#### SVG Storage
+The system will store generated SVG content in the database.
+
+**Supporting Information:**
+- **Storage Location**: `svg_content` column in `qip_engraving_arrays` table
+- **Format**: Complete SVG document as TEXT
+- **Compression**: None (human-readable for debugging)
+- **Export**: Optional filesystem export for Lightburn watched directory
+
+#### SVG Filename Generation
+The system will generate descriptive filenames for exported SVG files.
+
+**Supporting Information:**
+- **Format**: `{job_id}-{sequence}-{batch_id}.svg`
+- **Example**: `42-003-1234.svg` (job 42, array 3, batch 1234)
+- **Sanitization**: Remove/replace invalid filesystem characters
+- **Uniqueness**: Combination of job_id and sequence ensures uniqueness
 
 
 
