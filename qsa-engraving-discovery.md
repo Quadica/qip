@@ -23,18 +23,19 @@ Create a WordPress/WooCommerce plugin that:
 - **BOM**: Bill of Materials - components required to build a module
 - **Config Code**: 5-digit number identifying an LED configuration
 - **Fret**: Production slang for array
-- **LED Code**: 3-character code identifying an LED type for engraving (restricted character set)
+- **LED Code**: 3-character code identifying each unique LED that we use to build modules. This is also referred to as a `Production Code` or `Shortcode` Note that we have been using 2 digit LED codes, however this new system will start to use 3 digit codes to accomodate additional LEDs.
 - **Lightburn**: Laser engraving software that consumes SVG files
 - **Micro-ID**: Quadica's proprietary 5x5 dot matrix serial encoding (20-bit capacity)
-- **Module ID**: Base ID + revision + Config Code (e.g., "STARa-34924")
+- **Module ID**: Base ID + revision + Config Code (e.g., "STAR-34924")
 - **New-Style Module**: Module with SKU matching pattern: 4 uppercase letters + lowercase revision + hyphen + 5 digits
 - **Serial Number**: 8-digit unique identifier for each manufactured module (e.g., "00123456")
+- **Order BOM**: This is an existing CPT in WordPress that provides details about LED modules in each order
 
 ## 4. Required Functionality
 ### Module Selection
 The process will only process LED modules that use the QSA.
 - [QSA design reference](docs/reference/quadica-standard-array.jpg)
--Q SA compatible modules can be identified using the first 5 characters of the module SKU which will always be 4 upper case alpha characters followed by a dash. E.g., `CORE-`.
+-QSA compatible modules can be identified using the first 5 characters of the module SKU which will always be 4 upper case alpha characters followed by a dash. E.g., `CORE-`.
 - When the module engraving batch app is opened it will create a list of modules to be built from currently active production batches.
 - The operator will be able to refresh the list of modules by clicking on an refresh icon.
 - Needed modules can be determined by querying and comparing the values from the build_qty field with the value in the qty_recieved field in the oms_batch_items table. If the value in the qty_received field is less than the build_qty field, then the difference is what needs to be built and is included in the modules to build list.
@@ -224,26 +225,19 @@ Serial numbers move through the following states:
 |--------|---------|
 | **Reserved** | Serial allocated and embedded in SVG, engraving not yet confirmed |
 | **Engraved** | Physically engraved on a module, confirmed by operator |
-| **Shipped** | Module shipped to customer (future functionality) |
 | **Available** | Serial returned to pool (was voided or scrapped) |
 
 **State Transitions:**
 - Reserved → Engraved (operator confirms successful engraving)
 - Reserved → Available (operator uses Retry before engraving, or row cancelled — serial was never physically used)
-- Engraved → Shipped (future: module ships to customer)
 - Engraved → Available (module scrapped/destroyed — serial can be reused since physical module is gone)
 
 #### Serial Number Assignment
 Serial numbers are assigned using a "reserve then commit" approach:
-
 1. **When operator clicks Engrave:** System pre-generates all SVGs for the row. Serial numbers are reserved and embedded in the SVG files.
-
 2. **When operator presses Spacebar/Next Array:** The current array's serials are committed (Reserved → Engraved), and the next SVG is loaded.
-
 3. **When operator clicks Complete:** The final array's serials are committed. The row is done.
-
 4. **If operator clicks Retry:** Current array's reserved serials are returned to the available pool, new serials are reserved, and a new SVG is created.
-
 5. **If operator clicks Rerun (after complete):** Selected engraved serials are returned to the available pool (physical modules scrapped), new serials are reserved, and new SVGs are created.
 
 #### Serial Number Data Storage
@@ -258,101 +252,87 @@ The system will store serial number data in a database table named `lw_quad_seri
   - **Reserved Timestamp**: When serial was last reserved (nullable)
   - **Engraved Timestamp**: When engraving was confirmed (nullable)
 
+#### QSA Engraving Configuration
+Each QSA design (CORE, SOLO, EDGE, STAR, etc.) has different physical layouts, so the coordinates for each engraved element vary by design. This configuration data will be stored in a custom database table.
+
+**Custom Database Table**
+- Store engraving coordinates in a dedicated database table
+- Each row defines the position of one element type at one module position for one QSA design
+- Supports revision-specific coordinates (if COREb has different layout than COREa)
+- Can fall back to shared coordinates if revisions use the same layout
+
+**Data to Store Per Element:**
+
+| Field | Description |
+|-------|-------------|
+| QSA Design | Module type name (e.g., "CORE", "SOLO") |
+| Revision | Revision letter (e.g., "a") or NULL for all revisions |
+| Position | Module position on QSA (1-8) |
+| Element Type | What is being engraved (see below) |
+| Origin X/Y | Coordinates in mm from top-left of QSA to the center point of the element |
+| Rotation | Degrees of rotation (default 0) |
+| Text Height | Height in mm for text elements |
+
+**Element Types:**
+
+| Element | Description |
+|---------|-------------|
+| micro_id | Micro-ID 5x5 dot matrix |
+| datamatrix | ECC 200 barcode |
+| module_id | Module ID text (e.g., "CORE-91247") |
+| serial_url | Serial URL text (e.g., "quadi.ca/00123456") |
+| led_code_1 | First LED code position |
+| led_code_2 | Second LED code position (if needed) |
+| led_code_x | Additional LED code positions as needed |
+
+**Relationship to WooCommerce Products:**
+- QSA designs correspond to WooCommerce product SKUs (COREa, SOLOa, etc.)
+- The configuration table uses the design name (CORE, SOLO) which matches the SKU prefix
+- This keeps manufacturing configuration separate from product catalog data
+
+**Admin Management:**
+- Dedicated admin page under the plugin menu for managing engraving configurations
+- Grid-based editor showing all 8 positions × element types for a design
+- Copy function to duplicate one design's configuration as a starting point for another
+
 #### Micro-ID Code Generation
 - Micro-ID codes are generated using the [Quadica 5x5 Micro ID specification](docs/reference/quadica-micro-id-specs.md)
-- **QSA Coordinate Origin**: Top-left corner
-- **Micro ID Insertion Point**: Top-Left corner
-- **Units**: Millimeters
-- **Position Coordinates**: Micro ID codes are engraved in each LED module position using the following coordinates:
-  | Position | Origin X (mm) | Origin Y (mm) |
-  |----------|---------------|---------------|
-  | 1 | TBD | TBD |
-  | 2 | TBD | TBD |
-  | 3 | TBD | TBD |
-  | 4 | TBD | TBD |
-  | 5 | TBD | TBD |
-  | 6 | TBD | TBD |
-  | 7 | TBD | TBD |
-  | 8 | TBD | TBD |
+- The module serial number is encoded into the Micro-ID code
+- Coordinates for each position are retrieved from the QSA Engraving Configuration table
+
+#### Datamatrix Generation
+- Generated using ECC 200
+- The serial number URL for each module is encoded into the Data Matrix barcode
+  - **URL Format**: `https://quadi.ca/{serial_number}`
+  - **Example**: `https://quadi.ca/00123456`
+- **Size**: 14 mm x 6.5 mm (It has been confirmed that the ECC 200 standard does support rectangular formats)
+- **Generation Library**: `tecnickcom/tc-lib-barcode` via Composer
+- Coordinates for each position are retrieved from the QSA Engraving Configuration table
+
+#### Module ID
+- The full Module ID is engraved (e.g., `CORE-39435`)
+- This value comes from the assembly_sku field in the oms_batch_items table (The same table used to determine what modules need to be built as described in the Module Selection section)
+
+#### LED Code(s)
+- Each LED mounted on the module has a 3-character code engraved on the PCB.
+- The number of mounted LEDs for each LED module is provided in the Order BOM CPT for each module in the order
+
+**Data Source:**
+1. Query the `order_no` from `oms_batch_items` for the module being engraved
+2. Using the Order ID, retrieve the LED SKU(s) and their PCB position numbers from the Order BOM CPT
+3. For each LED SKU, retrieve the 3-character LED code from the `led_shortcode_3` field on the LED's WooCommerce product
+
+**Example:**
+A module with two LEDs might have:
+- Position 1: LED SKU `LXML-PWC2` → LED code `K7P`
+- Position 2: LED SKU `LXZ1-4070` → LED code `C4R`
+
+**Engraving Placement:**
+- Each LED code is engraved at the coordinates defined in the QSA Engraving Configuration table (`led_code_1`, `led_code_2`, etc.)
+- The number of LED codes varies by module type
 
 ---
-**!!! CONTENT BELOW THIS POINT IS STILL BEING WORKED ON !!!**
-
-### Data Matrix Barcode
-
-#### Data Matrix Format
-The system will generate Data Matrix ECC 200 barcodes.
-
-**Supporting Information:**
-- **Format**: ECC 200 (error correction capable)
-- **Library**: `tecnickcom/tc-lib-barcode` via Composer
-- **Error Correction**: Built-in to ECC 200 standard
-
-#### Data Matrix Content
-The system will encode module URLs in Data Matrix barcodes.
-
-**Supporting Information:**
-- **URL Format**: `https://quadi.ca/{serial_number}`
-- **Example**: `https://quadi.ca/00123456`
-- **Validation**: Serial number must be valid 8-digit format
-
-#### Data Matrix Size
-The system will render Data Matrix at configurable size.
-
-**Supporting Information:**
-- **Default Size**: 3.0mm x 3.0mm
-- **Configurable**: Size specified per element in job data
-- **Scaling**: Library output scaled to target dimensions
-- **Aspect Ratio**: Always 1:1 (square)
-
-#### Data Matrix SVG Output
-The system will output Data Matrix as SVG elements.
-
-**Supporting Information:**
-- **Element Type**: `<rect>` elements for modules
-- **Grouping**: Wrapped in `<g>` element with ID
-- **Fill**: `black` for filled modules
-- **Positioning**: `transform="translate(x,y)"` on group
-
-### Text Rendering
-
-#### Character Set Support
-The system will support a restricted character set for engraving.
-
-**Supporting Information:**
-- **Uppercase Letters**: A-Z (26 characters)
-- **Lowercase Letters**: a (revision suffix only)
-- **Digits**: 0-9 (10 characters)
-- **Punctuation**: . - / : (4 characters)
-- **Total**: 41 characters
-
-#### LED Code Character Set
-The system will validate LED codes against the restricted character set.
-
-**Supporting Information:**
-- **Valid Characters**: `1234789CEFHJKLPRT` (17 characters)
-- **Code Length**: Exactly 3 characters
-- **Validation**: Reject invalid characters with error message
-- **Source**: `led_shortcode` product meta field
-
-#### Text Sizing
-The system will support configurable text sizes.
-
-**Supporting Information:**
-- **Size Unit**: Millimeters
-- **Default Sizes**:
-  - Module ID: 1.5mm height
-  - Serial URL: 1.2mm height
-  - LED Code: 1.0mm height
-- **Scaling**: Character paths scaled proportionally
-
-#### Text Anchor Positions
-The system will support text anchor positioning.
-
-**Supporting Information:**
-- **Options**: start, middle, end
-- **Default**: start (left-aligned)
-- **Calculation**: Adjust X position based on text width and anchor
+**!!! STOP! CONTENT BELOW THIS POINT IS REFERENCE MATERIAL ONLY. DO NOT RELY ON ANY INFORMATION BELOW THIS POINT !!!**
 
 ### SVG Generation
 
@@ -374,43 +354,6 @@ The system will generate valid SVG documents with millimeter units.
   <!-- Module groups -->
 </svg>
 ```
-
-#### Element Grouping
-The system will logically group SVG elements by module position.
-
-**Supporting Information:**
-- **Module Group**: `<g id="module-{position}">`
-- **Element Groups**: Nested groups for micro-id, datamatrix, text
-- **Purpose**: Organize output, enable selective editing in Lightburn
-
-#### Element Positioning
-The system will position elements using transform attributes.
-
-**Supporting Information:**
-- **Method**: `transform="translate(x,y)"` on group elements
-- **Coordinate System**: Origin at top-left of array
-- **Units**: Millimeters matching viewBox
-
-#### SVG Storage
-The system will store generated SVG content in the database.
-
-**Supporting Information:**
-- **Storage Location**: `svg_content` column in `qip_engraving_arrays` table
-- **Format**: Complete SVG document as TEXT
-- **Compression**: None (human-readable for debugging)
-- **Export**: Optional filesystem export for Lightburn watched directory
-
-#### SVG Filename Generation
-The system will generate descriptive filenames for exported SVG files.
-
-**Supporting Information:**
-- **Format**: `{job_id}-{sequence}-{batch_id}.svg`
-- **Example**: `42-003-1234.svg` (job 42, array 3, batch 1234)
-- **Sanitization**: Remove/replace invalid filesystem characters
-- **Uniqueness**: Combination of job_id and sequence ensures uniqueness
-
-
-
 ## 4. Out of Band Functions
 None of the the following needs to be considered as part of the plugin development as they are handled using separate business processes:
 
