@@ -1,6 +1,6 @@
 # Quadica Standard Array Engraving- Discovery
  
-**Last Update:** Dec 29, 2025
+**Last Update:** Dec 30, 2025
 **Author:** Ron Warris  
 
 This is a project startup document that contains a 'brain dump' from all project stakeholders. It includes thoughts, ideas, specific wants, project considerations, concerns, identified problems, etc. These are just captured thoughts about the project in no particular order that are indented to help define exactly what are we trying to build. This captured information is then used to generate the first draft of a formal requirements document.
@@ -16,6 +16,21 @@ Create a WordPress/WooCommerce plugin that:
 3. Extracts module engraving details from order BOMs and product details
 4. Use the extracted data to generate an SVG file ready for engraving using LightBurn
 5. Provides an interface that allows the laser operator to engrave the arrays using the SVG file
+
+### User Permissions
+Access to the QSA Engraving functionality is restricted to the following WordPress roles:
+- Administrator
+- Manager
+- Shop Manager
+
+### Error Handling
+The system must validate all required data before allowing engraving to proceed. If any of the following conditions are detected, display an error message to the operator so they can resolve the issue:
+- Module SKU has no engraving configuration defined
+- LED product is missing the `led_shortcode_3` field
+- Order BOM CPT is missing LED information for a module
+- Any other data validation failure
+
+The operator must fix the underlying data issue before the system will allow engraving to continue.
 
 ## 3. Definitions
 - **QSA**: Quadica Standard Array - A MCPCB board with 8 LED module PCBs
@@ -36,16 +51,66 @@ Create a WordPress/WooCommerce plugin that:
 The process will only process LED modules that use the QSA.
 - [QSA design reference](docs/reference/quadica-standard-array.jpg)
 -QSA compatible modules can be identified using the first 5 characters of the module SKU which will always be 4 upper case alpha characters followed by a dash. E.g., `CORE-`.
-- When the module engraving batch app is opened it will create a list of modules to be built from currently active production batches.
+- When the Module Engraving Batch Creator screen is opened it will display a list of modules to be built from currently active production batches.
 - The operator will be able to refresh the list of modules by clicking on an refresh icon.
 - Needed modules can be determined by querying and comparing the values from the build_qty field with the value in the qty_recieved field in the oms_batch_items table. If the value in the qty_received field is less than the build_qty field, then the difference is what needs to be built and is included in the modules to build list.
-- The list of modules that need to be engraved will be presented to the operator using the Module Engraving Batch Creator webpage
-- A fully functional React mockup of this webpage is here https://claude.ai/public/artifacts/ec02119d-ab5b-44cd-918d-c598b2d2dd94
+- A fully functional React mockup of the Module Engraving Batch Creator page is here https://claude.ai/public/artifacts/ec02119d-ab5b-44cd-918d-c598b2d2dd94
+
+#### Batch History Access
+The Module Engraving Batch Creator screen includes a link to view previously completed engraving batches. This supports re-engraving scenarios (e.g., QA rejects modules due to engraving defects).
+
+**Workflow for Re-engraving:**
+1. Operator clicks "View Batch History" link on the Batch Creator screen
+2. System displays a list of previously completed engraving batches
+3. Operator selects a batch to view its details
+4. Batch details are displayed on the Batch Creator screen showing all modules from that batch
+5. Operator can select specific modules to re-engrave
+6. Selected modules are added to a new engraving batch with new serial numbers
+7. The operator has the option to have the original serial numbers returned to the available pool (physical modules scrapped)
+
+This allows QA-rejected modules to be re-engraved without affecting other modules in the original batch.
 
 ### SVG Engraving
 - The operator selects the modules that are included in the batch using the [Module Selection page](https://claude.ai/public/artifacts/ec02119d-ab5b-44cd-918d-c598b2d2dd94)
 - Each QSA accommodates up to 8 LED modules
+- Modules are assigned to positions 1-8 based on their serial number order
 - **Every QSA requires its own unique SVG file** because each module has a unique serial number embedded in the engraving (Micro-ID, Data Matrix, URL text). Even if the module type is identical across multiple QSAs, the serial numbers are different, so each QSA needs a fresh SVG.
+
+#### Module Sorting for LED Pick-and-Place Optimization
+
+Modules in a batch must be sorted to minimize LED type transitions during manual pick-and-place assembly.
+
+**Context: Manual Pick-and-Place Process**
+- Quadica uses manual (human) LED placement, not pick-and-place machines
+- Workers can only have ONE LED type open on the bench at a time (LEDs are unmarked due to small size — this prevents mix-ups)
+- Worker retrieves an LED type from storage, places it on all applicable modules, then returns it before retrieving the next type
+- **Goal:** Minimize the number of LED retrievals/switches per batch
+
+**Sorting Algorithm Requirements:**
+1. Group modules by their LED code(s) to minimize LED type transitions
+2. Modules with identical LED codes should be adjacent in the batch
+3. For multi-LED modules, group those sharing common LEDs together
+4. Sequence the groups so that modules with overlapping LED codes are adjacent (reducing transitions)
+
+**Example:**
+A batch contains:
+- 3 modules with LED code "AF3" only
+- 2 modules with LED codes "AF3" + "K7P" (2 LEDs each)
+- 4 modules with LED code "K7P" only
+- 2 modules with LED code "34T" only
+
+**Optimal sort order:**
+1. 3× AF3-only modules
+2. 2× AF3+K7P modules
+3. 4× K7P-only modules
+4. 2× 34T-only modules
+
+**Result:** Worker opens 3 LED types total:
+- Open AF3 → place on 5 modules (positions 1-5)
+- Open K7P → place on 6 modules (positions 3-8, overlapping with AF3+K7P modules)
+- Open 34T → place on 2 modules (positions 9-10)
+
+This is an optimization problem similar to minimizing transitions in a traveling salesman problem. The coding AI should implement an algorithm that minimizes total LED type switches across the batch.
 - When the operator starts engraving a row, the system pre-generates all SVG files for that row so they are ready for instant loading.
 - If there are fewer than 8 modules of the same unique ID, the system will combine different module types onto arrays. E.g., if the batch contains:
 
@@ -190,8 +255,17 @@ Things can go wrong during the engraving process. A module may not be positioned
 - None of these actions affect other rows in the queue
 - Voided and scrapped serial numbers return to the available pool for future use
 
+#### LightBurn Integration
+The system communicates with LightBurn to load SVG files for engraving. All technical details for LightBurn integration (UDP commands, file loading, batch processing workflow) are documented in the `lightburn-svg` skill. Refer to that skill for implementation specifics.
+
 ### SVG Generation
-The SVG file sent to LightBurn is generated on demand when the operator clicks the Engrave button on the Engraving Queue screen.
+The SVG file sent to LightBurn is generated on demand when the operator clicks the Engrave button on the Engraving Queue screen. SVG files are ephemeral — they are generated immediately before sending to LightBurn and deleted after use.
+
+**SVG Canvas Specifications:**
+- **Dimensions**: 148mm × 113.7mm (matches physical QSA size)
+- **ViewBox**: `viewBox="0 0 148 113.7"`
+- **Coordinate Origin**: Top-left (standard SVG)
+- **Source Coordinates**: Bottom-left (CAD format) — transformation required: `svg_y = 113.7 - cad_y`
 
 Referencing the [QSA design reference](docs/reference/quadica-standard-array.jpg) configuration graphic. The SVG file will contain the following elements for each module position to be engraved:
 - Module Serial Number Micro-ID Code
@@ -252,6 +326,36 @@ The system will store serial number data in a database table named `lw_quad_seri
   - **Reserved Timestamp**: When serial was last reserved (nullable)
   - **Engraved Timestamp**: When engraving was confirmed (nullable)
 
+#### Engraving Batch Tracking
+The system needs to track which modules have been engraved to prevent duplicate engraving and support batch history.
+
+**Engraving Batch Table** (`lw_quad_engraving_batches`):
+  - **Batch ID**: Auto-increment primary key
+  - **Created At**: Timestamp when batch was created
+  - **Created By**: User ID who created the batch
+  - **Status**: Batch status (in_progress, completed)
+  - **Completed At**: Timestamp when batch was completed (nullable)
+
+**Engraved Modules Table** (`lw_quad_engraved_modules`):
+  - **ID**: Auto-increment primary key
+  - **Engraving Batch ID**: Reference to the engraving batch
+  - **Production Batch ID**: Reference to `oms_batch_items.batch_id`
+  - **Module SKU**: The assembly_sku from oms_batch_items
+  - **Order ID**: Reference to customer order
+  - **Serial Number**: The assigned serial number
+  - **QSA Sequence**: Which QSA in the batch (1, 2, 3...)
+  - **Array Position**: Position 1-8 on the QSA
+  - **Row Status**: Status of the engraving row (pending, done)
+  - **Engraved At**: Timestamp when row marked done (nullable)
+
+**Integration with Module Selection:**
+When determining modules that need to be built, the system must check the engraved modules table:
+- A module from `oms_batch_items` should NOT appear in the "Modules Awaiting Engraving" list if it already exists in `lw_quad_engraved_modules` with `row_status = 'done'`
+- This prevents duplicate engraving of the same module
+
+**Batch Completion:**
+A batch is considered complete when all rows have been marked "done". There is no explicit batch cancellation — incomplete rows simply remain in "pending" status.
+
 #### QSA Engraving Configuration
 Each QSA design (CORE, SOLO, EDGE, STAR, etc.) has different physical layouts, so the coordinates for each engraved element vary by design. This configuration data will be stored in a custom database table.
 
@@ -269,7 +373,7 @@ Each QSA design (CORE, SOLO, EDGE, STAR, etc.) has different physical layouts, s
 | Revision | Revision letter (e.g., "a") or NULL for all revisions |
 | Position | Module position on QSA (1-8) |
 | Element Type | What is being engraved (see below) |
-| Origin X/Y | Coordinates in mm from top-left of QSA to the center point of the element |
+| Origin X/Y | Coordinates are in mm from the bottom-left of the QSA to the center point of the element |
 | Rotation | Degrees of rotation (default 0) |
 | Text Height | Height in mm for text elements |
 
@@ -316,6 +420,7 @@ Each QSA design (CORE, SOLO, EDGE, STAR, etc.) has different physical layouts, s
 #### LED Code(s)
 - Each LED mounted on the module has a 3-character code engraved on the PCB.
 - The number of mounted LEDs for each LED module is provided in the Order BOM CPT for each module in the order
+- Current module designs support up to 9 LED positions; future designs may require more
 
 **Data Source:**
 1. Query the `order_no` from `oms_batch_items` for the module being engraved
@@ -331,30 +436,34 @@ A module with two LEDs might have:
 - Each LED code is engraved at the coordinates defined in the QSA Engraving Configuration table (`led_code_1`, `led_code_2`, etc.)
 - The number of LED codes varies by module type
 
----
-**!!! STOP! CONTENT BELOW THIS POINT IS REFERENCE MATERIAL ONLY. DO NOT RELY ON ANY INFORMATION BELOW THIS POINT !!!**
+#### Sample Data and Reference SVG
 
-### SVG Generation
+Sample files are available for development and testing:
 
-#### SVG Document Structure
-The system will generate valid SVG documents with millimeter units.
+**Sample Coordinate Data:**
+- [stara-qsa-sample-svg-data.csv](docs/sample-data/stara-qsa-sample-svg-data.csv) - Complete coordinate and engraving data for a STARa QSA with 8 modules
+- Includes X/Y positions for all element types (micro_id, datamatrix, module_id, serial_url, led_code_1)
+- Coordinates use bottom-left origin (CAD format); convert to SVG with: `svg_y = 113.7 - csv_y`
+- Contains metadata header documenting rendering parameters (text heights, font, sizes)
 
-**Supporting Information:**
-- **Dimensions**: `width="148mm" height="113.7mm"`
-- **ViewBox**: `viewBox="0 0 148 113.7"`
-- **Namespace**: `xmlns="http://www.w3.org/2000/svg"`
-- **Encoding**: UTF-8
+**Sample SVG Output:**
+- [stara-qsa-sample.svg](docs/sample-data/stara-qsa-sample.svg) - Generated SVG showing all 8 module positions
+- Demonstrates correct element positioning and coordinate transformation
+- Includes working Micro-ID dot patterns encoded from sample serial numbers
+- Data Matrix shown as placeholder rectangles (14mm x 6.5mm) - actual barcodes require library generation
+- Text rendered using Roboto Thin font with hair-space character spacing
 
-**SVG Document Template:**
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg"
-     width="148mm" height="113.7mm"
-     viewBox="0 0 148 113.7">
-  <!-- Module groups -->
-</svg>
-```
+**Key Rendering Parameters (from sample data):**
+
+| Element | Size/Height | Notes |
+|---------|-------------|-------|
+| micro_id | 1.0mm x 1.0mm | 0.10mm dots, 0.225mm pitch |
+| datamatrix | 14mm x 6.5mm | ECC 200 rectangular format |
+| module_id | 1.5mm text height | Roboto Thin, text-anchor middle |
+| serial_url | 1.2mm text height | Roboto Thin, text-anchor middle |
+| led_code_1 | 1.0mm text height | Roboto Thin, text-anchor middle |
+
 ## 4. Out of Band Functions
 None of the the following needs to be considered as part of the plugin development as they are handled using separate business processes:
 
-1. TBC
+1. None
