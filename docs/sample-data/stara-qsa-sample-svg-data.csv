@@ -1,0 +1,58 @@
+# STARa QSA Sample SVG Data
+# ===========================
+# Coordinate System: Bottom-left origin (CAD format)
+# To convert to SVG (top-left origin): svg_y = 113.7 - csv_y
+# Canvas Size: 148mm x 113.7mm
+#
+# Element Rendering Parameters:
+# - micro_id: 1.0mm x 1.0mm grid, 0.10mm dot diameter, 0.225mm pitch
+# - datamatrix: 14mm x 6.5mm rectangle (ECC 200), x_pos/y_pos = center point
+# - module_id: Text height 1.5mm, font Roboto Thin, text-anchor middle
+# - serial_url: Text height 1.2mm, font Roboto Thin, text-anchor middle
+# - led_code_1: Text height 1.0mm, font Roboto Thin, text-anchor middle
+#
+# Serial Number Constraints:
+# - Valid range: 00000001 to 01048575 (20-bit Micro-ID limit)
+# - Format: 8-digit zero-padded string
+#
+qsa,module,element_type,x_pos,y_pos,sample_data
+STARa,1,micro_id,32.0125,63.7933,00123454
+STARa,1,datamatrix,29.7215,95.2849,quadi.ca/00123454
+STARa,1,module_id,29.7215,88.1077,STAR-38546
+STARa,1,serial_url,29.7609,90.335,quadi.ca/00123454
+STARa,1,led_code_1,29.7609,85.0944,GF4
+STARa,2,micro_id,61.5033,63.7933,00123455
+STARa,2,datamatrix,59.2124,95.2849,quadi.ca/00123455
+STARa,2,module_id,59.2518,88.1077,STAR-45395
+STARa,2,serial_url,59.2518,90.335,quadi.ca/00123455
+STARa,2,led_code_1,59.2518,85.0944,AF3
+STARa,3,micro_id,91.0033,63.7933,00123456
+STARa,3,datamatrix,88.7124,95.2849,quadi.ca/00123456
+STARa,3,module_id,88.7518,88.1077,STAR-45395
+STARa,3,serial_url,88.7518,90.335,quadi.ca/00123456
+STARa,3,led_code_1,88.7518,85.0944,AF3
+STARa,4,micro_id,120.5033,63.7933,00123457
+STARa,4,datamatrix,118.2124,95.2849,quadi.ca/00123457
+STARa,4,module_id,118.2518,88.1077,STAR-45395
+STARa,4,serial_url,118.2518,90.335,quadi.ca/00123457
+STARa,4,led_code_1,118.2518,85.0944,34T
+STARa,5,micro_id,32.0125,31.9863,00123458
+STARa,5,datamatrix,29.7215,18.4151,quadi.ca/00123458
+STARa,5,module_id,29.7609,25.5923,STAR-58496
+STARa,5,serial_url,29.7609,23.365,quadi.ca/00123458
+STARa,5,led_code_1,29.7609,28.6056,4T9
+STARa,6,micro_id,61.5033,31.9863,00123459
+STARa,6,datamatrix,59.2124,18.4151,quadi.ca/00123459
+STARa,6,module_id,59.2518,25.5923,STAR-74395
+STARa,6,serial_url,59.2518,23.365,quadi.ca/00123459
+STARa,6,led_code_1,59.2518,28.6056,4T9
+STARa,7,micro_id,91.0033,31.9863,00123460
+STARa,7,datamatrix,88.7124,18.4151,quadi.ca/00123460
+STARa,7,module_id,88.7518,25.5923,STAR-74395
+STARa,7,serial_url,88.7518,23.365,quadi.ca/00123460
+STARa,7,led_code_1,88.7518,28.6056,4T9
+STARa,8,micro_id,120.5033,31.9863,00123461
+STARa,8,datamatrix,118.2124,18.4151,quadi.ca/00123461
+STARa,8,module_id,118.2518,25.5923,STAR-74395
+STARa,8,serial_url,118.2518,23.365,quadi.ca/00123461
+STARa,8,led_code_1,118.2518,28.6056,4T9
