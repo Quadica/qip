@@ -1,0 +1,125 @@
+{
+  "cookies": [
+    {
+      "name": "wordpress_sec_bb87d97a26ba862fb4126f2ca21d4c36",
+      "value": "screenshooter%7C1798774310%7CFA32p3hmjWpU10D84xZ2Lp998mbr5MZWXDZVkpDLI0A%7C37ff09fdef07096712562084b948bd8ee328137e3f5c6ab3d2622d99f955e5a3",
+      "domain": "env-luxeonstarleds-rlux.kinsta.cloud",
+      "path": "/wp-content/plugins",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "wordpress_sec_bb87d97a26ba862fb4126f2ca21d4c36",
+      "value": "screenshooter%7C1798774310%7CFA32p3hmjWpU10D84xZ2Lp998mbr5MZWXDZVkpDLI0A%7C37ff09fdef07096712562084b948bd8ee328137e3f5c6ab3d2622d99f955e5a3",
+      "domain": "env-luxeonstarleds-rlux.kinsta.cloud",
+      "path": "/wp-admin",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "yay_currency_widget",
+      "value": "241925",
+      "domain": "env-luxeonstarleds-rlux.kinsta.cloud",
+      "path": "/",
+      "expires": 1769809382.55967,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "wordpress_test_cookie",
+      "value": "WP%20Cookie%20check",
+      "domain": "env-luxeonstarleds-rlux.kinsta.cloud",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "__cf_bm",
+      "value": "0JbsICMuHKrXbO28yjCIVHBqEjzirnUF_b9E0ik1BaQ-1767217382-1.0.1.1-xFTZONkI1QJ7v4vE._S1kJa.7cVRhqtt8gtq3n8aHMkQgS3oqnwScNA97NkTj7HMfIDXLv2cBS3eT4tAsjchTLEaPi62WdENpxWLXpxMkOM",
+      "domain": ".kinsta.cloud",
+      "path": "/",
+      "expires": 1767219182.559793,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "wordpress_logged_in_bb87d97a26ba862fb4126f2ca21d4c36",
+      "value": "screenshooter%7C1798774310%7CFA32p3hmjWpU10D84xZ2Lp998mbr5MZWXDZVkpDLI0A%7Cf9c1840c09eeb2b0de9b696588303cff0f0606c5d7a6280a6eedd8b8abe29a63",
+      "domain": "env-luxeonstarleds-rlux.kinsta.cloud",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "automatewoo_do_cart_update",
+      "value": "1",
+      "domain": "env-luxeonstarleds-rlux.kinsta.cloud",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "wp_automatewoo_visitor_bb87d97a26ba862fb4126f2ca21d4c36",
+      "value": "rkz8tq9qkdrjhfejqir8",
+      "domain": "env-luxeonstarleds-rlux.kinsta.cloud",
+      "path": "/",
+      "expires": 1798753384.983327,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "wp_automatewoo_session_started",
+      "value": "1",
+      "domain": "env-luxeonstarleds-rlux.kinsta.cloud",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "tk_ai",
+      "value": "woo%3AJOSEWEJ1%2ByLsauCTtSk%2FaZGN",
+      "domain": "env-luxeonstarleds-rlux.kinsta.cloud",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "wp-settings-time-21684",
+      "value": "1767217386",
+      "domain": "env-luxeonstarleds-rlux.kinsta.cloud",
+      "path": "/",
+      "expires": 1798753387.628789,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "Lax"
+    }
+  ],
+  "origins": [
+    {
+      "origin": "https://env-luxeonstarleds-rlux.kinsta.cloud",
+      "localStorage": [
+        {
+          "name": "ameQsTs::menuVisits",
+          "value": "{\"index.php\":1767217390305}"
+        }
+      ]
+    }
+  ]
+}

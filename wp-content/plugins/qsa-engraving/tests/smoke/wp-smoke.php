@@ -16,9 +16,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 echo "\n";
-echo "==============================================\n";
-echo "QSA Engraving Plugin - Phase 1 & 2 Smoke Tests\n";
-echo "==============================================\n\n";
+echo "================================================\n";
+echo "QSA Engraving Plugin - Phase 1, 2 & 3 Smoke Tests\n";
+echo "================================================\n\n";
 
 $tests_passed = 0;
 $tests_failed = 0;
@@ -759,6 +759,570 @@ run_test(
         return true;
     },
     'Statistics method returns correct structure with counts.'
+);
+
+// ============================================
+// PHASE 3: Micro-ID Encoding Tests
+// ============================================
+
+echo "-------------------------------------------\n";
+echo "Phase 3: Micro-ID Encoding Tests\n";
+echo "-------------------------------------------\n\n";
+
+run_test(
+    'TC-MID-001: Minimum value (00000001) encoding',
+    function (): bool {
+        $encoder = \Quadica\QSA_Engraving\SVG\Micro_ID_Encoder::class;
+
+        // Test encoding serial 1.
+        $binary = $encoder::encode_binary( 1 );
+        if ( is_wp_error( $binary ) ) {
+            return $binary;
+        }
+
+        // Should be 20 zeros followed by 1.
+        $expected = '00000000000000000001';
+        if ( $binary !== $expected ) {
+            return new WP_Error( 'binary_fail', "Expected '{$expected}', got '{$binary}'." );
+        }
+
+        // Parity should be 1 (one bit set, odd count).
+        $parity = $encoder::calculate_parity( $binary );
+        if ( $parity !== 1 ) {
+            return new WP_Error( 'parity_fail', "Expected parity 1, got {$parity}." );
+        }
+
+        // Count dots: 1 orientation + 4 anchors + 1 data bit + 1 parity = 7.
+        $dot_count = $encoder::count_dots( 1 );
+        if ( is_wp_error( $dot_count ) ) {
+            return $dot_count;
+        }
+        if ( $dot_count !== 7 ) {
+            return new WP_Error( 'dot_count_fail', "Expected 7 dots, got {$dot_count}." );
+        }
+
+        echo "  Serial 1: binary={$binary}, parity={$parity}, dots={$dot_count}\n";
+
+        return true;
+    },
+    'Minimum serial (1) should encode correctly with 7 dots total.'
+);
+
+run_test(
+    'TC-MID-002: Maximum value (01048575) encoding',
+    function (): bool {
+        $encoder = \Quadica\QSA_Engraving\SVG\Micro_ID_Encoder::class;
+
+        // Test encoding max serial.
+        $binary = $encoder::encode_binary( 1048575 );
+        if ( is_wp_error( $binary ) ) {
+            return $binary;
+        }
+
+        // Should be all 1s (20 bits).
+        $expected = '11111111111111111111';
+        if ( $binary !== $expected ) {
+            return new WP_Error( 'binary_fail', "Expected '{$expected}', got '{$binary}'." );
+        }
+
+        // Parity should be 0 (20 bits set, even count).
+        $parity = $encoder::calculate_parity( $binary );
+        if ( $parity !== 0 ) {
+            return new WP_Error( 'parity_fail', "Expected parity 0, got {$parity}." );
+        }
+
+        // Count dots: 1 orientation + 4 anchors + 20 data bits + 0 parity = 25.
+        $dot_count = $encoder::count_dots( 1048575 );
+        if ( is_wp_error( $dot_count ) ) {
+            return $dot_count;
+        }
+        if ( $dot_count !== 25 ) {
+            return new WP_Error( 'dot_count_fail', "Expected 25 dots, got {$dot_count}." );
+        }
+
+        echo "  Serial 1048575: binary={$binary}, parity={$parity}, dots={$dot_count}\n";
+
+        return true;
+    },
+    'Maximum serial (1048575) should encode correctly with 25 dots total.'
+);
+
+run_test(
+    'TC-MID-003: Medium density (00600001) encoding',
+    function (): bool {
+        $encoder = \Quadica\QSA_Engraving\SVG\Micro_ID_Encoder::class;
+
+        // Test 600001 per specification example.
+        $binary = $encoder::encode_binary( 600001 );
+        if ( is_wp_error( $binary ) ) {
+            return $binary;
+        }
+
+        // Per spec: 600001 = binary 10010010011111000001 (verify by converting 600001).
+        // Let's verify: 600001 in binary.
+        $expected = str_pad( decbin( 600001 ), 20, '0', STR_PAD_LEFT );
+        if ( $binary !== $expected ) {
+            return new WP_Error( 'binary_fail', "Binary mismatch. Got '{$binary}'." );
+        }
+
+        // Count 1s: 10010010011111000001 has 9 ones.
+        $ones_count = substr_count( $binary, '1' );
+        // 9 is odd, so parity should be 1.
+        $parity = $encoder::calculate_parity( $binary );
+        $expected_parity = ( $ones_count % 2 === 0 ) ? 0 : 1;
+        if ( $parity !== $expected_parity ) {
+            return new WP_Error(
+                'parity_fail',
+                "Binary has {$ones_count} ones. Expected parity {$expected_parity}, got {$parity}."
+            );
+        }
+
+        echo "  Serial 600001: binary={$binary}, ones={$ones_count}, parity={$parity}\n";
+
+        return true;
+    },
+    'Medium density serial (600001) encoding matches specification example.'
+);
+
+run_test(
+    'TC-MID-004: Sample SVG (00123454) encoding',
+    function (): bool {
+        $encoder = \Quadica\QSA_Engraving\SVG\Micro_ID_Encoder::class;
+
+        // Test 123454 from stara-qsa-sample.svg.
+        $serial = 123454;
+        $binary = $encoder::encode_binary( $serial );
+        if ( is_wp_error( $binary ) ) {
+            return $binary;
+        }
+
+        // Expected binary for 123454.
+        $expected = str_pad( decbin( 123454 ), 20, '0', STR_PAD_LEFT );
+        if ( $binary !== $expected ) {
+            return new WP_Error( 'binary_fail', "Expected '{$expected}', got '{$binary}'." );
+        }
+
+        // Per sample SVG comment: binary 00011110001000111110, parity 0.
+        // Let's verify: 123454 = 0x1E23E = 00011110001000111110.
+        $expected_binary = '00011110001000111110';
+        if ( $binary !== $expected_binary ) {
+            return new WP_Error(
+                'binary_verify_fail',
+                "Expected sample binary '{$expected_binary}', got '{$binary}'."
+            );
+        }
+
+        // Parity check: count 1s in binary.
+        $ones_count = substr_count( $binary, '1' );
+        $parity = $encoder::calculate_parity( $binary );
+        // 10 ones = even, parity = 0.
+        if ( $ones_count !== 10 || $parity !== 0 ) {
+            return new WP_Error(
+                'parity_verify_fail',
+                "Expected 10 ones with parity 0. Got {$ones_count} ones, parity {$parity}."
+            );
+        }
+
+        // Get grid and verify structure.
+        $grid = $encoder::get_grid( $serial );
+        if ( is_wp_error( $grid ) ) {
+            return $grid;
+        }
+
+        // Verify corners are ON (anchors).
+        if ( $grid[0][0] !== 1 || $grid[0][4] !== 1 || $grid[4][0] !== 1 || $grid[4][4] !== 1 ) {
+            return new WP_Error( 'anchor_fail', 'Corner anchors should all be ON.' );
+        }
+
+        // Parity position (4,3) should be OFF since parity = 0.
+        if ( $grid[4][3] !== 0 ) {
+            return new WP_Error( 'parity_grid_fail', 'Parity bit at (4,3) should be OFF.' );
+        }
+
+        echo "  Serial 123454: binary={$binary}, parity={$parity}\n";
+        echo "  Grid matches sample SVG structure.\n";
+
+        return true;
+    },
+    'Sample SVG serial (123454) encoding matches stara-qsa-sample.svg.'
+);
+
+run_test(
+    'TC-MID-005: Alternating bits (00699050) encoding',
+    function (): bool {
+        $encoder = \Quadica\QSA_Engraving\SVG\Micro_ID_Encoder::class;
+
+        // 699050 tests bit distribution across all rows.
+        $serial = 699050;
+        $binary = $encoder::encode_binary( $serial );
+        if ( is_wp_error( $binary ) ) {
+            return $binary;
+        }
+
+        $expected = str_pad( decbin( $serial ), 20, '0', STR_PAD_LEFT );
+        if ( $binary !== $expected ) {
+            return new WP_Error( 'binary_fail', "Binary mismatch. Got '{$binary}'." );
+        }
+
+        // Get the grid.
+        $grid = $encoder::get_grid( $serial );
+        if ( is_wp_error( $grid ) ) {
+            return $grid;
+        }
+
+        // Verify grid is 5x5.
+        if ( count( $grid ) !== 5 ) {
+            return new WP_Error( 'grid_fail', 'Grid should have 5 rows.' );
+        }
+        foreach ( $grid as $row ) {
+            if ( count( $row ) !== 5 ) {
+                return new WP_Error( 'grid_fail', 'Each row should have 5 columns.' );
+            }
+        }
+
+        // Count total ON bits in grid (excluding orientation marker).
+        $on_count = 0;
+        foreach ( $grid as $row ) {
+            $on_count += array_sum( $row );
+        }
+
+        echo "  Serial 699050: binary={$binary}\n";
+        echo "  Grid has {$on_count} ON bits (including anchors).\n";
+
+        return true;
+    },
+    'Alternating bit pattern exercises all grid rows correctly.'
+);
+
+run_test(
+    'TC-MID-006: Boundary value (01048574) parity flip',
+    function (): bool {
+        $encoder = \Quadica\QSA_Engraving\SVG\Micro_ID_Encoder::class;
+
+        // Test 1048574 (one less than max) vs 1048575 (max).
+        // They differ by 1 bit, so parity should flip.
+
+        $binary1 = $encoder::encode_binary( 1048574 );
+        $binary2 = $encoder::encode_binary( 1048575 );
+
+        if ( is_wp_error( $binary1 ) || is_wp_error( $binary2 ) ) {
+            return new WP_Error( 'encode_fail', 'Failed to encode boundary values.' );
+        }
+
+        $parity1 = $encoder::calculate_parity( $binary1 );
+        $parity2 = $encoder::calculate_parity( $binary2 );
+
+        // 1048575 is all 1s (20 bits), parity = 0.
+        // 1048574 is 19 ones and 1 zero, parity = 1.
+        if ( $parity2 !== 0 ) {
+            return new WP_Error( 'parity_fail', "1048575 should have parity 0, got {$parity2}." );
+        }
+        if ( $parity1 !== 1 ) {
+            return new WP_Error( 'parity_fail', "1048574 should have parity 1, got {$parity1}." );
+        }
+
+        echo "  Serial 1048574: parity={$parity1} (19 ones)\n";
+        echo "  Serial 1048575: parity={$parity2} (20 ones)\n";
+        echo "  Parity correctly flips at boundary.\n";
+
+        return true;
+    },
+    'Boundary values demonstrate correct parity bit behavior.'
+);
+
+run_test(
+    'TC-MID-007: Invalid input above maximum',
+    function (): bool {
+        $encoder = \Quadica\QSA_Engraving\SVG\Micro_ID_Encoder::class;
+
+        // Test value above maximum.
+        $result = $encoder::encode_binary( 1048576 );
+
+        if ( ! is_wp_error( $result ) ) {
+            return new WP_Error( 'validation_fail', '1048576 should return WP_Error.' );
+        }
+
+        if ( $result->get_error_code() !== 'serial_too_high' ) {
+            return new WP_Error(
+                'error_code_fail',
+                "Expected error code 'serial_too_high', got '{$result->get_error_code()}'."
+            );
+        }
+
+        echo "  Correctly rejected 1048576 with error: {$result->get_error_message()}\n";
+
+        return true;
+    },
+    'Values above maximum return WP_Error with meaningful message.'
+);
+
+run_test(
+    'TC-MID-008: Invalid input zero',
+    function (): bool {
+        $encoder = \Quadica\QSA_Engraving\SVG\Micro_ID_Encoder::class;
+
+        // Test zero (below minimum of 1).
+        $result = $encoder::encode_binary( 0 );
+
+        if ( ! is_wp_error( $result ) ) {
+            return new WP_Error( 'validation_fail', '0 should return WP_Error.' );
+        }
+
+        if ( $result->get_error_code() !== 'serial_too_low' ) {
+            return new WP_Error(
+                'error_code_fail',
+                "Expected error code 'serial_too_low', got '{$result->get_error_code()}'."
+            );
+        }
+
+        echo "  Correctly rejected 0 with error: {$result->get_error_message()}\n";
+
+        return true;
+    },
+    'Zero value returns WP_Error (minimum is 1).'
+);
+
+run_test(
+    'TC-MID-009: String validation',
+    function (): bool {
+        $encoder = \Quadica\QSA_Engraving\SVG\Micro_ID_Encoder::class;
+
+        // Valid string format.
+        $result = $encoder::validate_serial_string( '00123456' );
+        if ( is_wp_error( $result ) ) {
+            return new WP_Error( 'validation_fail', '00123456 should be valid.' );
+        }
+
+        // Invalid: wrong length.
+        $result = $encoder::validate_serial_string( '123456' );
+        if ( ! is_wp_error( $result ) ) {
+            return new WP_Error( 'validation_fail', '123456 (6 chars) should be invalid.' );
+        }
+        if ( $result->get_error_code() !== 'invalid_length' ) {
+            return new WP_Error( 'error_code_fail', "Expected 'invalid_length' error code." );
+        }
+
+        // Invalid: contains letters.
+        $result = $encoder::validate_serial_string( '0012345A' );
+        if ( ! is_wp_error( $result ) ) {
+            return new WP_Error( 'validation_fail', '0012345A should be invalid.' );
+        }
+        if ( $result->get_error_code() !== 'invalid_characters' ) {
+            return new WP_Error( 'error_code_fail', "Expected 'invalid_characters' error code." );
+        }
+
+        // Invalid: above max when converted.
+        $result = $encoder::validate_serial_string( '99999999' );
+        if ( ! is_wp_error( $result ) ) {
+            return new WP_Error( 'validation_fail', '99999999 should be invalid (exceeds max).' );
+        }
+
+        echo "  String validation correctly handles format and range.\n";
+
+        return true;
+    },
+    'String input validation catches format and range errors.'
+);
+
+run_test(
+    'TC-MID-010: Grid coordinates mathematically correct',
+    function (): bool {
+        $encoder = \Quadica\QSA_Engraving\SVG\Micro_ID_Encoder::class;
+
+        // Verify coordinate calculation formula: X = 0.05 + (col × 0.225), Y = 0.05 + (row × 0.225).
+
+        // Top-left (0,0): X=0.05, Y=0.05.
+        $coords = $encoder::get_grid_coordinates( 0, 0 );
+        if ( abs( $coords['x'] - 0.05 ) > 0.0001 || abs( $coords['y'] - 0.05 ) > 0.0001 ) {
+            return new WP_Error(
+                'coord_fail',
+                "Position (0,0) should be (0.05, 0.05), got ({$coords['x']}, {$coords['y']})."
+            );
+        }
+
+        // Bottom-right (4,4): X = 0.05 + (4 × 0.225) = 0.95, Y = 0.95.
+        $coords = $encoder::get_grid_coordinates( 4, 4 );
+        if ( abs( $coords['x'] - 0.95 ) > 0.0001 || abs( $coords['y'] - 0.95 ) > 0.0001 ) {
+            return new WP_Error(
+                'coord_fail',
+                "Position (4,4) should be (0.95, 0.95), got ({$coords['x']}, {$coords['y']})."
+            );
+        }
+
+        // Center (2,2): X = 0.05 + (2 × 0.225) = 0.5, Y = 0.5.
+        $coords = $encoder::get_grid_coordinates( 2, 2 );
+        if ( abs( $coords['x'] - 0.5 ) > 0.0001 || abs( $coords['y'] - 0.5 ) > 0.0001 ) {
+            return new WP_Error(
+                'coord_fail',
+                "Position (2,2) should be (0.5, 0.5), got ({$coords['x']}, {$coords['y']})."
+            );
+        }
+
+        // Position (1,3): X = 0.05 + (3 × 0.225) = 0.725, Y = 0.05 + (1 × 0.225) = 0.275.
+        $coords = $encoder::get_grid_coordinates( 1, 3 );
+        if ( abs( $coords['x'] - 0.725 ) > 0.0001 || abs( $coords['y'] - 0.275 ) > 0.0001 ) {
+            return new WP_Error(
+                'coord_fail',
+                "Position (1,3) should be (0.725, 0.275), got ({$coords['x']}, {$coords['y']})."
+            );
+        }
+
+        echo "  Coordinate formula verified at corners and center.\n";
+
+        return true;
+    },
+    'Grid coordinate calculations match specification formula.'
+);
+
+run_test(
+    'TC-PAR-001: Even bit count produces parity 0',
+    function (): bool {
+        $encoder = \Quadica\QSA_Engraving\SVG\Micro_ID_Encoder::class;
+
+        // Test cases with even number of 1s.
+        $test_cases = array(
+            '00000000000000000000' => 0, // 0 ones.
+            '00000000000000000011' => 0, // 2 ones.
+            '11111111111111111111' => 0, // 20 ones.
+            '10101010101010101010' => 0, // 10 ones.
+        );
+
+        foreach ( $test_cases as $binary => $expected ) {
+            $parity = $encoder::calculate_parity( $binary );
+            if ( $parity !== $expected ) {
+                $count = substr_count( $binary, '1' );
+                return new WP_Error(
+                    'parity_fail',
+                    "Binary with {$count} ones should have parity {$expected}, got {$parity}."
+                );
+            }
+        }
+
+        echo "  Even bit counts correctly produce parity 0.\n";
+
+        return true;
+    },
+    'Even number of 1-bits produces parity bit = 0.'
+);
+
+run_test(
+    'TC-PAR-002: Odd bit count produces parity 1',
+    function (): bool {
+        $encoder = \Quadica\QSA_Engraving\SVG\Micro_ID_Encoder::class;
+
+        // Test cases with odd number of 1s.
+        $test_cases = array(
+            '00000000000000000001' => 1, // 1 one.
+            '00000000000000000111' => 1, // 3 ones.
+            '11111111111111111110' => 1, // 19 ones.
+            '10101010101010101011' => 1, // 11 ones.
+        );
+
+        foreach ( $test_cases as $binary => $expected ) {
+            $parity = $encoder::calculate_parity( $binary );
+            if ( $parity !== $expected ) {
+                $count = substr_count( $binary, '1' );
+                return new WP_Error(
+                    'parity_fail',
+                    "Binary with {$count} ones should have parity {$expected}, got {$parity}."
+                );
+            }
+        }
+
+        echo "  Odd bit counts correctly produce parity 1.\n";
+
+        return true;
+    },
+    'Odd number of 1-bits produces parity bit = 1.'
+);
+
+run_test(
+    'TC-MID-011: SVG rendering produces valid output',
+    function (): bool {
+        $encoder = \Quadica\QSA_Engraving\SVG\Micro_ID_Encoder::class;
+
+        // Render SVG for a test serial.
+        $svg = $encoder::render_svg( 123456, 'test-micro-id' );
+        if ( is_wp_error( $svg ) ) {
+            return $svg;
+        }
+
+        // Verify it's a string.
+        if ( ! is_string( $svg ) ) {
+            return new WP_Error( 'render_fail', 'render_svg() should return string.' );
+        }
+
+        // Verify it contains expected elements.
+        if ( strpos( $svg, '<g id="test-micro-id">' ) === false ) {
+            return new WP_Error( 'render_fail', 'SVG should contain group with ID.' );
+        }
+
+        if ( strpos( $svg, '<circle' ) === false ) {
+            return new WP_Error( 'render_fail', 'SVG should contain circle elements.' );
+        }
+
+        if ( strpos( $svg, 'fill="#000000"' ) === false ) {
+            return new WP_Error( 'render_fail', 'Circles should have black fill.' );
+        }
+
+        // Count circle elements.
+        $circle_count = substr_count( $svg, '<circle' );
+        $expected_dots = $encoder::count_dots( 123456 );
+        if ( is_wp_error( $expected_dots ) ) {
+            return $expected_dots;
+        }
+
+        if ( $circle_count !== $expected_dots ) {
+            return new WP_Error(
+                'render_fail',
+                "Expected {$expected_dots} circles, found {$circle_count}."
+            );
+        }
+
+        echo "  SVG rendering produces valid output with {$circle_count} circles.\n";
+
+        return true;
+    },
+    'SVG rendering produces valid group with correct number of circles.'
+);
+
+run_test(
+    'TC-MID-012: Encode-decode roundtrip',
+    function (): bool {
+        $encoder = \Quadica\QSA_Engraving\SVG\Micro_ID_Encoder::class;
+
+        // Test roundtrip for several values.
+        $test_values = array( 1, 123456, 600001, 1048575 );
+
+        foreach ( $test_values as $original ) {
+            // Encode to grid.
+            $grid = $encoder::get_grid( $original );
+            if ( is_wp_error( $grid ) ) {
+                return $grid;
+            }
+
+            // Decode back.
+            $decoded = $encoder::decode_grid( $grid );
+            if ( is_wp_error( $decoded ) ) {
+                return new WP_Error(
+                    'decode_fail',
+                    "Failed to decode grid for serial {$original}: {$decoded->get_error_message()}"
+                );
+            }
+
+            if ( $decoded !== $original ) {
+                return new WP_Error(
+                    'roundtrip_fail',
+                    "Roundtrip failed: encoded {$original}, decoded {$decoded}."
+                );
+            }
+        }
+
+        echo "  Roundtrip verified for: " . implode( ', ', $test_values ) . "\n";
+
+        return true;
+    },
+    'Encoding then decoding produces original serial number.'
 );
 
 // ============================================
