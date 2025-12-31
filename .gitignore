@@ -46,7 +46,7 @@ wp-config.php
 /wp-content/plugins/*
 
 # Whitelist only these plugins
-!/wp-content/plugins/PLUGIN_NAME/
+!/wp-content/plugins/qsa-engraving/
 
 # All themes
 #
