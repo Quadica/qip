@@ -121,9 +121,12 @@ class Config_Loader {
             );
         }
 
+        // Note: When optional group doesn't match, it's an empty string, not missing.
+        $revision = isset( $matches[2] ) && '' !== $matches[2] ? $matches[2] : null;
+
         return array(
             'design'   => $matches[1],
-            'revision' => $matches[2] ?? null,
+            'revision' => $revision,
             'config'   => $matches[3],
         );
     }

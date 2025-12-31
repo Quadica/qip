@@ -1563,10 +1563,12 @@ run_test(
         $renderer = \Quadica\QSA_Engraving\SVG\Text_Renderer::class;
 
         // Valid LED codes (3 chars from: 1234789CEFHJKLPRT).
-        $valid_codes = array( 'K7P', '4T9', 'GF4', 'AF3', '34T', 'C1E', 'HJL' );
+        // Charset: 1234789CEFHJKLPRT (17 characters).
+        $valid_codes = array( 'K7P', '4T9', 'CF4', 'EF3', '34T', 'C1E', 'HJL', 'RPT', '129' );
         foreach ( $valid_codes as $code ) {
             if ( ! $renderer::validate_led_code( $code ) ) {
-                return new WP_Error( 'validation_fail', "'{$code}' should be valid LED code." );
+                echo "  WARNING: '{$code}' failed validation.\n";
+                return false;
             }
         }
 
@@ -1810,39 +1812,47 @@ run_test(
         // Valid SKU with revision.
         $result = $loader->parse_sku( 'STARa-38546' );
         if ( is_wp_error( $result ) ) {
-            return $result;
+            echo "  ERROR: STARa-38546 failed: " . $result->get_error_message() . "\n";
+            return false;
         }
 
         if ( $result['design'] !== 'STAR' ) {
-            return new WP_Error( 'parse_fail', "Expected design 'STAR', got '{$result['design']}'." );
+            echo "  ERROR: Expected design 'STAR', got '{$result['design']}'.\n";
+            return false;
         }
 
         if ( $result['revision'] !== 'a' ) {
-            return new WP_Error( 'parse_fail', "Expected revision 'a', got '{$result['revision']}'." );
+            echo "  ERROR: Expected revision 'a', got '{$result['revision']}'.\n";
+            return false;
         }
 
         if ( $result['config'] !== '38546' ) {
-            return new WP_Error( 'parse_fail', "Expected config '38546', got '{$result['config']}'." );
+            echo "  ERROR: Expected config '38546', got '{$result['config']}'.\n";
+            return false;
         }
 
         // Valid SKU without revision.
         $result = $loader->parse_sku( 'CORE-91247' );
         if ( is_wp_error( $result ) ) {
-            return $result;
+            echo "  ERROR: CORE-91247 failed: " . $result->get_error_message() . "\n";
+            return false;
         }
 
         if ( $result['design'] !== 'CORE' ) {
-            return new WP_Error( 'parse_fail', "Expected design 'CORE', got '{$result['design']}'." );
+            echo "  ERROR: Expected design 'CORE', got '{$result['design']}'.\n";
+            return false;
         }
 
         if ( $result['revision'] !== null ) {
-            return new WP_Error( 'parse_fail', 'Expected null revision for CORE-91247.' );
+            echo "  ERROR: Expected null revision for CORE-91247.\n";
+            return false;
         }
 
         // Invalid SKU.
         $result = $loader->parse_sku( 'SP-01-WW' );
         if ( ! is_wp_error( $result ) ) {
-            return new WP_Error( 'parse_fail', 'SP-01-WW should be invalid.' );
+            echo "  ERROR: SP-01-WW should be invalid.\n";
+            return false;
         }
 
         echo "  SKU parsing for QSA designs verified.\n";
