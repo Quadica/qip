@@ -114,30 +114,30 @@ oms_batch_items (modules needing build)
 
 ---
 
-## Phase 2: Serial Number Management
+## Phase 2: Serial Number Management ✅
 
 **Goal:** Atomic serial generation, lifecycle tracking, validation
 
 ### Tasks
 
 #### 2.1 Serial Number Generator
-- [ ] Implement atomic `get_next_serial()` with database transaction
-- [ ] Enforce range: 1 to 1,048,575 (20-bit Micro-ID limit)
-- [ ] Format output as 8-digit zero-padded string
-- [ ] Store both `serial_number` (CHAR 8) and `serial_integer` (INT) for efficient queries
+- [x] Implement atomic `get_next_serial()` with database transaction
+- [x] Enforce range: 1 to 1,048,575 (20-bit Micro-ID limit)
+- [x] Format output as 8-digit zero-padded string
+- [x] Store both `serial_number` (CHAR 8) and `serial_integer` (INT) for efficient queries
 
 #### 2.2 Serial Lifecycle Management
-- [ ] Implement status transitions:
+- [x] Implement status transitions:
   - `reserved` - Serial assigned but not yet engraved
   - `engraved` - Serial committed after successful engraving
   - `voided` - Serial invalidated (retry scenario)
-- [ ] Block invalid transitions (no recycling: engraved/voided cannot return to reserved)
-- [ ] Track timestamps for each status change
+- [x] Block invalid transitions (no recycling: engraved/voided cannot return to reserved)
+- [x] Track timestamps for each status change
 
 #### 2.3 Capacity Monitoring
-- [ ] Calculate remaining capacity: `1048575 - MAX(serial_integer)`
-- [ ] Implement warning threshold (configurable, default 10,000 remaining)
-- [ ] Admin notice when capacity is low
+- [x] Calculate remaining capacity: `1048575 - MAX(serial_integer)`
+- [x] Implement warning threshold (configurable, default 10,000 remaining)
+- [x] Admin notice when capacity is low
 
 ### Tests - Phase 2
 
@@ -152,10 +152,10 @@ oms_batch_items (modules needing build)
 | TC-SN-DB-004 | Smoke | Capacity calculation correct |
 
 ### Completion Criteria
-- [ ] Serial numbers generate sequentially without gaps
-- [ ] Database uniqueness constraint prevents duplicates
-- [ ] Status transitions follow allowed paths only
-- [ ] Capacity warning displays when threshold reached
+- [x] Serial numbers generate sequentially without gaps
+- [x] Database uniqueness constraint prevents duplicates (enforced via UNIQUE index in schema)
+- [x] Status transitions follow allowed paths only
+- [x] Capacity warning displays when threshold reached
 
 ### Reference Files
 - `docs/reference/quadica-micro-id-specs.md` - Serial number constraints
