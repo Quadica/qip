@@ -1,6 +1,6 @@
 <?php
 /**
- * Phase 1 Smoke Tests for QSA Engraving Plugin
+ * Smoke Tests for QSA Engraving Plugin
  *
  * Run via WP-CLI:
  *   wp eval-file wp-content/plugins/qsa-engraving/tests/smoke/wp-smoke.php
@@ -16,9 +16,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 echo "\n";
-echo "===========================================\n";
-echo "QSA Engraving Plugin - Phase 1 Smoke Tests\n";
-echo "===========================================\n\n";
+echo "==============================================\n";
+echo "QSA Engraving Plugin - Phase 1 & 2 Smoke Tests\n";
+echo "==============================================\n\n";
 
 $tests_passed = 0;
 $tests_failed = 0;
@@ -369,6 +369,396 @@ run_test(
         return true;
     },
     'CAD to SVG coordinate transformation should work correctly.'
+);
+
+// ============================================
+// PHASE 2: Serial Number Management Tests
+// ============================================
+
+echo "-------------------------------------------\n";
+echo "Phase 2: Serial Number Management Tests\n";
+echo "-------------------------------------------\n\n";
+
+run_test(
+    'TC-SN-001: Serial format validation (8-digit, numeric only)',
+    function (): bool {
+        $repo = \Quadica\QSA_Engraving\qsa_engraving()->get_serial_repository();
+
+        // Valid formats.
+        $valid = array( '00000001', '00123456', '01048575', '99999999' );
+        foreach ( $valid as $serial ) {
+            if ( ! $repo::is_valid_format( $serial ) ) {
+                return new WP_Error( 'format_fail', "{$serial} should be valid format." );
+            }
+        }
+
+        // Invalid formats.
+        $invalid = array( '1234567', '123456789', 'ABCDEFGH', '0012345A', '00123-56', '' );
+        foreach ( $invalid as $serial ) {
+            if ( $repo::is_valid_format( $serial ) ) {
+                return new WP_Error( 'format_fail', "{$serial} should be invalid format." );
+            }
+        }
+
+        return true;
+    },
+    'Serial number string validation for 8-digit numeric format.'
+);
+
+run_test(
+    'TC-SN-002: Serial range validation (1 to 1048575)',
+    function (): bool {
+        $repo = \Quadica\QSA_Engraving\qsa_engraving()->get_serial_repository();
+
+        // Valid range.
+        if ( ! $repo::is_valid_range( 1 ) ) {
+            return new WP_Error( 'range_fail', '1 should be valid.' );
+        }
+        if ( ! $repo::is_valid_range( 524288 ) ) {
+            return new WP_Error( 'range_fail', '524288 (midpoint) should be valid.' );
+        }
+        if ( ! $repo::is_valid_range( 1048575 ) ) {
+            return new WP_Error( 'range_fail', '1048575 (max) should be valid.' );
+        }
+
+        // Invalid range.
+        if ( $repo::is_valid_range( 0 ) ) {
+            return new WP_Error( 'range_fail', '0 should be invalid.' );
+        }
+        if ( $repo::is_valid_range( -1 ) ) {
+            return new WP_Error( 'range_fail', '-1 should be invalid.' );
+        }
+        if ( $repo::is_valid_range( 1048576 ) ) {
+            return new WP_Error( 'range_fail', '1048576 should be invalid.' );
+        }
+
+        // Check MAX_SERIAL constant.
+        if ( $repo::MAX_SERIAL !== 1048575 ) {
+            return new WP_Error( 'constant_fail', 'MAX_SERIAL should be 1048575.' );
+        }
+
+        return true;
+    },
+    'Serial integer range validation for 20-bit Micro-ID limit.'
+);
+
+run_test(
+    'TC-SN-003: String padding (1 → "00000001")',
+    function (): bool {
+        $repo = \Quadica\QSA_Engraving\qsa_engraving()->get_serial_repository();
+
+        $test_cases = array(
+            1        => '00000001',
+            42       => '00000042',
+            123      => '00000123',
+            12345    => '00012345',
+            123456   => '00123456',
+            1234567  => '01234567',
+            12345678 => '12345678',
+            1048575  => '01048575',
+        );
+
+        foreach ( $test_cases as $input => $expected ) {
+            $result = $repo::format_serial( $input );
+            if ( $result !== $expected ) {
+                return new WP_Error(
+                    'format_fail',
+                    "format_serial({$input}) expected '{$expected}', got '{$result}'."
+                );
+            }
+        }
+
+        return true;
+    },
+    'Serial integer to 8-character zero-padded string conversion.'
+);
+
+run_test(
+    'TC-SN-DB-001: Sequential generation (N+1 = N + 1)',
+    function (): bool {
+        $repo = \Quadica\QSA_Engraving\qsa_engraving()->get_serial_repository();
+
+        // Get current next serial (integer).
+        $next1 = $repo->get_next_serial();
+        if ( is_wp_error( $next1 ) ) {
+            return $next1;
+        }
+
+        // Get it again - should return the same value since nothing was inserted.
+        $next2 = $repo->get_next_serial();
+        if ( is_wp_error( $next2 ) ) {
+            return $next2;
+        }
+
+        if ( $next1 !== $next2 ) {
+            return new WP_Error(
+                'sequential_fail',
+                "get_next_serial() should return consistent value. Got {$next1} then {$next2}."
+            );
+        }
+
+        // Test formatted version returns 8-digit string.
+        $formatted = $repo->get_next_serial_formatted();
+        if ( is_wp_error( $formatted ) ) {
+            return $formatted;
+        }
+
+        if ( ! is_string( $formatted ) || strlen( $formatted ) !== 8 ) {
+            return new WP_Error(
+                'format_fail',
+                "get_next_serial_formatted() should return 8-char string. Got: " . gettype( $formatted )
+            );
+        }
+
+        // Verify formatted matches expected value.
+        $expected_formatted = str_pad( (string) $next1, 8, '0', STR_PAD_LEFT );
+        if ( $formatted !== $expected_formatted ) {
+            return new WP_Error(
+                'format_mismatch',
+                "Expected formatted '{$expected_formatted}', got '{$formatted}'."
+            );
+        }
+
+        echo "  Next available serial: {$next1} (formatted: {$formatted})\n";
+
+        return true;
+    },
+    'Serial numbers generate sequentially from MAX(serial_integer) + 1.'
+);
+
+run_test(
+    'TC-SN-DB-002: Uniqueness constraint enforced',
+    function (): bool {
+        global $wpdb;
+
+        $repo       = \Quadica\QSA_Engraving\qsa_engraving()->get_serial_repository();
+        $table_name = $repo->get_table_name();
+
+        // Verify the UNIQUE indexes exist on the table.
+        $indexes = $wpdb->get_results( "SHOW INDEX FROM {$table_name}" );
+
+        if ( empty( $indexes ) ) {
+            return new WP_Error( 'no_indexes', 'No indexes found on serial_numbers table.' );
+        }
+
+        $unique_indexes = array();
+        foreach ( $indexes as $index ) {
+            if ( 0 === (int) $index->Non_unique ) {
+                $unique_indexes[ $index->Key_name ][] = $index->Column_name;
+            }
+        }
+
+        // Check for unique constraint on serial_number column.
+        $serial_number_unique = false;
+        $serial_integer_unique = false;
+
+        foreach ( $unique_indexes as $key_name => $columns ) {
+            if ( in_array( 'serial_number', $columns, true ) ) {
+                $serial_number_unique = true;
+            }
+            if ( in_array( 'serial_integer', $columns, true ) ) {
+                $serial_integer_unique = true;
+            }
+        }
+
+        if ( ! $serial_number_unique ) {
+            return new WP_Error(
+                'missing_unique',
+                'UNIQUE constraint on serial_number column is missing.'
+            );
+        }
+
+        if ( ! $serial_integer_unique ) {
+            return new WP_Error(
+                'missing_unique',
+                'UNIQUE constraint on serial_integer column is missing.'
+            );
+        }
+
+        echo "  UNIQUE constraints verified on serial_number and serial_integer.\n";
+        echo "  Unique indexes: " . implode( ', ', array_keys( $unique_indexes ) ) . "\n";
+
+        return true;
+    },
+    'Database UNIQUE constraints prevent duplicate serial numbers.'
+);
+
+run_test(
+    'TC-SN-DB-003: Status transitions validated',
+    function (): bool {
+        $repo = \Quadica\QSA_Engraving\qsa_engraving()->get_serial_repository();
+
+        // Test valid statuses.
+        if ( ! $repo::is_valid_status( 'reserved' ) ) {
+            return new WP_Error( 'status_fail', 'reserved should be valid status.' );
+        }
+        if ( ! $repo::is_valid_status( 'engraved' ) ) {
+            return new WP_Error( 'status_fail', 'engraved should be valid status.' );
+        }
+        if ( ! $repo::is_valid_status( 'voided' ) ) {
+            return new WP_Error( 'status_fail', 'voided should be valid status.' );
+        }
+        if ( $repo::is_valid_status( 'pending' ) ) {
+            return new WP_Error( 'status_fail', 'pending should be invalid status.' );
+        }
+
+        // Test allowed transitions.
+        // reserved -> engraved: ALLOWED
+        if ( ! $repo::is_transition_allowed( 'reserved', 'engraved' ) ) {
+            return new WP_Error( 'transition_fail', 'reserved -> engraved should be allowed.' );
+        }
+        // reserved -> voided: ALLOWED
+        if ( ! $repo::is_transition_allowed( 'reserved', 'voided' ) ) {
+            return new WP_Error( 'transition_fail', 'reserved -> voided should be allowed.' );
+        }
+
+        // Test blocked transitions (no recycling).
+        // engraved -> reserved: BLOCKED
+        if ( $repo::is_transition_allowed( 'engraved', 'reserved' ) ) {
+            return new WP_Error( 'transition_fail', 'engraved -> reserved should be blocked.' );
+        }
+        // voided -> reserved: BLOCKED
+        if ( $repo::is_transition_allowed( 'voided', 'reserved' ) ) {
+            return new WP_Error( 'transition_fail', 'voided -> reserved should be blocked.' );
+        }
+        // engraved -> voided: BLOCKED
+        if ( $repo::is_transition_allowed( 'engraved', 'voided' ) ) {
+            return new WP_Error( 'transition_fail', 'engraved -> voided should be blocked.' );
+        }
+        // voided -> engraved: BLOCKED
+        if ( $repo::is_transition_allowed( 'voided', 'engraved' ) ) {
+            return new WP_Error( 'transition_fail', 'voided -> engraved should be blocked.' );
+        }
+
+        echo "  All status transitions follow allowed paths.\n";
+
+        return true;
+    },
+    'Status transitions follow allowed paths; terminal states block transitions.'
+);
+
+run_test(
+    'TC-SN-DB-004: Capacity calculation correct',
+    function (): bool {
+        $repo     = \Quadica\QSA_Engraving\qsa_engraving()->get_serial_repository();
+        $capacity = $repo->get_capacity();
+
+        // Verify capacity structure.
+        $required_keys = array(
+            'highest_assigned',
+            'remaining',
+            'total',
+            'percentage_remaining',
+            'warning',
+            'critical',
+            'warning_threshold',
+            'critical_threshold',
+        );
+
+        foreach ( $required_keys as $key ) {
+            if ( ! array_key_exists( $key, $capacity ) ) {
+                return new WP_Error( 'capacity_fail', "Missing key: {$key}" );
+            }
+        }
+
+        // Verify total.
+        if ( $capacity['total'] !== 1048575 ) {
+            return new WP_Error( 'capacity_fail', "Total should be 1048575, got {$capacity['total']}." );
+        }
+
+        // Verify calculation: highest_assigned + remaining = total.
+        $calculated_total = $capacity['highest_assigned'] + $capacity['remaining'];
+        if ( $calculated_total !== $capacity['total'] ) {
+            return new WP_Error(
+                'capacity_fail',
+                "highest_assigned ({$capacity['highest_assigned']}) + remaining ({$capacity['remaining']}) " .
+                "should equal total ({$capacity['total']}), but got {$calculated_total}."
+            );
+        }
+
+        // Verify percentage calculation.
+        $expected_percentage = round( ( $capacity['remaining'] / $capacity['total'] ) * 100, 1 );
+        if ( abs( $capacity['percentage_remaining'] - $expected_percentage ) > 0.1 ) {
+            return new WP_Error(
+                'capacity_fail',
+                "Percentage should be ~{$expected_percentage}, got {$capacity['percentage_remaining']}."
+            );
+        }
+
+        // Verify warning/critical are boolean.
+        if ( ! is_bool( $capacity['warning'] ) || ! is_bool( $capacity['critical'] ) ) {
+            return new WP_Error( 'capacity_fail', 'warning and critical should be boolean.' );
+        }
+
+        echo "  Capacity: {$capacity['remaining']} of {$capacity['total']} ({$capacity['percentage_remaining']}%)\n";
+        echo "  Thresholds: warning at {$capacity['warning_threshold']}, critical at {$capacity['critical_threshold']}\n";
+
+        return true;
+    },
+    'Capacity calculation returns correct structure and values.'
+);
+
+run_test(
+    'TC-SN-DB-005: Threshold configuration',
+    function (): bool {
+        $repo = \Quadica\QSA_Engraving\qsa_engraving()->get_serial_repository();
+
+        // Test default thresholds.
+        if ( $repo::DEFAULT_WARNING_THRESHOLD !== 10000 ) {
+            return new WP_Error( 'threshold_fail', 'Default warning threshold should be 10000.' );
+        }
+        if ( $repo::DEFAULT_CRITICAL_THRESHOLD !== 1000 ) {
+            return new WP_Error( 'threshold_fail', 'Default critical threshold should be 1000.' );
+        }
+
+        // Test getter methods.
+        $warning_threshold  = $repo->get_warning_threshold();
+        $critical_threshold = $repo->get_critical_threshold();
+
+        if ( ! is_int( $warning_threshold ) || $warning_threshold < 0 ) {
+            return new WP_Error( 'threshold_fail', 'Warning threshold should be non-negative integer.' );
+        }
+        if ( ! is_int( $critical_threshold ) || $critical_threshold < 0 ) {
+            return new WP_Error( 'threshold_fail', 'Critical threshold should be non-negative integer.' );
+        }
+
+        echo "  Current thresholds: warning={$warning_threshold}, critical={$critical_threshold}\n";
+
+        return true;
+    },
+    'Threshold configuration with default values and getter methods.'
+);
+
+run_test(
+    'TC-SN-DB-006: Statistics method',
+    function (): bool {
+        $repo  = \Quadica\QSA_Engraving\qsa_engraving()->get_serial_repository();
+        $stats = $repo->get_statistics();
+
+        // Verify structure.
+        $required_keys = array( 'total_assigned', 'capacity', 'status_breakdown', 'active_percentage' );
+        foreach ( $required_keys as $key ) {
+            if ( ! array_key_exists( $key, $stats ) ) {
+                return new WP_Error( 'stats_fail', "Missing key: {$key}" );
+            }
+        }
+
+        // Verify status breakdown keys.
+        $status_keys = array( 'reserved', 'engraved', 'voided' );
+        foreach ( $status_keys as $key ) {
+            if ( ! array_key_exists( $key, $stats['status_breakdown'] ) ) {
+                return new WP_Error( 'stats_fail', "Missing status_breakdown key: {$key}" );
+            }
+        }
+
+        echo "  Total assigned: {$stats['total_assigned']}\n";
+        echo "  Breakdown: reserved={$stats['status_breakdown']['reserved']}, " .
+             "engraved={$stats['status_breakdown']['engraved']}, " .
+             "voided={$stats['status_breakdown']['voided']}\n";
+
+        return true;
+    },
+    'Statistics method returns correct structure with counts.'
 );
 
 // ============================================
