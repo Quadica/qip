@@ -146,6 +146,7 @@ final class Plugin {
 
         // Hook into WordPress.
         add_action( 'admin_init', array( $this, 'check_woocommerce' ) );
+        add_action( 'admin_init', array( $this, 'check_serial_capacity' ) );
         add_action( 'admin_menu', array( $this, 'init_admin_menu' ), 99 );
         add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_assets' ) );
     }
@@ -187,6 +188,82 @@ final class Plugin {
         if ( defined( 'WC_VERSION' ) && version_compare( WC_VERSION, QSA_ENGRAVING_MIN_WC_VERSION, '<' ) ) {
             add_action( 'admin_notices', array( $this, 'woocommerce_version_notice' ) );
         }
+    }
+
+    /**
+     * Check serial number capacity and display warning notices if low.
+     *
+     * Only displays notices to users with manage_woocommerce capability.
+     *
+     * @return void
+     */
+    public function check_serial_capacity(): void {
+        // Only check for users who can access QSA Engraving.
+        if ( ! current_user_can( 'manage_woocommerce' ) ) {
+            return;
+        }
+
+        // Only check if serial repository is initialized and table exists.
+        if ( null === $this->serial_repository || ! $this->serial_repository->table_exists() ) {
+            return;
+        }
+
+        $capacity = $this->serial_repository->get_capacity();
+
+        // Display appropriate notice based on capacity level.
+        if ( $capacity['critical'] ) {
+            add_action( 'admin_notices', array( $this, 'serial_capacity_critical_notice' ) );
+        } elseif ( $capacity['warning'] ) {
+            add_action( 'admin_notices', array( $this, 'serial_capacity_warning_notice' ) );
+        }
+    }
+
+    /**
+     * Display critical serial capacity notice.
+     *
+     * @return void
+     */
+    public function serial_capacity_critical_notice(): void {
+        $capacity = $this->serial_repository->get_capacity();
+        ?>
+        <div class="notice notice-error">
+            <p>
+                <strong><?php esc_html_e( 'QSA Engraving - Critical:', 'qsa-engraving' ); ?></strong>
+                <?php
+                printf(
+                    /* translators: 1: Remaining count, 2: Total capacity */
+                    esc_html__( 'Serial number capacity critically low! Only %1$s of %2$s serial numbers remaining. Contact support immediately.', 'qsa-engraving' ),
+                    '<strong>' . esc_html( number_format( $capacity['remaining'] ) ) . '</strong>',
+                    esc_html( number_format( $capacity['total'] ) )
+                );
+                ?>
+            </p>
+        </div>
+        <?php
+    }
+
+    /**
+     * Display warning serial capacity notice.
+     *
+     * @return void
+     */
+    public function serial_capacity_warning_notice(): void {
+        $capacity = $this->serial_repository->get_capacity();
+        ?>
+        <div class="notice notice-warning">
+            <p>
+                <strong><?php esc_html_e( 'QSA Engraving - Warning:', 'qsa-engraving' ); ?></strong>
+                <?php
+                printf(
+                    /* translators: 1: Remaining count, 2: Percentage remaining */
+                    esc_html__( 'Serial number capacity is running low. %1$s serial numbers remaining (%2$s%% of capacity).', 'qsa-engraving' ),
+                    '<strong>' . esc_html( number_format( $capacity['remaining'] ) ) . '</strong>',
+                    esc_html( $capacity['percentage_remaining'] )
+                );
+                ?>
+            </p>
+        </div>
+        <?php
     }
 
     /**
