@@ -37,7 +37,7 @@ Implemented Phase 1 of the QSA Engraving System, establishing the complete plugi
 - `wp-content/plugins/qsa-engraving/includes/Database/class-batch-repository.php`: Engraving batch and module tracking
 - `wp-content/plugins/qsa-engraving/includes/Database/class-config-repository.php`: QSA configuration with coordinate transformation
 - `wp-content/plugins/qsa-engraving/includes/Services/class-module-selector.php`: Queries oms_batch_items for modules needing engraving
-- `wp-content/plugins/qsa-engraving/assets/css/admin.css`: Admin dashboard styling with dark theme support
+- `wp-content/plugins/qsa-engraving/assets/css/admin.css`: Admin dashboard styling for widgets and status indicators
 - `wp-content/plugins/qsa-engraving/tests/smoke/wp-smoke.php`: WP-CLI smoke tests for Phase 1 verification
 
 ### Tasks Addressed
@@ -52,23 +52,24 @@ Implemented Phase 1 of the QSA Engraving System, establishing the complete plugi
 - **Plugin Singleton Bootstrap**: Main plugin class uses singleton pattern to ensure single instance. Registers activation/deactivation hooks for future database table management.
 - **PSR-4 Autoloader**: Custom autoloader maps namespace hierarchy to directory structure with WordPress-style file naming (class-name.php convention).
 - **Serial Repository**: Full CRUD operations for serial numbers including:
-  - `reserve_serial()` - Reserves next sequential serial
-  - `commit_serial()` - Transitions reserved to engraved status
-  - `void_serial()` - Voids serials for retry scenarios
+  - `reserve_serials()` - Reserves sequential serials for a batch of modules
+  - `commit_serials()` - Transitions reserved to engraved status
+  - `void_serials()` - Voids serials for retry scenarios
   - `get_capacity()` - Returns remaining serial capacity (max 1,048,575)
 - **Batch Repository**: Manages engraving batches and module assignments:
   - `create_batch()` - Creates new engraving batch
   - `add_module()` - Links modules to batches with position tracking
-  - `get_queue_items()` - Retrieves pending engraving queue
+  - `get_pending_batches()` - Retrieves pending engraving batches
 - **Config Repository**: QSA coordinate configuration management:
-  - `get_position_config()` - Retrieves element coordinates for SVG generation
-  - `transform_y_coordinate()` - Converts CAD coordinates (bottom-left origin) to SVG (top-left origin)
+  - `get_config()` - Retrieves all element configurations for a design
+  - `get_element_config()` - Retrieves specific element coordinates for SVG generation
+  - `cad_to_svg_y()` - Converts CAD coordinates (bottom-left origin) to SVG (top-left origin)
 - **Admin Dashboard**: WordPress admin page under WooCommerce menu displaying:
   - Capacity widget showing remaining serial numbers
   - Quick actions for creating batches and viewing queue
   - System status indicators
 - **Module Selector Service**: Queries `oms_batch_items` table for modules awaiting engraving:
-  - Filters for QSA-compatible SKUs (pattern: `^[A-Z]{4}-`)
+  - Filters for QSA-compatible SKUs (pattern: `^[A-Z]{4}[a-z]?-[0-9]{5}$`)
   - Excludes already-engraved modules
   - Groups results by base type (CORE, SOLO, EDGE, STAR)
 

@@ -105,7 +105,7 @@ oms_batch_items (modules needing build)
 - [x] Plugin activates on staging site without PHP errors
 - [x] Admin menu item "QSA Engraving" appears under WooCommerce
 - [x] All 4 database tables created with correct indexes
-- [x] Module selector returns data from oms_batch_items
+- [x] Module selector returns data from oms_batch_items (verified query structure; staging table empty - requires production data clone for integration testing)
 
 ### Reference Files
 - `docs/database/install/01-qsa-engraving-schema.sql` - Schema script
