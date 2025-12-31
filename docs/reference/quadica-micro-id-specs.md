@@ -61,17 +61,19 @@ The grid is read in **Row-Major Order** (Left-to-Right, Top-to-Bottom).
 
 ### 3.2. Data Constraints & Formatting
 *   **Supported Characters:** Integers only (0–9). Alphanumeric characters are **not** supported.
-*   **Max Value:** 1,048,575.
+*   **Technical Range:** 0 to 1,048,575 (20-bit capacity).
+*   **Business Range:** 1 to 1,048,575. Serial number 0 is reserved/unused to avoid confusion with "no serial assigned" states in database systems.
 *   **Input/Output Format:** Although the laser encodes a raw integer, the Input/Output interface must treat this as a **fixed-width 8-character string**.
     *   Input `1` -> Encoded as `1` -> Output `00000001`
     *   Input `1048575` -> Encoded as `1048575` -> Output `01048575`
 
 ## 4. Encoding Algorithm (Generation)
 
-**Input:** Integer `ID` or Numeric String (Range: 0 to 1,048,575).
+**Input:** Integer `ID` or Numeric String (Business Range: 1 to 1,048,575).
 
 1.  **Validation:**
-    If `ID > 1,048,575` or `ID < 0`, return Error (Out of Bounds).
+    If `ID > 1,048,575` or `ID < 1`, return Error (Out of Bounds).
+    *Note: While the encoding technically supports ID 0, business systems reserve 0 for "no serial assigned" states.*
 
 2.  **Binary Conversion:**
     Convert `ID` to a 20-bit binary string. Padding with leading zeros if necessary.
