@@ -1,21 +1,19 @@
-# Quadica Standard Array Engraving- Discovery
+# Quadica Standard Array Engraving - Required Functionality
  
-**Last Update:** Dec 30, 2025
+**Last Update:** Dec 30, 2025  
 **Author:** Ron Warris  
-
-This is a project startup document that contains a 'brain dump' from all project stakeholders. It includes thoughts, ideas, specific wants, project considerations, concerns, identified problems, etc. These are just captured thoughts about the project in no particular order that are indented to help define exactly what are we trying to build. This captured information is then used to generate the first draft of a formal requirements document.
 
 ## 1. Project Overview
 The Quadica Standard Array (QSA) is our new standard array that will be used for all newly created LED modules. This array will replace the 30+ different array designs we have been using with the objective of making it easier for us to create and deploy new module designs into our production process without the need to generate custom engraving files for every new module array.
 
 ## 2. Project Goals
 Create a WordPress/WooCommerce plugin that:
-
 1. Determine which modules need to be built
-2. Provide an interface that allows the laser operator to select the modules that will be included in the engraving batch
+2. Provide an interface that allows the operator to select the modules that will be included in the engraving batch
 3. Extracts module engraving details from order BOMs and product details
 4. Use the extracted data to generate an SVG file ready for engraving using LightBurn
-5. Provides an interface that allows the laser operator to engrave the arrays using the SVG file
+5. Provides an interface that allows the operator to engrave the arrays using the SVG file
+6. Provide an interface that allows the operator to view previous engraving batches and re-submit modules from a batch to LightBurn
 
 ### User Permissions
 Access to the QSA Engraving functionality is restricted to the following WordPress roles:
@@ -38,8 +36,9 @@ The operator must fix the underlying data issue before the system will allow eng
 - **BOM**: Bill of Materials - components required to build a module
 - **Config Code**: 5-digit number identifying an LED configuration
 - **Fret**: Production slang for array
-- **LED Code**: 3-character code identifying each unique LED that we use to build modules. This is also referred to as a `Production Code` or `Shortcode` Note that we have been using 2 digit LED codes, however this new system will start to use 3 digit codes to accomodate additional LEDs.
+- **LED Code**: 3-character code identifying each unique LED that we use to build modules. This is also referred to as a `Production Code` or `Shortcode` Note that we have been using 2 digit LED codes, however this new system will start to use 3 digit codes to accommodate additional LEDs.
 - **Lightburn**: Laser engraving software that consumes SVG files
+- **Operator**: The person who is processing engraving batches and operating the Laser engraver using LightBurn
 - **Micro-ID**: Quadica's proprietary 5x5 dot matrix serial encoding (20-bit capacity)
 - **Module ID**: Base ID + revision + Config Code (e.g., "STAR-34924")
 - **New-Style Module**: Module with SKU matching pattern: 4 uppercase letters + lowercase revision + hyphen + 5 digits
@@ -75,9 +74,6 @@ This allows QA-rejected modules to be re-engraved, or additional modules to be a
 **Engraving Batch History Page Mockup**
 - [Functional React mockup page](https://claude.ai/public/artifacts/10900dfa-9d47-4a73-99fd-60960f169cb5)
 - [JSX React Source Code](docs/reference/engraving-batch-history-mockup.jsx)
-
-A mockup of the Engraving Batch History page is here:
-- https://claude.ai/public/artifacts/10900dfa-9d47-4a73-99fd-60960f169cb5
 
 ### SVG Engraving
 - The operator selects the modules that are included in the batch using the [Module Selection page](https://claude.ai/public/artifacts/ec02119d-ab5b-44cd-918d-c598b2d2dd94)
