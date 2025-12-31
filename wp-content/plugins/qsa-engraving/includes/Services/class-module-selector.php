@@ -33,6 +33,12 @@ class Module_Selector {
      * Pattern: 4 uppercase letters + optional lowercase revision + hyphen + 5 digits
      * Examples: CORE-91247, STARa-34924, SOLO-12345
      *
+     * Note: The discovery doc (qsa-engraving-discovery.md) uses the simpler pattern
+     * "^[A-Z]{4}-" for identification purposes. This stricter pattern is used for
+     * database queries to ensure we match valid QSA SKUs only. The optional lowercase
+     * revision letter accommodates both original designs (e.g., "CORE-") and revised
+     * designs (e.g., "STARa-").
+     *
      * @var string
      */
     public const QSA_SKU_PATTERN = '^[A-Z]{4}[a-z]?-[0-9]{5}$';
@@ -80,6 +86,12 @@ class Module_Selector {
         );
 
         if ( $table_exists !== $oms_table ) {
+            return array();
+        }
+
+        // Check if quad_engraved_modules table exists (used in LEFT JOIN).
+        // If the table doesn't exist, return empty to avoid SQL errors.
+        if ( ! $this->batch_repository->modules_table_exists() ) {
             return array();
         }
 

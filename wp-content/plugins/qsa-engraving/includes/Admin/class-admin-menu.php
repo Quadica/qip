@@ -27,6 +27,12 @@ class Admin_Menu {
     /**
      * Required capability for accessing the plugin.
      *
+     * Note: Per discovery doc, access is granted to Administrator, Manager, and
+     * Shop Manager roles. All three roles have the 'manage_woocommerce' capability:
+     * - Administrator: Core WP role with all capabilities
+     * - Manager: Custom role typically configured with manage_woocommerce
+     * - Shop Manager: WooCommerce's built-in role with manage_woocommerce
+     *
      * @var string
      */
     public const REQUIRED_CAPABILITY = 'manage_woocommerce';
@@ -260,8 +266,8 @@ class Admin_Menu {
                         <span class="stat-label"><?php esc_html_e( 'Available', 'qsa-engraving' ); ?></span>
                     </div>
                     <div class="stat">
-                        <span class="stat-value"><?php echo esc_html( number_format( $capacity['used'] ) ); ?></span>
-                        <span class="stat-label"><?php esc_html_e( 'Used', 'qsa-engraving' ); ?></span>
+                        <span class="stat-value"><?php echo esc_html( number_format( $capacity['highest_assigned'] ) ); ?></span>
+                        <span class="stat-label"><?php esc_html_e( 'Highest Assigned', 'qsa-engraving' ); ?></span>
                     </div>
                 </div>
                 <?php if ( $capacity['critical'] ) : ?>

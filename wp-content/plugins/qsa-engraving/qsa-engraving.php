@@ -190,13 +190,21 @@ final class Plugin {
     }
 
     /**
-     * Load the PSR-4 autoloader.
+     * Load the PSR-4 autoloader and Composer dependencies.
      *
      * @return void
      */
     private function load_autoloader(): void {
+        // Load custom PSR-4 autoloader for plugin classes.
         require_once QSA_ENGRAVING_PLUGIN_DIR . 'includes/Autoloader.php';
         Autoloader::register();
+
+        // Load Composer autoloader for dependencies (e.g., tc-lib-barcode).
+        // The vendor directory must be committed since production lacks Composer.
+        $composer_autoload = QSA_ENGRAVING_PLUGIN_DIR . 'vendor/autoload.php';
+        if ( file_exists( $composer_autoload ) ) {
+            require_once $composer_autoload;
+        }
     }
 
     /**

@@ -108,18 +108,22 @@ class Serial_Repository {
     /**
      * Get remaining serial number capacity.
      *
-     * @return array{used: int, remaining: int, total: int, percentage_remaining: float, warning: bool, critical: bool}
+     * Note: 'highest_assigned' is the maximum serial integer allocated, which represents
+     * the capacity consumed. This differs from a count of active serials due to voided
+     * serials not being recycled.
+     *
+     * @return array{highest_assigned: int, remaining: int, total: int, percentage_remaining: float, warning: bool, critical: bool}
      */
     public function get_capacity(): array {
-        $used = (int) $this->wpdb->get_var(
+        $highest_assigned = (int) $this->wpdb->get_var(
             "SELECT COALESCE(MAX(serial_integer), 0) FROM {$this->table_name}"
         );
 
-        $remaining  = self::MAX_SERIAL - $used;
+        $remaining  = self::MAX_SERIAL - $highest_assigned;
         $percentage = round( ( $remaining / self::MAX_SERIAL ) * 100, 1 );
 
         return array(
-            'used'                 => $used,
+            'highest_assigned'     => $highest_assigned,
             'remaining'            => $remaining,
             'total'                => self::MAX_SERIAL,
             'percentage_remaining' => $percentage,
@@ -174,21 +178,33 @@ class Serial_Repository {
                 $serial_integer = $start_serial + $index;
                 $serial_number  = str_pad( (string) $serial_integer, 8, '0', STR_PAD_LEFT );
 
+                // Build data and format arrays conditionally to handle NULL order_id.
+                $insert_data = array(
+                    'serial_number'       => $serial_number,
+                    'serial_integer'      => $serial_integer,
+                    'module_sku'          => $module['module_sku'],
+                    'engraving_batch_id'  => $engraving_batch_id,
+                    'production_batch_id' => $module['production_batch_id'],
+                    'qsa_sequence'        => $module['qsa_sequence'],
+                    'array_position'      => $module['array_position'],
+                    'status'              => 'reserved',
+                    'created_by'          => $user_id,
+                );
+                $insert_format = array( '%s', '%d', '%s', '%d', '%d', '%d', '%d', '%s', '%d' );
+
+                // Only include order_id if it's not null.
+                $order_id = $module['order_id'] ?? null;
+                if ( null !== $order_id ) {
+                    $insert_data['order_id'] = $order_id;
+                    // Insert format at position 5 (after production_batch_id).
+                    array_splice( $insert_format, 5, 0, '%d' );
+                }
+                // If order_id is NULL, omit from insert - database column default handles it.
+
                 $result = $this->wpdb->insert(
                     $this->table_name,
-                    array(
-                        'serial_number'       => $serial_number,
-                        'serial_integer'      => $serial_integer,
-                        'module_sku'          => $module['module_sku'],
-                        'engraving_batch_id'  => $engraving_batch_id,
-                        'production_batch_id' => $module['production_batch_id'],
-                        'order_id'            => $module['order_id'] ?? null,
-                        'qsa_sequence'        => $module['qsa_sequence'],
-                        'array_position'      => $module['array_position'],
-                        'status'              => 'reserved',
-                        'created_by'          => $user_id,
-                    ),
-                    array( '%s', '%d', '%s', '%d', '%d', '%d', '%d', '%d', '%s', '%d' )
+                    $insert_data,
+                    $insert_format
                 );
 
                 if ( false === $result ) {

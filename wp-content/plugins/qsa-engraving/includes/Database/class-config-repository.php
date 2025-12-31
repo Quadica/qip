@@ -250,34 +250,67 @@ class Config_Repository {
         }
 
         // Check if exists (upsert).
-        $existing = $this->wpdb->get_var(
-            $this->wpdb->prepare(
-                "SELECT id FROM {$this->table_name}
-                 WHERE qsa_design = %s
-                   AND (revision IS NULL AND %s IS NULL OR revision = %s)
-                   AND position = %d
-                   AND element_type = %s",
-                $qsa_design,
-                $revision,
-                $revision ?? '',
-                $position,
-                $element_type
-            )
-        );
+        // Build revision clause separately to handle NULL correctly.
+        if ( is_null( $revision ) ) {
+            $existing = $this->wpdb->get_var(
+                $this->wpdb->prepare(
+                    "SELECT id FROM {$this->table_name}
+                     WHERE qsa_design = %s
+                       AND revision IS NULL
+                       AND position = %d
+                       AND element_type = %s",
+                    $qsa_design,
+                    $position,
+                    $element_type
+                )
+            );
+        } else {
+            $existing = $this->wpdb->get_var(
+                $this->wpdb->prepare(
+                    "SELECT id FROM {$this->table_name}
+                     WHERE qsa_design = %s
+                       AND revision = %s
+                       AND position = %d
+                       AND element_type = %s",
+                    $qsa_design,
+                    $revision,
+                    $position,
+                    $element_type
+                )
+            );
+        }
 
         if ( $existing ) {
             // Update existing.
+            // Build data and format arrays conditionally to handle NULL text_height.
+            $update_data = array(
+                'origin_x'  => $origin_x,
+                'origin_y'  => $origin_y,
+                'rotation'  => $rotation,
+                'is_active' => 1,
+            );
+            $update_format = array( '%f', '%f', '%d', '%d' );
+
+            // Handle text_height: use raw SQL for NULL, or add to data array.
+            if ( is_null( $text_height ) ) {
+                // Set text_height to NULL explicitly via raw query update.
+                $this->wpdb->query(
+                    $this->wpdb->prepare(
+                        "UPDATE {$this->table_name} SET text_height = NULL WHERE id = %d",
+                        $existing
+                    )
+                );
+            } else {
+                $update_data['text_height'] = $text_height;
+                // Insert format at position 3 (after rotation).
+                array_splice( $update_format, 3, 0, '%f' );
+            }
+
             $result = $this->wpdb->update(
                 $this->table_name,
-                array(
-                    'origin_x'    => $origin_x,
-                    'origin_y'    => $origin_y,
-                    'rotation'    => $rotation,
-                    'text_height' => $text_height,
-                    'is_active'   => 1,
-                ),
+                $update_data,
                 array( 'id' => $existing ),
-                array( '%f', '%f', '%d', '%f', '%d' ),
+                $update_format,
                 array( '%d' )
             );
 
@@ -292,21 +325,32 @@ class Config_Repository {
         }
 
         // Insert new.
+        // Build data and format arrays conditionally to handle NULL values.
+        $insert_data = array(
+            'qsa_design'   => $qsa_design,
+            'revision'     => $revision,
+            'position'     => $position,
+            'element_type' => $element_type,
+            'origin_x'     => $origin_x,
+            'origin_y'     => $origin_y,
+            'rotation'     => $rotation,
+            'is_active'    => 1,
+            'created_by'   => get_current_user_id(),
+        );
+        $insert_format = array( '%s', '%s', '%d', '%s', '%f', '%f', '%d', '%d', '%d' );
+
+        // Handle text_height: only add if not NULL.
+        if ( ! is_null( $text_height ) ) {
+            $insert_data['text_height'] = $text_height;
+            // Insert format at position 7 (after rotation).
+            array_splice( $insert_format, 7, 0, '%f' );
+        }
+        // If text_height is NULL, omit from insert - database column default handles it.
+
         $result = $this->wpdb->insert(
             $this->table_name,
-            array(
-                'qsa_design'   => $qsa_design,
-                'revision'     => $revision,
-                'position'     => $position,
-                'element_type' => $element_type,
-                'origin_x'     => $origin_x,
-                'origin_y'     => $origin_y,
-                'rotation'     => $rotation,
-                'text_height'  => $text_height,
-                'is_active'    => 1,
-                'created_by'   => get_current_user_id(),
-            ),
-            array( '%s', '%s', '%d', '%s', '%f', '%f', '%d', '%f', '%d', '%d' )
+            $insert_data,
+            $insert_format
         );
 
         if ( false === $result ) {
