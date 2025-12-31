@@ -16,9 +16,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 echo "\n";
-echo "================================================\n";
-echo "QSA Engraving Plugin - Phase 1, 2 & 3 Smoke Tests\n";
-echo "================================================\n\n";
+echo "====================================================\n";
+echo "QSA Engraving Plugin - Phase 1, 2, 3 & 4 Smoke Tests\n";
+echo "====================================================\n\n";
 
 $tests_passed = 0;
 $tests_failed = 0;
@@ -1323,6 +1323,601 @@ run_test(
         return true;
     },
     'Encoding then decoding produces original serial number.'
+);
+
+// ============================================
+// PHASE 4: SVG Generation Core Tests
+// ============================================
+
+echo "-------------------------------------------\n";
+echo "Phase 4: SVG Generation Core Tests\n";
+echo "-------------------------------------------\n\n";
+
+run_test(
+    'TC-SVG-001: Coordinate Transformer CAD to SVG Y-axis',
+    function (): bool {
+        $transformer = new \Quadica\QSA_Engraving\SVG\Coordinate_Transformer();
+
+        // Canvas height is 113.7mm.
+        // CAD origin is bottom-left, SVG origin is top-left.
+        // Formula: svg_y = canvas_height - cad_y.
+
+        // Test bottom edge (CAD Y=0 -> SVG Y=113.7).
+        $result = $transformer->cad_to_svg_y( 0.0 );
+        if ( abs( $result - 113.7 ) > 0.001 ) {
+            return new WP_Error( 'transform_fail', "cad_to_svg_y(0) should be 113.7, got {$result}." );
+        }
+
+        // Test top edge (CAD Y=113.7 -> SVG Y=0).
+        $result = $transformer->cad_to_svg_y( 113.7 );
+        if ( abs( $result - 0.0 ) > 0.001 ) {
+            return new WP_Error( 'transform_fail', "cad_to_svg_y(113.7) should be 0, got {$result}." );
+        }
+
+        // Test middle (CAD Y=50 -> SVG Y=63.7).
+        $result = $transformer->cad_to_svg_y( 50.0 );
+        if ( abs( $result - 63.7 ) > 0.001 ) {
+            return new WP_Error( 'transform_fail', "cad_to_svg_y(50) should be 63.7, got {$result}." );
+        }
+
+        // Test inverse transformation.
+        $svg_y = 63.7;
+        $cad_y = $transformer->svg_to_cad_y( $svg_y );
+        if ( abs( $cad_y - 50.0 ) > 0.001 ) {
+            return new WP_Error( 'transform_fail', "svg_to_cad_y(63.7) should be 50, got {$cad_y}." );
+        }
+
+        echo "  CAD to SVG Y-axis transformation verified.\n";
+
+        return true;
+    },
+    'CAD to SVG Y-axis transformation works correctly.'
+);
+
+run_test(
+    'TC-SVG-002: Coordinate Transformer with calibration',
+    function (): bool {
+        $transformer = new \Quadica\QSA_Engraving\SVG\Coordinate_Transformer();
+
+        // Set calibration offsets.
+        $transformer->set_calibration( 0.5, -0.25 );
+
+        // X should be offset by 0.5mm.
+        $x = $transformer->cad_to_svg_x( 10.0 );
+        if ( abs( $x - 10.5 ) > 0.001 ) {
+            return new WP_Error( 'calibration_fail', "X with 0.5 offset should be 10.5, got {$x}." );
+        }
+
+        // Y should be offset by -0.25mm after transformation.
+        $y = $transformer->cad_to_svg_y( 50.0 );
+        // 113.7 - 50 + (-0.25) = 63.45.
+        if ( abs( $y - 63.45 ) > 0.001 ) {
+            return new WP_Error( 'calibration_fail', "Y with -0.25 offset should be 63.45, got {$y}." );
+        }
+
+        // Get calibration.
+        $calibration = $transformer->get_calibration();
+        if ( abs( $calibration['x'] - 0.5 ) > 0.001 || abs( $calibration['y'] - (-0.25) ) > 0.001 ) {
+            return new WP_Error( 'calibration_fail', 'get_calibration() returned wrong values.' );
+        }
+
+        echo "  Calibration offsets applied correctly.\n";
+
+        return true;
+    },
+    'Calibration offsets are applied during transformation.'
+);
+
+run_test(
+    'TC-SVG-003: Coordinate Transformer bounds checking',
+    function (): bool {
+        $transformer = new \Quadica\QSA_Engraving\SVG\Coordinate_Transformer();
+
+        // Test is_within_bounds.
+        if ( ! $transformer->is_within_bounds( 74.0, 56.85 ) ) {
+            return new WP_Error( 'bounds_fail', 'Center point should be within bounds.' );
+        }
+
+        if ( $transformer->is_within_bounds( -1.0, 50.0 ) ) {
+            return new WP_Error( 'bounds_fail', 'Negative X should be out of bounds.' );
+        }
+
+        if ( $transformer->is_within_bounds( 50.0, 150.0 ) ) {
+            return new WP_Error( 'bounds_fail', 'Y > 113.7 should be out of bounds.' );
+        }
+
+        // Test clamp_to_bounds.
+        $clamped = $transformer->clamp_to_bounds( -5.0, 200.0 );
+        if ( $clamped['x'] !== 0.0 || abs( $clamped['y'] - 113.7 ) > 0.001 ) {
+            return new WP_Error( 'clamp_fail', 'clamp_to_bounds() should clamp to canvas edges.' );
+        }
+
+        echo "  Bounds checking and clamping verified.\n";
+
+        return true;
+    },
+    'Coordinate bounds checking works correctly.'
+);
+
+run_test(
+    'TC-SVG-004: Text Renderer character spacing',
+    function (): bool {
+        $renderer = \Quadica\QSA_Engraving\SVG\Text_Renderer::class;
+
+        // Test character spacing.
+        $spaced = $renderer::add_character_spacing( 'ABC' );
+        $expected = "A\u{200A}B\u{200A}C";
+        if ( $spaced !== $expected ) {
+            return new WP_Error( 'spacing_fail', "Expected hair-spaced text, got: '{$spaced}'." );
+        }
+
+        // Test with single character.
+        $single = $renderer::add_character_spacing( 'X' );
+        if ( $single !== 'X' ) {
+            return new WP_Error( 'spacing_fail', 'Single character should not have spaces.' );
+        }
+
+        echo "  Character spacing with hair-space U+200A verified.\n";
+
+        return true;
+    },
+    'Text renderer adds hair-space between characters.'
+);
+
+run_test(
+    'TC-SVG-005: Text Renderer font size calculation',
+    function (): bool {
+        $renderer = \Quadica\QSA_Engraving\SVG\Text_Renderer::class;
+
+        // Font size = height × 1.4056.
+        $font_size = $renderer::calculate_font_size( 1.5 );
+        $expected = 1.5 * 1.4056;
+        if ( abs( $font_size - $expected ) > 0.001 ) {
+            return new WP_Error( 'fontsize_fail', "Expected {$expected}, got {$font_size}." );
+        }
+
+        // Verify default heights.
+        $heights = $renderer::DEFAULT_HEIGHTS;
+        if ( $heights['module_id'] !== 1.5 ) {
+            return new WP_Error( 'height_fail', 'module_id height should be 1.5mm.' );
+        }
+        if ( $heights['serial_url'] !== 1.2 ) {
+            return new WP_Error( 'height_fail', 'serial_url height should be 1.2mm.' );
+        }
+        if ( $heights['led_code'] !== 1.0 ) {
+            return new WP_Error( 'height_fail', 'led_code height should be 1.0mm.' );
+        }
+
+        echo "  Font size calculation verified (height × 1.4056).\n";
+
+        return true;
+    },
+    'Font size calculated correctly from text height.'
+);
+
+run_test(
+    'TC-SVG-006: Text Renderer SVG output',
+    function (): bool {
+        $renderer = \Quadica\QSA_Engraving\SVG\Text_Renderer::class;
+
+        // Render text element.
+        $svg = $renderer::render( 'TEST', 50.0, 60.0, 1.5, 'middle', 0, 'test-text' );
+
+        // Verify structure.
+        if ( strpos( $svg, '<text' ) === false ) {
+            return new WP_Error( 'render_fail', 'Should contain <text element.' );
+        }
+
+        if ( strpos( $svg, 'font-family="Roboto Thin, sans-serif"' ) === false ) {
+            return new WP_Error( 'render_fail', 'Should have Roboto Thin font family.' );
+        }
+
+        if ( strpos( $svg, 'text-anchor="middle"' ) === false ) {
+            return new WP_Error( 'render_fail', 'Should have middle text anchor.' );
+        }
+
+        if ( strpos( $svg, 'id="test-text"' ) === false ) {
+            return new WP_Error( 'render_fail', 'Should have ID attribute.' );
+        }
+
+        // Check for hair-spaced text.
+        if ( strpos( $svg, "T\u{200A}E\u{200A}S\u{200A}T" ) === false ) {
+            return new WP_Error( 'render_fail', 'Text should be hair-spaced.' );
+        }
+
+        echo "  Text SVG rendering produces valid output.\n";
+
+        return true;
+    },
+    'Text renderer generates valid SVG text element.'
+);
+
+run_test(
+    'TC-SVG-007: Text Renderer with rotation',
+    function (): bool {
+        $renderer = \Quadica\QSA_Engraving\SVG\Text_Renderer::class;
+
+        // Render rotated text.
+        $svg = $renderer::render( 'ROT', 50.0, 60.0, 1.0, 'middle', 90 );
+
+        // Verify rotation transform.
+        if ( strpos( $svg, 'transform="rotate(90' ) === false ) {
+            return new WP_Error( 'rotation_fail', 'Should contain rotate(90 transform.' );
+        }
+
+        // Verify rotation center matches text position.
+        if ( strpos( $svg, 'rotate(90 50.0000 60.0000)' ) === false ) {
+            return new WP_Error( 'rotation_fail', 'Rotation center should match text position.' );
+        }
+
+        echo "  Text rotation transform verified.\n";
+
+        return true;
+    },
+    'Text renderer applies rotation transform correctly.'
+);
+
+run_test(
+    'TC-SVG-008: LED code validation',
+    function (): bool {
+        $renderer = \Quadica\QSA_Engraving\SVG\Text_Renderer::class;
+
+        // Valid LED codes (3 chars from: 1234789CEFHJKLPRT).
+        $valid_codes = array( 'K7P', '4T9', 'GF4', 'AF3', '34T', 'C1E', 'HJL' );
+        foreach ( $valid_codes as $code ) {
+            if ( ! $renderer::validate_led_code( $code ) ) {
+                return new WP_Error( 'validation_fail', "'{$code}' should be valid LED code." );
+            }
+        }
+
+        // Invalid: wrong characters.
+        if ( $renderer::validate_led_code( 'ABC' ) ) {
+            return new WP_Error( 'validation_fail', "'ABC' should be invalid (A,B not allowed)." );
+        }
+
+        // Invalid: wrong length.
+        if ( $renderer::validate_led_code( 'K7' ) ) {
+            return new WP_Error( 'validation_fail', "'K7' should be invalid (2 chars)." );
+        }
+
+        if ( $renderer::validate_led_code( 'K7P9' ) ) {
+            return new WP_Error( 'validation_fail', "'K7P9' should be invalid (4 chars)." );
+        }
+
+        // Get charset.
+        $charset = $renderer::get_led_code_charset();
+        if ( $charset !== '1234789CEFHJKLPRT' ) {
+            return new WP_Error( 'charset_fail', 'LED code charset incorrect.' );
+        }
+
+        echo "  LED code validation verified (17-char set, 3-char codes).\n";
+
+        return true;
+    },
+    'LED code validation enforces character set and length.'
+);
+
+run_test(
+    'TC-DM-001: Data Matrix renderer availability check',
+    function (): bool {
+        $renderer = \Quadica\QSA_Engraving\SVG\Datamatrix_Renderer::class;
+
+        // Check library status.
+        $status = $renderer::get_library_status();
+
+        if ( ! is_array( $status ) ) {
+            return new WP_Error( 'status_fail', 'get_library_status() should return array.' );
+        }
+
+        if ( ! array_key_exists( 'available', $status ) ) {
+            return new WP_Error( 'status_fail', 'Status should have available key.' );
+        }
+
+        if ( $status['available'] ) {
+            echo "  tc-lib-barcode library is available.\n";
+        } else {
+            echo "  tc-lib-barcode not installed - using placeholder mode.\n";
+            echo "  Run: composer install in plugin directory.\n";
+        }
+
+        return true;
+    },
+    'Data Matrix renderer checks library availability.'
+);
+
+run_test(
+    'TC-DM-002: Data Matrix placeholder rendering',
+    function (): bool {
+        $renderer = \Quadica\QSA_Engraving\SVG\Datamatrix_Renderer::class;
+
+        // Render Data Matrix (will use placeholder if library not available).
+        $svg = $renderer::render( '00123456' );
+        if ( is_wp_error( $svg ) ) {
+            return $svg;
+        }
+
+        // Should return string.
+        if ( ! is_string( $svg ) ) {
+            return new WP_Error( 'render_fail', 'render() should return string.' );
+        }
+
+        // Should contain group element.
+        if ( strpos( $svg, '<g>' ) === false ) {
+            return new WP_Error( 'render_fail', 'Should contain group element.' );
+        }
+
+        // Test positioned rendering.
+        $positioned = $renderer::render_positioned( '00123456', 10.0, 20.0, 14.0, 6.5, 'dm-1' );
+        if ( is_wp_error( $positioned ) ) {
+            return $positioned;
+        }
+
+        if ( strpos( $positioned, 'id="dm-1"' ) === false ) {
+            return new WP_Error( 'render_fail', 'Positioned should have ID.' );
+        }
+
+        if ( strpos( $positioned, 'translate(10.0000, 20.0000)' ) === false ) {
+            return new WP_Error( 'render_fail', 'Positioned should have translate transform.' );
+        }
+
+        echo "  Data Matrix rendering produces valid output.\n";
+
+        return true;
+    },
+    'Data Matrix renderer generates SVG output.'
+);
+
+run_test(
+    'TC-DM-003: Data Matrix serial validation',
+    function (): bool {
+        $renderer = \Quadica\QSA_Engraving\SVG\Datamatrix_Renderer::class;
+
+        // Valid serial.
+        $result = $renderer::validate_serial( '00123456' );
+        if ( is_wp_error( $result ) ) {
+            return new WP_Error( 'validation_fail', '00123456 should be valid.' );
+        }
+
+        // Invalid: wrong length.
+        $result = $renderer::validate_serial( '123456' );
+        if ( ! is_wp_error( $result ) ) {
+            return new WP_Error( 'validation_fail', '123456 (6 chars) should be invalid.' );
+        }
+
+        // Invalid: contains letters.
+        $result = $renderer::validate_serial( '0012345A' );
+        if ( ! is_wp_error( $result ) ) {
+            return new WP_Error( 'validation_fail', '0012345A should be invalid.' );
+        }
+
+        // Get URL.
+        $url = $renderer::get_url( '00123456' );
+        if ( $url !== 'https://quadi.ca/00123456' ) {
+            return new WP_Error( 'url_fail', "Expected 'https://quadi.ca/00123456', got '{$url}'." );
+        }
+
+        echo "  Data Matrix serial validation and URL generation verified.\n";
+
+        return true;
+    },
+    'Data Matrix validates serial format and generates URLs.'
+);
+
+run_test(
+    'TC-SVG-GEN-001: SVG Document structure',
+    function (): bool {
+        $doc = new \Quadica\QSA_Engraving\SVG\SVG_Document();
+
+        // Set options.
+        $doc->set_title( 'Test Document' );
+        $doc->set_include_boundary( true );
+        $doc->set_include_crosshair( true );
+
+        // Render empty document.
+        $svg = $doc->render();
+        if ( is_wp_error( $svg ) ) {
+            return $svg;
+        }
+
+        // Check XML declaration.
+        if ( strpos( $svg, '<?xml version="1.0" encoding="UTF-8"?>' ) === false ) {
+            return new WP_Error( 'structure_fail', 'Should have XML declaration.' );
+        }
+
+        // Check SVG element with dimensions.
+        if ( strpos( $svg, 'width="148.0mm"' ) === false ) {
+            return new WP_Error( 'structure_fail', 'Should have width="148.0mm".' );
+        }
+
+        if ( strpos( $svg, 'height="113.7mm"' ) === false ) {
+            return new WP_Error( 'structure_fail', 'Should have height="113.7mm".' );
+        }
+
+        if ( strpos( $svg, 'viewBox="0 0 148.0 113.7"' ) === false ) {
+            return new WP_Error( 'structure_fail', 'Should have correct viewBox.' );
+        }
+
+        // Check namespace.
+        if ( strpos( $svg, 'xmlns="http://www.w3.org/2000/svg"' ) === false ) {
+            return new WP_Error( 'structure_fail', 'Should have SVG namespace.' );
+        }
+
+        // Check title comment.
+        if ( strpos( $svg, '<!-- Test Document -->' ) === false ) {
+            return new WP_Error( 'structure_fail', 'Should have title comment.' );
+        }
+
+        // Check boundary rectangle.
+        if ( strpos( $svg, 'stroke="#FF0000"' ) === false ) {
+            return new WP_Error( 'structure_fail', 'Should have red boundary rectangle.' );
+        }
+
+        echo "  SVG document structure verified.\n";
+
+        return true;
+    },
+    'SVG Document generates valid structure with mm units.'
+);
+
+run_test(
+    'TC-SVG-GEN-002: SVG Document module count',
+    function (): bool {
+        $doc = new \Quadica\QSA_Engraving\SVG\SVG_Document();
+
+        // Verify initial count.
+        if ( $doc->get_module_count() !== 0 ) {
+            return new WP_Error( 'count_fail', 'Initial count should be 0.' );
+        }
+
+        // Add a module (with minimal config).
+        $module_data = array(
+            'serial_number' => '00123456',
+            'module_id'     => 'STAR-38546',
+            'led_codes'     => array( 'GF4' ),
+        );
+
+        $config = array(
+            'micro_id' => array( 'origin_x' => 32.0, 'origin_y' => 63.7, 'rotation' => 0 ),
+        );
+
+        $result = $doc->add_module( 1, $module_data, $config );
+        if ( is_wp_error( $result ) ) {
+            return $result;
+        }
+
+        if ( $doc->get_module_count() !== 1 ) {
+            return new WP_Error( 'count_fail', 'Count should be 1 after adding module.' );
+        }
+
+        // Clear modules.
+        $doc->clear_modules();
+        if ( $doc->get_module_count() !== 0 ) {
+            return new WP_Error( 'count_fail', 'Count should be 0 after clear.' );
+        }
+
+        echo "  Module counting and clearing verified.\n";
+
+        return true;
+    },
+    'SVG Document tracks module count correctly.'
+);
+
+run_test(
+    'TC-SVG-GEN-003: Config Loader SKU parsing',
+    function (): bool {
+        $loader = new \Quadica\QSA_Engraving\Services\Config_Loader();
+
+        // Valid SKU with revision.
+        $result = $loader->parse_sku( 'STARa-38546' );
+        if ( is_wp_error( $result ) ) {
+            return $result;
+        }
+
+        if ( $result['design'] !== 'STAR' ) {
+            return new WP_Error( 'parse_fail', "Expected design 'STAR', got '{$result['design']}'." );
+        }
+
+        if ( $result['revision'] !== 'a' ) {
+            return new WP_Error( 'parse_fail', "Expected revision 'a', got '{$result['revision']}'." );
+        }
+
+        if ( $result['config'] !== '38546' ) {
+            return new WP_Error( 'parse_fail', "Expected config '38546', got '{$result['config']}'." );
+        }
+
+        // Valid SKU without revision.
+        $result = $loader->parse_sku( 'CORE-91247' );
+        if ( is_wp_error( $result ) ) {
+            return $result;
+        }
+
+        if ( $result['design'] !== 'CORE' ) {
+            return new WP_Error( 'parse_fail', "Expected design 'CORE', got '{$result['design']}'." );
+        }
+
+        if ( $result['revision'] !== null ) {
+            return new WP_Error( 'parse_fail', 'Expected null revision for CORE-91247.' );
+        }
+
+        // Invalid SKU.
+        $result = $loader->parse_sku( 'SP-01-WW' );
+        if ( ! is_wp_error( $result ) ) {
+            return new WP_Error( 'parse_fail', 'SP-01-WW should be invalid.' );
+        }
+
+        echo "  SKU parsing for QSA designs verified.\n";
+
+        return true;
+    },
+    'Config Loader parses QSA SKU format correctly.'
+);
+
+run_test(
+    'TC-SVG-GEN-004: SVG Generator dependencies check',
+    function (): bool {
+        $generator = new \Quadica\QSA_Engraving\Services\SVG_Generator();
+
+        $deps = $generator->check_dependencies();
+
+        if ( ! is_array( $deps ) ) {
+            return new WP_Error( 'deps_fail', 'check_dependencies() should return array.' );
+        }
+
+        if ( ! array_key_exists( 'ready', $deps ) || ! array_key_exists( 'issues', $deps ) ) {
+            return new WP_Error( 'deps_fail', 'Should have ready and issues keys.' );
+        }
+
+        if ( $deps['ready'] ) {
+            echo "  All dependencies available.\n";
+        } else {
+            echo "  Issues: " . implode( '; ', $deps['issues'] ) . "\n";
+        }
+
+        return true;
+    },
+    'SVG Generator checks dependencies correctly.'
+);
+
+run_test(
+    'TC-SVG-GEN-005: SVG Generator array breakdown',
+    function (): bool {
+        $generator = new \Quadica\QSA_Engraving\Services\SVG_Generator();
+
+        // 8 modules starting at position 1 = 1 array.
+        $breakdown = $generator->calculate_array_breakdown( 8, 1 );
+        if ( $breakdown['array_count'] !== 1 ) {
+            return new WP_Error( 'breakdown_fail', '8 modules from pos 1 should be 1 array.' );
+        }
+
+        // 9 modules starting at position 1 = 2 arrays.
+        $breakdown = $generator->calculate_array_breakdown( 9, 1 );
+        if ( $breakdown['array_count'] !== 2 ) {
+            return new WP_Error( 'breakdown_fail', '9 modules from pos 1 should be 2 arrays.' );
+        }
+
+        // 8 modules starting at position 3 = 2 arrays (6 + 2).
+        $breakdown = $generator->calculate_array_breakdown( 8, 3 );
+        if ( $breakdown['array_count'] !== 2 ) {
+            return new WP_Error( 'breakdown_fail', '8 modules from pos 3 should be 2 arrays.' );
+        }
+        if ( $breakdown['last_array_count'] !== 2 ) {
+            return new WP_Error( 'breakdown_fail', 'Last array should have 2 modules.' );
+        }
+
+        // 19 modules starting at position 1 = 3 arrays (8 + 8 + 3).
+        $breakdown = $generator->calculate_array_breakdown( 19, 1 );
+        if ( $breakdown['array_count'] !== 3 ) {
+            return new WP_Error( 'breakdown_fail', '19 modules from pos 1 should be 3 arrays.' );
+        }
+        if ( $breakdown['last_array_count'] !== 3 ) {
+            return new WP_Error( 'breakdown_fail', 'Last array should have 3 modules.' );
+        }
+
+        echo "  Array breakdown calculations verified.\n";
+
+        return true;
+    },
+    'SVG Generator calculates array breakdown correctly.'
 );
 
 // ============================================
