@@ -54,7 +54,10 @@ The process will only process LED modules that use the QSA.
 - When the Module Engraving Batch Creator screen is opened it will display a list of modules to be built from currently active production batches.
 - The operator will be able to refresh the list of modules by clicking on an refresh icon.
 - Needed modules can be determined by querying and comparing the values from the build_qty field with the value in the qty_recieved field in the oms_batch_items table. If the value in the qty_received field is less than the build_qty field, then the difference is what needs to be built and is included in the modules to build list.
-- A fully functional React mockup of the Module Engraving Batch Creator page is here https://claude.ai/public/artifacts/ec02119d-ab5b-44cd-918d-c598b2d2dd94
+
+**Module Engraving Batch Creator Page Mockup**
+- [Functional React mockup page](https://claude.ai/public/artifacts/bc2959bd-0c6d-402b-ba37-2ada39964eda)
+- [JSX React Source Code](docs/reference/module-engraving-batch-creator-mockup.jsx)
 
 #### Batch History Access
 The Module Engraving Batch Creator screen includes a link to view previously completed engraving batches. This supports re-engraving scenarios (e.g., QA rejects modules due to engraving defects).
@@ -66,9 +69,15 @@ The Module Engraving Batch Creator screen includes a link to view previously com
 4. Batch details are displayed on the Batch Creator screen showing all modules from that batch
 5. Operator can select specific modules to re-engrave
 6. Selected modules are added to a new engraving batch with new serial numbers
-7. The operator has the option to have the original serial numbers returned to the available pool (physical modules scrapped)
 
-This allows QA-rejected modules to be re-engraved without affecting other modules in the original batch.
+This allows QA-rejected modules to be re-engraved, or additional modules to be added to an existing order, without affecting other modules in the original batch. Original serial numbers remain in "engraved" status (not recycled).
+
+**Engraving Batch History Page Mockup**
+- [Functional React mockup page](https://claude.ai/public/artifacts/10900dfa-9d47-4a73-99fd-60960f169cb5)
+- [JSX React Source Code](docs/reference/engraving-batch-history-mockup.jsx)
+
+A mockup of the Engraving Batch History page is here:
+- https://claude.ai/public/artifacts/10900dfa-9d47-4a73-99fd-60960f169cb5
 
 ### SVG Engraving
 - The operator selects the modules that are included in the batch using the [Module Selection page](https://claude.ai/public/artifacts/ec02119d-ab5b-44cd-918d-c598b2d2dd94)
@@ -177,8 +186,9 @@ QSAs may have unused positions from previous batches. The operator can specify a
 
 Total: 4 + 8 + 8 + 6 = 26 modules across 4 QSAs, each with its own SVG file.
 
-A fully functional React mockup of this webpage is here:
-- https://claude.ai/public/artifacts/8319e841-26b2-4ae9-a7d6-8df243b19cf8
+**Engraving Queue Page Mockup**
+- [Functional React mockup page](https://claude.ai/public/artifacts/8319e841-26b2-4ae9-a7d6-8df243b19cf8)
+- [JSX React Source Code](docs/reference/engraving-queue-mockup.jsx)
 
 #### Array-by-Array Workflow
 
@@ -240,9 +250,9 @@ Things can go wrong during the engraving process. A module may not be positioned
 | Control | When Available | What It Does | Serial Number Impact |
 |---------|----------------|--------------|---------------------|
 | **Resend** | During engraving | Sends the current SVG to LightBurn again. Use when the file didn't transfer properly but the QSA is still usable. | No change — same serials |
-| **Retry** | During engraving | Scraps the current QSA and generates a fresh SVG with new serial numbers. Use when the QSA is ruined and you need a fresh substrate. | Current serials returned to pool, new serials reserved |
-| **Back** | After first array | Returns to the previous array. The previous array's serials remain committed; you'll re-engrave on a new QSA with new serials. | Previous stays committed, new serials reserved for re-do |
-| **Rerun** | After row complete | Resets selected arrays (or entire row) back to pending. Allows adjusting starting position. | Selected serials returned to pool, new serials reserved |
+| **Retry** | During engraving | Scraps the current QSA and generates a fresh SVG with new serial numbers. Use when the QSA is ruined and you need a fresh substrate. | Original serials stay reserved, new serials assigned |
+| **Back** | After first array | Returns to the previous array. The previous array's serials remain committed; you'll re-engrave on a new QSA with new serials. | Previous stays committed, new serials assigned for re-do |
+| **Rerun** | After row complete | Resets selected arrays (or entire row) back to pending. Allows adjusting starting position. | Original serials stay engraved, new serials assigned |
 
 **Resend vs Retry — Key Distinction:**
 - **Resend** = Same QSA, same serials, just re-transmit the file (communication issue)
@@ -253,7 +263,7 @@ Things can go wrong during the engraving process. A module may not be positioned
 - The "Resend" and "Retry" buttons are available during an in-progress row
 - Using "Rerun" allows selecting which arrays to redo, or redoing the entire row
 - None of these actions affect other rows in the queue
-- Voided and scrapped serial numbers return to the available pool for future use
+- Serial numbers are never recycled — new serials are always assigned for re-engraving
 
 #### LightBurn Integration
 The system communicates with LightBurn to load SVG files for engraving. All technical details for LightBurn integration (UDP commands, file loading, batch processing workflow) are documented in the `lightburn-svg` skill. Refer to that skill for implementation specifics.
@@ -288,9 +298,9 @@ These elements are created using the following data:
   - **Total Capacity**: 1,048,575 unique serial numbers
   - **Format**: 8-character zero-padded string
   - **Constraining Source**: Micro-ID 20-bit encoding limit
-  - **Sequentially Generated**: Serial numbers are sequentially created from the pool of available numbers
-  - **No Duplicates in Production**: Only one physical module in production can have a given serial number
-  - **Voided/Scrapped Serials Return to Pool**: Serials that were never engraved (voided) or were engraved on scrapped modules return to the available pool for future use
+  - **Sequentially Generated**: Serial numbers are sequentially assigned in order
+  - **No Recycling**: Serial numbers are never returned to the pool — once assigned, they remain used
+  - **Capacity Note**: At current production volumes, the 1M+ serial capacity provides 10+ years of runway
 
 #### Serial Number Lifecycle
 Serial numbers move through the following states:
@@ -299,32 +309,34 @@ Serial numbers move through the following states:
 |--------|---------|
 | **Reserved** | Serial allocated and embedded in SVG, engraving not yet confirmed |
 | **Engraved** | Physically engraved on a module, confirmed by operator |
-| **Available** | Serial returned to pool (was voided or scrapped) |
+| **Voided** | Serial was reserved but never physically engraved (e.g., Retry used, row cancelled) |
 
 **State Transitions:**
 - Reserved → Engraved (operator confirms successful engraving)
-- Reserved → Available (operator uses Retry before engraving, or row cancelled — serial was never physically used)
-- Engraved → Available (module scrapped/destroyed — serial can be reused since physical module is gone)
+- Reserved → Voided (operator uses Retry before engraving, or row cancelled)
+
+**Note:** There is no recycling of serial numbers. Voided serials remain in "voided" status for audit purposes. New modules always receive new serial numbers.
 
 #### Serial Number Assignment
 Serial numbers are assigned using a "reserve then commit" approach:
 1. **When operator clicks Engrave:** System pre-generates all SVGs for the row. Serial numbers are reserved and embedded in the SVG files.
 2. **When operator presses Spacebar/Next Array:** The current array's serials are committed (Reserved → Engraved), and the next SVG is loaded.
 3. **When operator clicks Complete:** The final array's serials are committed. The row is done.
-4. **If operator clicks Retry:** Current array's reserved serials are returned to the available pool, new serials are reserved, and a new SVG is created.
-5. **If operator clicks Rerun (after complete):** Selected engraved serials are returned to the available pool (physical modules scrapped), new serials are reserved, and new SVGs are created.
+4. **If operator clicks Retry:** Current array's reserved serials are marked as voided, new serials are assigned, and a new SVG is created.
+5. **If operator clicks Rerun (after complete):** Original serials remain as engraved (not recycled), new serials are assigned for the re-engraved modules.
 
 #### Serial Number Data Storage
 The system will store serial number data in a database table named `lw_quad_serial_numbers`:
   - **Serial Number**: Zero-padded string (e.g., "00123456")
-  - **Module ID**: Associated module identifier (e.g., "STAR-34924") — cleared when returned to available
-  - **Batch ID**: Reference to source production batch — cleared when returned to available
+  - **Module ID**: Associated module identifier (e.g., "STAR-34924")
+  - **Batch ID**: Reference to source production batch
   - **Order ID**: Reference to customer order
-  - **QSA ID**: The array that the LED module is part of — cleared when returned to available
-  - **Array Position**: Position number (1-8) on the QSA — cleared when returned to available
-  - **Status**: Current lifecycle state (available, reserved, engraved, shipped)
-  - **Reserved Timestamp**: When serial was last reserved (nullable)
+  - **QSA ID**: The array that the LED module is part of
+  - **Array Position**: Position number (1-8) on the QSA
+  - **Status**: Current lifecycle state (reserved, engraved, voided)
+  - **Reserved Timestamp**: When serial was reserved (nullable)
   - **Engraved Timestamp**: When engraving was confirmed (nullable)
+  - **Voided Timestamp**: When serial was voided (nullable)
 
 #### Engraving Batch Tracking
 The system needs to track which modules have been engraved to prevent duplicate engraving and support batch history.
