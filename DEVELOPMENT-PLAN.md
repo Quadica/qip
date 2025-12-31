@@ -67,30 +67,30 @@ oms_batch_items (modules needing build)
 ### Tasks
 
 #### 1.1 Plugin Bootstrap
-- [ ] Create main plugin file with singleton pattern
-- [ ] Implement PSR-4 autoloader for class loading
-- [ ] Register activation/deactivation hooks
-- [ ] Set up Composer for `tecnickcom/tc-lib-barcode` dependency
+- [x] Create main plugin file with singleton pattern
+- [x] Implement PSR-4 autoloader for class loading
+- [x] Register activation/deactivation hooks
+- [x] Set up Composer for `tecnickcom/tc-lib-barcode` dependency
 
 #### 1.2 Database Schema
-- [ ] Run `docs/database/install/01-qsa-engraving-schema.sql` manually via phpMyAdmin
-- [ ] Create repository classes for each table:
+- [x] Run `docs/database/install/01-qsa-engraving-schema.sql` manually via phpMyAdmin
+- [x] Create repository classes for each table:
   - `Serial_Repository` - serial number CRUD
   - `Batch_Repository` - engraving batch CRUD
   - `Config_Repository` - QSA configuration CRUD
-- [ ] Implement prepared statements with `$wpdb->prepare()`
+- [x] Implement prepared statements with `$wpdb->prepare()`
 
 #### 1.3 Admin Integration
-- [ ] Register admin menu under WooCommerce
-- [ ] Set up capability checks (`manage_woocommerce`)
-- [ ] Create base admin page template (React shell)
-- [ ] Enqueue admin scripts and styles
+- [x] Register admin menu under WooCommerce
+- [x] Set up capability checks (`manage_woocommerce`)
+- [x] Create base admin page template (React shell)
+- [x] Enqueue admin scripts and styles
 
 #### 1.4 Module Selector Service
-- [ ] Query `oms_batch_items` for modules needing engraving
-- [ ] Filter for QSA-compatible SKUs (pattern: `^[A-Z]{4}-`)
-- [ ] Exclude modules already engraved (check `lw_quad_engraved_modules`)
-- [ ] Group results by base type (CORE, SOLO, EDGE, STAR)
+- [x] Query `oms_batch_items` for modules needing engraving
+- [x] Filter for QSA-compatible SKUs (pattern: `^[A-Z]{4}-`)
+- [x] Exclude modules already engraved (check `lw_quad_engraved_modules`)
+- [x] Group results by base type (CORE, SOLO, EDGE, STAR)
 
 ### Tests - Phase 1
 
@@ -102,10 +102,10 @@ oms_batch_items (modules needing build)
 | TC-P1-004 | Smoke | Module selector query returns expected results |
 
 ### Completion Criteria
-- [ ] Plugin activates on staging site without PHP errors
-- [ ] Admin menu item "QSA Engraving" appears under WooCommerce
-- [ ] All 4 database tables created with correct indexes
-- [ ] Module selector returns data from oms_batch_items
+- [x] Plugin activates on staging site without PHP errors
+- [x] Admin menu item "QSA Engraving" appears under WooCommerce
+- [x] All 4 database tables created with correct indexes
+- [x] Module selector returns data from oms_batch_items
 
 ### Reference Files
 - `docs/database/install/01-qsa-engraving-schema.sql` - Schema script
