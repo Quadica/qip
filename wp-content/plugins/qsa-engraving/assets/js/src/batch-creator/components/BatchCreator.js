@@ -10,7 +10,6 @@
 
 import { useState, useEffect, useCallback, useMemo } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
-import apiFetch from '@wordpress/api-fetch';
 import ModuleTree from './ModuleTree';
 import StatsBar from './StatsBar';
 import ActionBar from './ActionBar';
@@ -45,51 +44,24 @@ export default function BatchCreator() {
 	const [ expandedBaseTypes, setExpandedBaseTypes ] = useState( new Set() );
 	const [ expandedOrders, setExpandedOrders ] = useState( new Set() );
 	const [ creatingBatch, setCreatingBatch ] = useState( false );
+	const [ previewData, setPreviewData ] = useState( null );
+	const [ previewing, setPreviewing ] = useState( false );
 
 	/**
-	 * Fetch modules from the server.
-	 */
-	const fetchModules = useCallback( async () => {
-		setLoading( true );
-		setError( null );
-
-		try {
-			const response = await apiFetch( {
-				path: '/qsa-engraving/v1/modules/awaiting',
-				method: 'GET',
-			} );
-
-			if ( response.success && response.data ) {
-				setModuleData( response.data );
-			} else {
-				setError( response.message || __( 'Failed to load modules.', 'qsa-engraving' ) );
-			}
-		} catch ( err ) {
-			// Handle AJAX fallback.
-			try {
-				const ajaxResponse = await fetchModulesAjax();
-				if ( ajaxResponse.success && ajaxResponse.data ) {
-					setModuleData( ajaxResponse.data );
-				} else {
-					setError( ajaxResponse.message || __( 'Failed to load modules.', 'qsa-engraving' ) );
-				}
-			} catch ( ajaxErr ) {
-				setError( __( 'Failed to connect to server.', 'qsa-engraving' ) );
-			}
-		} finally {
-			setLoading( false );
-		}
-	}, [] );
-
-	/**
-	 * Fetch modules using AJAX fallback.
+	 * Make an AJAX request.
 	 *
-	 * @return {Promise} The response promise.
+	 * @param {string} action   The AJAX action.
+	 * @param {Object} data     Additional data to send.
+	 * @return {Promise<Object>} The response.
 	 */
-	const fetchModulesAjax = async () => {
+	const ajaxRequest = async ( action, data = {} ) => {
 		const formData = new FormData();
-		formData.append( 'action', 'qsa_get_modules_awaiting' );
+		formData.append( 'action', action );
 		formData.append( 'nonce', window.qsaEngraving?.nonce || '' );
+
+		Object.entries( data ).forEach( ( [ key, value ] ) => {
+			formData.append( key, typeof value === 'object' ? JSON.stringify( value ) : value );
+		} );
 
 		const response = await fetch( window.qsaEngraving?.ajaxUrl || '/wp-admin/admin-ajax.php', {
 			method: 'POST',
@@ -99,6 +71,29 @@ export default function BatchCreator() {
 
 		return response.json();
 	};
+
+	/**
+	 * Fetch modules from the server via AJAX.
+	 */
+	const fetchModules = useCallback( async () => {
+		setLoading( true );
+		setError( null );
+		setPreviewData( null );
+
+		try {
+			const response = await ajaxRequest( 'qsa_get_modules_awaiting' );
+
+			if ( response.success && response.data ) {
+				setModuleData( response.data );
+			} else {
+				setError( response.message || __( 'Failed to load modules.', 'qsa-engraving' ) );
+			}
+		} catch ( err ) {
+			setError( __( 'Failed to connect to server.', 'qsa-engraving' ) );
+		} finally {
+			setLoading( false );
+		}
+	}, [] );
 
 	/**
 	 * Load modules on mount.
@@ -273,6 +268,7 @@ export default function BatchCreator() {
 			}
 
 			setSelectedModules( newSelected );
+			setPreviewData( null ); // Clear preview when selection changes.
 		},
 		[ getBaseTypeModuleIds, getBaseTypeSelectionState, moduleData, selectedModules ]
 	);
@@ -296,6 +292,7 @@ export default function BatchCreator() {
 			}
 
 			setSelectedModules( newSelected );
+			setPreviewData( null ); // Clear preview when selection changes.
 		},
 		[ getOrderModuleIds, getOrderSelectionState, selectedModules ]
 	);
@@ -315,6 +312,7 @@ export default function BatchCreator() {
 			}
 			return newSet;
 		} );
+		setPreviewData( null ); // Clear preview when selection changes.
 	}, [] );
 
 	/**
@@ -333,6 +331,7 @@ export default function BatchCreator() {
 
 	/**
 	 * Update engrave quantity for a module.
+	 * Enforces 1 <= qty <= maxQty as per specification.
 	 *
 	 * @param {string} moduleId The module ID.
 	 * @param {number} value    The new quantity.
@@ -340,25 +339,21 @@ export default function BatchCreator() {
 	 */
 	const updateEngraveQty = useCallback(
 		( moduleId, value, maxQty ) => {
-			const numValue = parseInt( value, 10 ) || 0;
-			const clampedValue = Math.max( 0, Math.min( numValue, maxQty ) );
+			const numValue = parseInt( value, 10 ) || 1;
+			// Enforce minimum of 1, maximum of available quantity.
+			const clampedValue = Math.max( 1, Math.min( numValue, maxQty ) );
 
 			setEngraveQuantities( ( prev ) => ( {
 				...prev,
 				[ moduleId ]: clampedValue,
 			} ) );
 
-			// Auto-deselect if quantity is 0.
-			if ( clampedValue === 0 ) {
-				setSelectedModules( ( prev ) => {
-					const newSet = new Set( prev );
-					newSet.delete( moduleId );
-					return newSet;
-				} );
-			} else if ( ! selectedModules.has( moduleId ) ) {
-				// Auto-select if not already selected and quantity > 0.
+			// Auto-select if not already selected.
+			if ( ! selectedModules.has( moduleId ) ) {
 				setSelectedModules( ( prev ) => new Set( [ ...prev, moduleId ] ) );
 			}
+
+			setPreviewData( null ); // Clear preview when quantity changes.
 		},
 		[ selectedModules ]
 	);
@@ -369,7 +364,28 @@ export default function BatchCreator() {
 	const clearSelections = useCallback( () => {
 		setSelectedModules( new Set() );
 		setEngraveQuantities( {} );
+		setPreviewData( null );
 	}, [] );
+
+	/**
+	 * Build selections array from current state.
+	 *
+	 * @return {Array} Array of selection objects.
+	 */
+	const buildSelections = useCallback( () => {
+		const selections = [];
+		getAllModuleIds.forEach( ( { id, module } ) => {
+			if ( selectedModules.has( id ) ) {
+				selections.push( {
+					production_batch_id: module.production_batch_id,
+					module_sku: module.module_sku,
+					order_id: module.order_id,
+					quantity: getEngraveQty( id, module.qty_to_engrave ),
+				} );
+			}
+		} );
+		return selections;
+	}, [ getAllModuleIds, selectedModules, getEngraveQty ] );
 
 	/**
 	 * Calculate totals.
@@ -389,6 +405,35 @@ export default function BatchCreator() {
 	}, [ getAllModuleIds, selectedModules, getEngraveQty ] );
 
 	/**
+	 * Preview the batch to see LED transitions and array breakdown.
+	 */
+	const previewBatch = useCallback( async () => {
+		if ( totals.moduleCount === 0 ) {
+			return;
+		}
+
+		setPreviewing( true );
+		setError( null );
+
+		try {
+			const response = await ajaxRequest( 'qsa_preview_batch', {
+				selections: buildSelections(),
+				start_position: 1,
+			} );
+
+			if ( response.success && response.data ) {
+				setPreviewData( response.data );
+			} else {
+				setError( response.message || __( 'Failed to preview batch.', 'qsa-engraving' ) );
+			}
+		} catch ( err ) {
+			setError( __( 'Failed to preview batch.', 'qsa-engraving' ) );
+		} finally {
+			setPreviewing( false );
+		}
+	}, [ totals, buildSelections ] );
+
+	/**
 	 * Create the engraving batch.
 	 */
 	const createBatch = useCallback( async () => {
@@ -398,51 +443,29 @@ export default function BatchCreator() {
 
 		setCreatingBatch( true );
 
-		// Build the selection data.
-		const selections = [];
-		getAllModuleIds.forEach( ( { id, module } ) => {
-			if ( selectedModules.has( id ) ) {
-				selections.push( {
-					production_batch_id: module.production_batch_id,
-					module_sku: module.module_sku,
-					order_id: module.order_id,
-					quantity: getEngraveQty( id, module.qty_to_engrave ),
-				} );
-			}
-		} );
-
 		try {
-			const formData = new FormData();
-			formData.append( 'action', 'qsa_create_batch' );
-			formData.append( 'nonce', window.qsaEngraving?.nonce || '' );
-			formData.append( 'selections', JSON.stringify( selections ) );
-
-			const response = await fetch( window.qsaEngraving?.ajaxUrl || '/wp-admin/admin-ajax.php', {
-				method: 'POST',
-				body: formData,
-				credentials: 'same-origin',
+			const response = await ajaxRequest( 'qsa_create_batch', {
+				selections: buildSelections(),
 			} );
 
-			const result = await response.json();
-
-			if ( result.success ) {
+			if ( response.success ) {
 				// Redirect to the engraving queue.
-				if ( result.data?.redirect_url ) {
-					window.location.href = result.data.redirect_url;
+				if ( response.data?.redirect_url ) {
+					window.location.href = response.data.redirect_url;
 				} else {
 					// Refresh the module list.
 					clearSelections();
 					fetchModules();
 				}
 			} else {
-				setError( result.message || __( 'Failed to create batch.', 'qsa-engraving' ) );
+				setError( response.message || __( 'Failed to create batch.', 'qsa-engraving' ) );
 			}
 		} catch ( err ) {
 			setError( __( 'Failed to create batch. Please try again.', 'qsa-engraving' ) );
 		} finally {
 			setCreatingBatch( false );
 		}
-	}, [ totals, getAllModuleIds, selectedModules, getEngraveQty, clearSelections, fetchModules ] );
+	}, [ totals, buildSelections, clearSelections, fetchModules ] );
 
 	// Loading state.
 	if ( loading ) {
@@ -461,7 +484,7 @@ export default function BatchCreator() {
 				<div className="notice notice-error">
 					<p>{ error }</p>
 				</div>
-				<button className="button" onClick={ fetchModules }>
+				<button className="button" onClick={ () => { setError( null ); fetchModules(); } }>
 					{ __( 'Retry', 'qsa-engraving' ) }
 				</button>
 			</div>
@@ -477,6 +500,7 @@ export default function BatchCreator() {
 				baseTypeCount={ Object.keys( moduleData ).length }
 				selectedCount={ totals.moduleCount }
 				unitCount={ totals.unitCount }
+				previewData={ previewData }
 			/>
 
 			<ActionBar
@@ -484,8 +508,10 @@ export default function BatchCreator() {
 				moduleCount={ totals.moduleCount }
 				unitCount={ totals.unitCount }
 				onClear={ clearSelections }
+				onPreview={ previewBatch }
 				onCreateBatch={ createBatch }
 				creating={ creatingBatch }
+				previewing={ previewing }
 				onRefresh={ fetchModules }
 			/>
 

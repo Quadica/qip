@@ -1,7 +1,8 @@
 /**
  * ActionBar - Action Buttons Bar
  *
- * Displays action buttons when modules are selected or refresh button otherwise.
+ * Displays action buttons when modules are selected including
+ * Preview (to see LED transitions) and Create Batch.
  *
  * @package QSA_Engraving
  * @since 1.0.0
@@ -17,8 +18,10 @@ import { __ } from '@wordpress/i18n';
  * @param {number}   props.moduleCount   Number of selected modules.
  * @param {number}   props.unitCount     Total units selected.
  * @param {Function} props.onClear       Clear selection callback.
+ * @param {Function} props.onPreview     Preview batch callback.
  * @param {Function} props.onCreateBatch Create batch callback.
  * @param {boolean}  props.creating      Whether batch is being created.
+ * @param {boolean}  props.previewing    Whether preview is loading.
  * @param {Function} props.onRefresh     Refresh callback.
  * @return {JSX.Element} The component.
  */
@@ -27,8 +30,10 @@ export default function ActionBar( {
 	moduleCount,
 	unitCount,
 	onClear,
+	onPreview,
 	onCreateBatch,
 	creating,
+	previewing,
 	onRefresh,
 } ) {
 	if ( hasSelection ) {
@@ -46,14 +51,32 @@ export default function ActionBar( {
 					<button
 						className="button qsa-btn-clear"
 						onClick={ onClear }
-						disabled={ creating }
+						disabled={ creating || previewing }
 					>
 						{ __( 'Clear Selection', 'qsa-engraving' ) }
 					</button>
 					<button
+						className="button qsa-btn-preview"
+						onClick={ onPreview }
+						disabled={ creating || previewing }
+						title={ __( 'Preview LED transitions and array breakdown', 'qsa-engraving' ) }
+					>
+						{ previewing ? (
+							<>
+								<span className="spinner is-active"></span>
+								{ __( 'Previewing...', 'qsa-engraving' ) }
+							</>
+						) : (
+							<>
+								<span className="dashicons dashicons-visibility"></span>
+								{ __( 'Preview', 'qsa-engraving' ) }
+							</>
+						) }
+					</button>
+					<button
 						className="button button-primary qsa-btn-create"
 						onClick={ onCreateBatch }
-						disabled={ creating }
+						disabled={ creating || previewing }
 					>
 						{ creating ? (
 							<>

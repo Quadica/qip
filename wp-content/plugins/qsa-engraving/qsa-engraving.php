@@ -114,6 +114,7 @@ final class Plugin {
 
     /**
      * Private constructor to prevent direct instantiation.
+     */
     private function __construct() {
         // Empty constructor - initialization happens in init().
     }
@@ -426,11 +427,13 @@ final class Plugin {
         );
 
         // Enqueue the CSS if available.
-        $css_path = QSA_ENGRAVING_PLUGIN_DIR . "assets/js/build/{$bundle_name}.css";
+        // @wordpress/scripts outputs CSS as style-{bundle}.css, not {bundle}.css.
+        $css_filename = "style-{$bundle_name}.css";
+        $css_path     = QSA_ENGRAVING_PLUGIN_DIR . "assets/js/build/{$css_filename}";
         if ( file_exists( $css_path ) ) {
             wp_enqueue_style(
                 "qsa-engraving-{$bundle_name}",
-                QSA_ENGRAVING_PLUGIN_URL . "assets/js/build/{$bundle_name}.css",
+                QSA_ENGRAVING_PLUGIN_URL . "assets/js/build/{$css_filename}",
                 array(),
                 $version
             );

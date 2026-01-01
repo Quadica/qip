@@ -448,11 +448,15 @@ class Batch_Ajax_Handler {
 	/**
 	 * Resolve LED codes for modules.
 	 *
+	 * LED codes are required for batch creation - missing BOM or shortcode data
+	 * will block batch creation to ensure proper LED optimization.
+	 *
 	 * @param array $selections Validated selections.
-	 * @return array|WP_Error Selections with LED codes or error.
+	 * @return array|WP_Error Selections with LED codes or error if any LED data is missing.
 	 */
 	private function resolve_led_codes( array $selections ): array|WP_Error {
 		$result = array();
+		$errors = array();
 
 		foreach ( $selections as $selection ) {
 			$led_codes = $this->led_code_resolver->get_led_codes_for_module(
@@ -461,20 +465,30 @@ class Batch_Ajax_Handler {
 			);
 
 			if ( is_wp_error( $led_codes ) ) {
-				// Log but don't fail - use empty array for modules without LED codes.
-				error_log(
-					sprintf(
-						'QSA Engraving: Failed to resolve LED codes for %s in order %d: %s',
-						$selection['module_sku'],
-						$selection['order_id'],
-						$led_codes->get_error_message()
-					)
+				// Collect errors - we'll report all issues at once.
+				$errors[] = sprintf(
+					'%s (Order #%d): %s',
+					$selection['module_sku'],
+					$selection['order_id'],
+					$led_codes->get_error_message()
 				);
-				$led_codes = array();
+				continue;
 			}
 
 			$selection['led_codes'] = $led_codes;
 			$result[]               = $selection;
+		}
+
+		// If any LED code resolution failed, block batch creation.
+		if ( ! empty( $errors ) ) {
+			return new WP_Error(
+				'led_resolution_failed',
+				sprintf(
+					/* translators: %s: List of error messages */
+					__( 'Cannot create batch - LED data missing for: %s', 'qsa-engraving' ),
+					implode( '; ', $errors )
+				)
+			);
 		}
 
 		return $result;

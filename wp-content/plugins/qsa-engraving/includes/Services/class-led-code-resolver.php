@@ -81,17 +81,32 @@ class LED_Code_Resolver {
 		}
 
 		if ( null === $bom_post ) {
-			// No BOM found - this might be okay for some modules.
-			$this->cache[ $cache_key ] = array();
-			return array();
+			// No BOM found - return WP_Error to indicate missing data.
+			return new WP_Error(
+				'bom_not_found',
+				sprintf(
+					/* translators: 1: Order ID, 2: Module SKU */
+					__( 'No BOM found for order %1$d, module %2$s.', 'qsa-engraving' ),
+					$order_id,
+					$module_sku
+				)
+			);
 		}
 
 		// Get LED SKUs from the BOM.
 		$led_data = $this->get_led_data_from_bom( $bom_post );
 
 		if ( empty( $led_data ) ) {
-			$this->cache[ $cache_key ] = array();
-			return array();
+			// BOM exists but no LED data - return error.
+			return new WP_Error(
+				'led_data_missing',
+				sprintf(
+					/* translators: 1: Order ID, 2: Module SKU */
+					__( 'BOM found for order %1$d, module %2$s, but no LED data present.', 'qsa-engraving' ),
+					$order_id,
+					$module_sku
+				)
+			);
 		}
 
 		// Resolve LED shortcodes for each LED.
@@ -101,6 +116,22 @@ class LED_Code_Resolver {
 			if ( ! empty( $shortcode ) ) {
 				$led_codes[] = $shortcode;
 			}
+		}
+
+		// Deduplicate LED codes (multiple LEDs of same type shouldn't inflate signatures).
+		$led_codes = array_values( array_unique( $led_codes ) );
+
+		if ( empty( $led_codes ) ) {
+			// BOM has LED SKUs but none resolved to shortcodes.
+			return new WP_Error(
+				'led_shortcodes_missing',
+				sprintf(
+					/* translators: 1: Order ID, 2: Module SKU */
+					__( 'LED SKUs found for order %1$d, module %2$s, but no shortcodes resolved.', 'qsa-engraving' ),
+					$order_id,
+					$module_sku
+				)
+			);
 		}
 
 		$this->cache[ $cache_key ] = $led_codes;

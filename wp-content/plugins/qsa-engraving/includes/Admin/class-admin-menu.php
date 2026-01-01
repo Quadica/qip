@@ -133,8 +133,26 @@ class Admin_Menu {
         }
 
         $this->render_page_header( __( 'Module Engraving Batch Creator', 'qsa-engraving' ) );
+        $this->render_batch_creator_nav();
         $this->render_react_container( 'batch-creator' );
         $this->render_page_footer();
+    }
+
+    /**
+     * Render navigation links for the Batch Creator page.
+     *
+     * @return void
+     */
+    private function render_batch_creator_nav(): void {
+        $history_url = admin_url( 'admin.php?page=' . self::MENU_SLUG . '-history' );
+        ?>
+        <div class="qsa-batch-creator-nav">
+            <a href="<?php echo esc_url( $history_url ); ?>" class="page-title-action">
+                <span class="dashicons dashicons-backup"></span>
+                <?php esc_html_e( 'Batch History', 'qsa-engraving' ); ?>
+            </a>
+        </div>
+        <?php
     }
 
     /**
