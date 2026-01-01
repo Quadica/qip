@@ -346,11 +346,28 @@ class Batch_Ajax_Handler {
 			$validated_selections[] = $validated;
 		}
 
+		// Clear LED resolver cache to get fresh fallback tracking.
+		$this->led_code_resolver->clear_cache();
+
 		// Resolve LED codes.
 		$modules_with_leds = $this->resolve_led_codes( $validated_selections );
 		if ( is_wp_error( $modules_with_leds ) ) {
 			$this->send_error( $modules_with_leds->get_error_message(), $modules_with_leds->get_error_code() );
 			return;
+		}
+
+		// Check if fallback LED codes were used.
+		$fallback_warnings = array();
+		if ( $this->led_code_resolver->has_fallback_usage() ) {
+			$fallback_usage = $this->led_code_resolver->get_fallback_usage();
+			foreach ( $fallback_usage as $usage ) {
+				$fallback_warnings[] = sprintf(
+					'%s (Order #%d): %s',
+					$usage['module_sku'],
+					$usage['order_id'],
+					$usage['reason']
+				);
+			}
 		}
 
 		// Expand and sort.
@@ -364,25 +381,34 @@ class Batch_Ajax_Handler {
 		$transitions   = $this->batch_sorter->count_transitions( $sorted );
 		$distinct_leds = $this->batch_sorter->get_distinct_led_codes( $sorted );
 
-		$this->send_success(
-			array(
-				'total_modules'  => count( $sorted ),
-				'array_count'    => $breakdown['array_count'],
-				'arrays'         => $breakdown['arrays'],
-				'led_transitions' => $transitions,
-				'distinct_leds'  => $distinct_leds,
-				'sorted_order'   => array_map(
-					function ( $m ) {
-						return array(
-							'module_sku' => $m['module_sku'],
-							'order_id'   => $m['order_id'],
-							'led_codes'  => $m['led_codes'] ?? array(),
-						);
-					},
-					$sorted
-				),
-			)
+		$response_data = array(
+			'total_modules'   => count( $sorted ),
+			'array_count'     => $breakdown['array_count'],
+			'arrays'          => $breakdown['arrays'],
+			'led_transitions' => $transitions,
+			'distinct_leds'   => $distinct_leds,
+			'sorted_order'    => array_map(
+				function ( $m ) {
+					return array(
+						'module_sku' => $m['module_sku'],
+						'order_id'   => $m['order_id'],
+						'led_codes'  => $m['led_codes'] ?? array(),
+					);
+				},
+				$sorted
+			),
 		);
+
+		// Include fallback warnings if any.
+		if ( ! empty( $fallback_warnings ) ) {
+			$response_data['fallback_warning'] = array(
+				'message'  => __( 'Some modules are using fallback LED codes because Order BOM data is missing. The engraved LED codes may not be accurate.', 'qsa-engraving' ),
+				'modules'  => $fallback_warnings,
+				'fallback_code' => 'K7P',
+			);
+		}
+
+		$this->send_success( $response_data );
 	}
 
 	/**
