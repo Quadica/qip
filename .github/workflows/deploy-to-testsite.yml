@@ -1,12 +1,11 @@
-name: Deploy Main Branch to Testing Site
+name: Deploy to Testing Site
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, Ron ]
   workflow_dispatch:
 
 jobs:
-  if: false # REMOVE THIS LINE TO ENABLE THIS WORKFLOW
   deploy:
     runs-on: ubuntu-latest
     
