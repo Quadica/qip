@@ -484,38 +484,115 @@ export default function BatchCreator() {
 		);
 	}
 
-	// Error state.
-	if ( error ) {
-		// Check if error contains multiple lines (separated by semicolon or newline).
-		const errorParts = error.split( /[;\n]/ ).map( ( s ) => s.trim() ).filter( Boolean );
-		const isMultiLine = errorParts.length > 1;
+	/**
+	 * Render error banner component.
+	 * Parses error messages and displays them in a well-formatted banner.
+	 *
+	 * @return {JSX.Element|null} Error banner or null if no error.
+	 */
+	const renderErrorBanner = () => {
+		if ( ! error ) {
+			return null;
+		}
+
+		// Parse error message - look for the main message and affected modules list.
+		// Format: "Cannot create batch - LED data missing for: MODULE1 (Order #X): reason; MODULE2..."
+		const mainMessageMatch = error.match( /^([^:]+(?::[^:]+)?):?\s*(.*)$/s );
+		let mainMessage = error;
+		let affectedModules = [];
+
+		if ( mainMessageMatch ) {
+			// Check if this is the "Cannot create batch" format.
+			if ( error.includes( 'LED data missing for:' ) ) {
+				const parts = error.split( 'LED data missing for:' );
+				mainMessage = parts[ 0 ].trim().replace( /[-–]\s*$/, '' ).trim();
+				if ( parts[ 1 ] ) {
+					affectedModules = parts[ 1 ].split( ';' ).map( ( s ) => s.trim() ).filter( Boolean );
+				}
+			} else {
+				// Single error message - check for FIX: instruction.
+				const fixMatch = error.match( /^(.+?)\s*(FIX:.+)$/s );
+				if ( fixMatch ) {
+					mainMessage = fixMatch[ 1 ].trim();
+					affectedModules = [ fixMatch[ 2 ].trim() ];
+				}
+			}
+		}
 
 		return (
-			<div className="qsa-batch-creator qsa-error">
-				<div className="notice notice-error" style={ { padding: '12px 20px', marginBottom: '12px' } }>
-					<p style={ { margin: 0, fontSize: '14px', color: '#721c24', fontWeight: 'bold' } }>
-						{ __( 'Error: Cannot proceed with batch creation', 'qsa-engraving' ) }
-					</p>
-					{ isMultiLine ? (
-						<ul style={ { margin: '10px 0 0 20px', padding: 0, listStyle: 'disc' } }>
-							{ errorParts.map( ( part, index ) => (
-								<li key={ index } style={ { margin: '4px 0', fontSize: '13px', color: '#721c24' } }>
-									{ part }
-								</li>
-							) ) }
-						</ul>
-					) : (
-						<p style={ { margin: '8px 0 0 0', fontSize: '13px', color: '#721c24' } }>
-							{ error }
+			<div style={ {
+				padding: '16px 20px',
+				marginBottom: '16px',
+				backgroundColor: '#f8d7da',
+				borderLeft: '4px solid #dc3545',
+				borderRadius: '4px',
+			} }>
+				<div style={ { display: 'flex', alignItems: 'flex-start', gap: '12px' } }>
+					<span style={ { fontSize: '20px', lineHeight: 1 } }>⚠️</span>
+					<div style={ { flex: 1 } }>
+						<p style={ {
+							margin: 0,
+							fontSize: '14px',
+							color: '#721c24',
+							fontWeight: 'bold',
+						} }>
+							{ __( 'Error: Cannot Proceed With Batch Creation', 'qsa-engraving' ) }
 						</p>
-					) }
+						<p style={ {
+							margin: '8px 0 0 0',
+							fontSize: '13px',
+							color: '#721c24',
+							lineHeight: 1.5,
+						} }>
+							{ mainMessage || __( 'LED data is missing for one or more selected modules.', 'qsa-engraving' ) }
+						</p>
+
+						{ affectedModules.length > 0 && (
+							<details style={ { marginTop: '12px' } }>
+								<summary style={ {
+									cursor: 'pointer',
+									fontSize: '13px',
+									color: '#721c24',
+									fontWeight: '600',
+									userSelect: 'none',
+								} }>
+									{ __( 'Details', 'qsa-engraving' ) } ({ affectedModules.length } { affectedModules.length === 1 ? 'item' : 'items' })
+								</summary>
+								<ul style={ {
+									margin: '10px 0 0 0',
+									padding: '12px 16px 12px 32px',
+									listStyle: 'disc',
+									backgroundColor: 'rgba(255, 255, 255, 0.5)',
+									borderRadius: '4px',
+								} }>
+									{ affectedModules.map( ( item, index ) => (
+										<li key={ index } style={ {
+											margin: '6px 0',
+											fontSize: '12px',
+											color: '#721c24',
+											lineHeight: 1.5,
+										} }>
+											{ item }
+										</li>
+									) ) }
+								</ul>
+							</details>
+						) }
+
+						<div style={ { marginTop: '12px' } }>
+							<button
+								className="button"
+								onClick={ () => setError( null ) }
+								style={ { marginRight: '8px' } }
+							>
+								{ __( 'Dismiss', 'qsa-engraving' ) }
+							</button>
+						</div>
+					</div>
 				</div>
-				<button className="button" onClick={ () => { setError( null ); fetchModules(); } }>
-					{ __( 'Retry', 'qsa-engraving' ) }
-				</button>
 			</div>
 		);
-	}
+	};
 
 	// Empty state.
 	const hasModules = Object.keys( moduleData ).length > 0;
@@ -528,6 +605,9 @@ export default function BatchCreator() {
 				unitCount={ totals.unitCount }
 				previewData={ previewData }
 			/>
+
+			{ /* Error banner display */ }
+			{ renderErrorBanner() }
 
 			<ActionBar
 				hasSelection={ totals.moduleCount > 0 }
