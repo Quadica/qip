@@ -113,6 +113,13 @@ final class Plugin {
     private ?Ajax\Batch_Ajax_Handler $batch_ajax_handler = null;
 
     /**
+     * Queue AJAX Handler instance.
+     *
+     * @var Ajax\Queue_Ajax_Handler|null
+     */
+    private ?Ajax\Queue_Ajax_Handler $queue_ajax_handler = null;
+
+    /**
      * Private constructor to prevent direct instantiation.
      */
     private function __construct() {
@@ -326,7 +333,7 @@ final class Plugin {
         $this->batch_sorter      = new Services\Batch_Sorter();
         $this->led_code_resolver = new Services\LED_Code_Resolver();
 
-        // Initialize AJAX handler.
+        // Initialize AJAX handlers.
         $this->batch_ajax_handler = new Ajax\Batch_Ajax_Handler(
             $this->module_selector,
             $this->batch_sorter,
@@ -335,6 +342,14 @@ final class Plugin {
             $this->led_code_resolver
         );
         $this->batch_ajax_handler->register();
+
+        // Initialize Queue AJAX handler.
+        $this->queue_ajax_handler = new Ajax\Queue_Ajax_Handler(
+            $this->batch_sorter,
+            $this->batch_repository,
+            $this->serial_repository
+        );
+        $this->queue_ajax_handler->register();
     }
 
     /**
