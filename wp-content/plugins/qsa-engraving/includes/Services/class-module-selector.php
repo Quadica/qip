@@ -34,6 +34,11 @@ class Module_Selector {
      * does NOT use the WordPress table prefix. It will eventually be deprecated
      * but is required for the current engraving workflow integration.
      *
+     * Important: The `order_no` column in this table contains WooCommerce order IDs.
+     * Despite the different column name, these are the same ID space used by
+     * WooCommerce orders, Order BOM CPT, and LED_Code_Resolver. Verified via
+     * data inspection - order_no values match wp_posts.ID for shop_order posts.
+     *
      * @var string
      */
     public const OMS_BATCH_ITEMS_TABLE = 'oms_batch_items';

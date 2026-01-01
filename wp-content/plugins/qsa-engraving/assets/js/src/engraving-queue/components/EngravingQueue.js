@@ -164,7 +164,7 @@ export default function EngravingQueue() {
 	 *
 	 * @param {number}  qsaSequence The QSA sequence number.
 	 * @param {boolean} autoLoad    Whether to auto-load in LightBurn.
-	 * @return {Promise<Object|null>} The SVG generation result or null on error.
+	 * @return {Promise<{success: boolean, data?: Object, error?: string}>} Result with success flag and data or error.
 	 */
 	const generateSvg = async ( qsaSequence, autoLoad = true ) => {
 		try {
@@ -182,13 +182,13 @@ export default function EngravingQueue() {
 					lastFile: data.data.filename,
 					connected: data.data.lightburn_loaded || prev.connected,
 				} ) );
-				return data.data;
+				return { success: true, data: data.data };
 			}
 			setLightburnStatus( ( prev ) => ( { ...prev, loading: false } ) );
-			return null;
+			return { success: false, error: data.message || __( 'SVG generation failed.', 'qsa-engraving' ) };
 		} catch ( err ) {
 			setLightburnStatus( ( prev ) => ( { ...prev, loading: false } ) );
-			return null;
+			return { success: false, error: __( 'Network error generating SVG.', 'qsa-engraving' ) };
 		}
 	};
 
@@ -215,9 +215,18 @@ export default function EngravingQueue() {
 				// Generate SVG and optionally auto-load in LightBurn.
 				if ( lightburnStatus.enabled ) {
 					const svgResult = await generateSvg( qsaSequence, lightburnStatus.autoLoad );
-					if ( svgResult && ! svgResult.lightburn_loaded && lightburnStatus.autoLoad ) {
+					if ( ! svgResult.success ) {
+						// SVG generation failed - alert operator with error details.
+						alert(
+							__( 'Row started but SVG generation failed:', 'qsa-engraving' ) +
+								'\n\n' +
+								svgResult.error +
+								'\n\n' +
+								__( 'Please resolve the issue and use Resend to regenerate the SVG.', 'qsa-engraving' )
+						);
+					} else if ( svgResult.data && ! svgResult.data.lightburn_loaded && lightburnStatus.autoLoad ) {
 						// SVG generated but LightBurn load failed.
-						console.warn( 'SVG generated but LightBurn load failed:', svgResult.lightburn_error );
+						console.warn( 'SVG generated but LightBurn load failed:', svgResult.data.lightburn_error );
 					}
 				}
 			} else {
@@ -284,8 +293,17 @@ export default function EngravingQueue() {
 				// Regenerate SVG with new serials and load in LightBurn if enabled.
 				if ( lightburnStatus.enabled ) {
 					const svgResult = await generateSvg( qsaSequence, lightburnStatus.autoLoad );
-					if ( svgResult && ! svgResult.lightburn_loaded && lightburnStatus.autoLoad ) {
-						console.warn( 'SVG regenerated but LightBurn load failed:', svgResult.lightburn_error );
+					if ( ! svgResult.success ) {
+						// SVG regeneration failed - alert operator with error details.
+						alert(
+							__( 'Serials assigned but SVG generation failed:', 'qsa-engraving' ) +
+								'\n\n' +
+								svgResult.error +
+								'\n\n' +
+								__( 'Please resolve the issue and use Resend to regenerate the SVG.', 'qsa-engraving' )
+						);
+					} else if ( svgResult.data && ! svgResult.data.lightburn_loaded && lightburnStatus.autoLoad ) {
+						console.warn( 'SVG regenerated but LightBurn load failed:', svgResult.data.lightburn_error );
 					}
 				}
 			} else {

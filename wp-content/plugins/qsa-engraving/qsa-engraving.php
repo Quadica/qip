@@ -658,6 +658,18 @@ register_activation_hook( __FILE__, __NAMESPACE__ . '\\activate' );
 function deactivate(): void {
     // Flush rewrite rules on deactivation.
     flush_rewrite_rules();
+
+    // Unschedule the SVG cleanup task.
+    // Check for Action Scheduler first (WooCommerce includes it).
+    if ( function_exists( 'as_unschedule_all_actions' ) ) {
+        as_unschedule_all_actions( 'qsa_engraving_cleanup_svg_files' );
+    }
+
+    // Also clear WP-Cron (fallback or if Action Scheduler wasn't used).
+    $timestamp = wp_next_scheduled( 'qsa_engraving_cleanup_svg_files' );
+    if ( $timestamp ) {
+        wp_unschedule_event( $timestamp, 'qsa_engraving_cleanup_svg_files' );
+    }
 }
 register_deactivation_hook( __FILE__, __NAMESPACE__ . '\\deactivate' );
 
