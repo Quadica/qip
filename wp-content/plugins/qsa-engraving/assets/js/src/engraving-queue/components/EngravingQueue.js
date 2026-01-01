@@ -336,11 +336,17 @@ export default function EngravingQueue() {
 			} else {
 				// File not found - regenerate it.
 				const svgResult = await generateSvg( qsaSequence, true );
-				if ( svgResult ) {
+				if ( svgResult.success ) {
 					setLightburnStatus( ( prev ) => ( { ...prev, loading: false } ) );
 				} else {
 					setLightburnStatus( ( prev ) => ( { ...prev, loading: false } ) );
-					alert( data.message || __( 'Failed to load SVG. Try generating a new one.', 'qsa-engraving' ) );
+					alert(
+						__( 'Failed to regenerate SVG:', 'qsa-engraving' ) +
+							'\n\n' +
+							svgResult.error +
+							'\n\n' +
+							__( 'Please resolve the issue and try again.', 'qsa-engraving' )
+					);
 				}
 			}
 		} catch ( err ) {

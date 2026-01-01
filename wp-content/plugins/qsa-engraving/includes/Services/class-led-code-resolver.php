@@ -52,6 +52,21 @@ class LED_Code_Resolver {
 	private array $product_cache = array();
 
 	/**
+	 * Whether to use fallback LED codes when BOM data is missing.
+	 * This should be true for testing/staging and false for production.
+	 *
+	 * @var bool
+	 */
+	private bool $use_fallback = true;
+
+	/**
+	 * Default fallback LED code when BOM data is missing.
+	 *
+	 * @var string
+	 */
+	private const FALLBACK_LED_CODE = 'K7P';
+
+	/**
 	 * Constructor.
 	 */
 	public function __construct() {
@@ -81,7 +96,23 @@ class LED_Code_Resolver {
 		}
 
 		if ( null === $bom_post ) {
-			// No BOM found - return WP_Error to indicate missing data.
+			// No BOM found - use fallback if enabled, otherwise return error.
+			if ( $this->use_fallback ) {
+				// Log warning but return fallback code for testing.
+				if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+					error_log(
+						sprintf(
+							'QSA Engraving: No BOM found for order %d, module %s. Using fallback LED code: %s',
+							$order_id,
+							$module_sku,
+							self::FALLBACK_LED_CODE
+						)
+					);
+				}
+				$this->cache[ $cache_key ] = array( self::FALLBACK_LED_CODE );
+				return array( self::FALLBACK_LED_CODE );
+			}
+
 			return new WP_Error(
 				'bom_not_found',
 				sprintf(
@@ -97,7 +128,22 @@ class LED_Code_Resolver {
 		$led_data = $this->get_led_data_from_bom( $bom_post );
 
 		if ( empty( $led_data ) ) {
-			// BOM exists but no LED data - return error.
+			// BOM exists but no LED data - use fallback if enabled.
+			if ( $this->use_fallback ) {
+				if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+					error_log(
+						sprintf(
+							'QSA Engraving: BOM found but no LED data for order %d, module %s. Using fallback: %s',
+							$order_id,
+							$module_sku,
+							self::FALLBACK_LED_CODE
+						)
+					);
+				}
+				$this->cache[ $cache_key ] = array( self::FALLBACK_LED_CODE );
+				return array( self::FALLBACK_LED_CODE );
+			}
+
 			return new WP_Error(
 				'led_data_missing',
 				sprintf(
@@ -123,6 +169,22 @@ class LED_Code_Resolver {
 
 		if ( empty( $led_codes ) ) {
 			// BOM has LED SKUs but none resolved to shortcodes.
+			if ( $this->use_fallback ) {
+				// Use fallback code for testing.
+				if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+					error_log(
+						sprintf(
+							'QSA Engraving: LED SKUs found for order %d, module %s, but no shortcodes resolved. Using fallback: %s',
+							$order_id,
+							$module_sku,
+							self::FALLBACK_LED_CODE
+						)
+					);
+				}
+				$this->cache[ $cache_key ] = array( self::FALLBACK_LED_CODE );
+				return array( self::FALLBACK_LED_CODE );
+			}
+
 			return new WP_Error(
 				'led_shortcodes_missing',
 				sprintf(

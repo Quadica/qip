@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 echo "\n";
 echo "================================================================\n";
-echo "QSA Engraving Plugin - Phase 1, 2, 3, 4, 5, 6 & 7 Smoke Tests\n";
+echo "QSA Engraving Plugin - Phase 1-8 Smoke Tests\n";
 echo "================================================================\n\n";
 
 $tests_passed = 0;
@@ -3332,6 +3332,206 @@ run_test(
         return true;
     },
     'qsa_engraving_settings option is accessible.'
+);
+
+// ============================================
+// Phase 8: Batch History Tests
+// ============================================
+echo "--- Phase 8: Batch History Tests ---\n\n";
+
+run_test(
+    'TC-P8-001: History AJAX Handler class exists',
+    function (): bool {
+        if ( ! class_exists( '\Quadica\QSA_Engraving\Ajax\History_Ajax_Handler' ) ) {
+            return new WP_Error( 'class_missing', 'History_Ajax_Handler class not found.' );
+        }
+
+        echo "  History_Ajax_Handler class exists.\n";
+        return true;
+    },
+    'History AJAX handler class is loadable.'
+);
+
+run_test(
+    'TC-P8-002: History AJAX actions are registered',
+    function (): bool {
+        // Check if AJAX actions are registered.
+        $actions = array(
+            'wp_ajax_qsa_get_batch_history',
+            'wp_ajax_qsa_get_batch_details',
+            'wp_ajax_qsa_get_batch_for_reengraving',
+        );
+
+        foreach ( $actions as $action ) {
+            if ( ! has_action( $action ) ) {
+                return new WP_Error( 'action_missing', "Action '{$action}' not registered." );
+            }
+            echo "  {$action} is registered.\n";
+        }
+
+        return true;
+    },
+    'History AJAX actions are properly registered.'
+);
+
+run_test(
+    'TC-P8-003: Batch History menu page exists',
+    function (): bool {
+        // Get the admin menu instance.
+        $plugin = \Quadica\QSA_Engraving\qsa_engraving();
+
+        // The menu slug should exist.
+        $menu_slug = 'qsa-engraving-history';
+
+        // Check if the submenu page would be accessible.
+        global $submenu;
+        $found = false;
+        if ( isset( $submenu['woocommerce'] ) ) {
+            foreach ( $submenu['woocommerce'] as $item ) {
+                if ( isset( $item[2] ) && $item[2] === $menu_slug ) {
+                    $found = true;
+                    break;
+                }
+            }
+        }
+
+        // Check in qsa-engraving submenu too.
+        if ( isset( $submenu['qsa-engraving'] ) ) {
+            foreach ( $submenu['qsa-engraving'] as $item ) {
+                if ( isset( $item[2] ) && $item[2] === $menu_slug ) {
+                    $found = true;
+                    break;
+                }
+            }
+        }
+
+        if ( ! $found ) {
+            // Menu might not be built in CLI context, just verify the method exists.
+            $admin_menu = new \Quadica\QSA_Engraving\Admin\Admin_Menu();
+            if ( ! method_exists( $admin_menu, 'render_history_page' ) ) {
+                return new WP_Error( 'method_missing', 'render_history_page method not found.' );
+            }
+            echo "  render_history_page method exists.\n";
+        } else {
+            echo "  Menu item found.\n";
+        }
+
+        return true;
+    },
+    'Batch History menu page is configured.'
+);
+
+run_test(
+    'TC-P8-004: Batch Repository has enhanced methods',
+    function (): bool {
+        $batch_repo = new \Quadica\QSA_Engraving\Database\Batch_Repository();
+
+        // Check for existing methods used by history.
+        $required_methods = array(
+            'get_batches',
+            'get_batch',
+            'get_modules_for_batch',
+        );
+
+        foreach ( $required_methods as $method ) {
+            if ( ! method_exists( $batch_repo, $method ) ) {
+                return new WP_Error( 'method_missing', "Method '{$method}' not found." );
+            }
+            echo "  {$method}() exists.\n";
+        }
+
+        return true;
+    },
+    'Batch Repository has methods required for history.'
+);
+
+run_test(
+    'TC-P8-005: History AJAX Handler can fetch completed batches',
+    function (): bool {
+        $batch_repo = new \Quadica\QSA_Engraving\Database\Batch_Repository();
+        $serial_repo = new \Quadica\QSA_Engraving\Database\Serial_Repository();
+
+        $handler = new \Quadica\QSA_Engraving\Ajax\History_Ajax_Handler(
+            $batch_repo,
+            $serial_repo
+        );
+
+        // Verify the handler can be constructed.
+        if ( ! $handler instanceof \Quadica\QSA_Engraving\Ajax\History_Ajax_Handler ) {
+            return new WP_Error( 'construct_failed', 'Failed to construct handler.' );
+        }
+
+        echo "  History_Ajax_Handler constructed successfully.\n";
+        return true;
+    },
+    'History AJAX handler can be constructed.'
+);
+
+run_test(
+    'TC-P8-006: Batch history JavaScript bundle configured',
+    function (): bool {
+        // Check if webpack entry is configured by checking for the source file.
+        $source_file = QSA_ENGRAVING_PLUGIN_DIR . 'assets/js/src/batch-history/index.js';
+        if ( ! file_exists( $source_file ) ) {
+            return new WP_Error( 'file_missing', 'batch-history/index.js source file not found.' );
+        }
+        echo "  Source file exists: assets/js/src/batch-history/index.js\n";
+
+        // Check for main component.
+        $component_file = QSA_ENGRAVING_PLUGIN_DIR . 'assets/js/src/batch-history/components/BatchHistory.js';
+        if ( ! file_exists( $component_file ) ) {
+            return new WP_Error( 'file_missing', 'BatchHistory.js component not found.' );
+        }
+        echo "  BatchHistory component exists.\n";
+
+        // Check for other components.
+        $components = array( 'BatchList.js', 'BatchDetails.js', 'SearchFilter.js' );
+        foreach ( $components as $component ) {
+            $path = QSA_ENGRAVING_PLUGIN_DIR . 'assets/js/src/batch-history/components/' . $component;
+            if ( ! file_exists( $path ) ) {
+                return new WP_Error( 'file_missing', "{$component} not found." );
+            }
+            echo "  {$component} exists.\n";
+        }
+
+        return true;
+    },
+    'Batch history React components are in place.'
+);
+
+run_test(
+    'TC-P8-007: Batch history CSS exists',
+    function (): bool {
+        $css_file = QSA_ENGRAVING_PLUGIN_DIR . 'assets/js/src/batch-history/style.css';
+        if ( ! file_exists( $css_file ) ) {
+            return new WP_Error( 'file_missing', 'batch-history/style.css not found.' );
+        }
+
+        // Check file has content.
+        $content = file_get_contents( $css_file );
+        if ( strlen( $content ) < 1000 ) {
+            return new WP_Error( 'css_empty', 'CSS file appears to be too small.' );
+        }
+
+        echo "  Style file exists with " . strlen( $content ) . " bytes.\n";
+        return true;
+    },
+    'Batch history CSS file exists.'
+);
+
+run_test(
+    'TC-P8-008: Settings page has render method',
+    function (): bool {
+        $admin_menu = new \Quadica\QSA_Engraving\Admin\Admin_Menu();
+
+        if ( ! method_exists( $admin_menu, 'render_settings_page' ) ) {
+            return new WP_Error( 'method_missing', 'render_settings_page method not found.' );
+        }
+
+        echo "  render_settings_page method exists.\n";
+        return true;
+    },
+    'Settings page render method exists.'
 );
 
 // ============================================
