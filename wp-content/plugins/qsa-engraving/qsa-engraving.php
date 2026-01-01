@@ -92,8 +92,28 @@ final class Plugin {
     private ?Services\Module_Selector $module_selector = null;
 
     /**
-     * Private constructor to prevent direct instantiation.
+     * Batch Sorter Service instance.
+     *
+     * @var Services\Batch_Sorter|null
      */
+    private ?Services\Batch_Sorter $batch_sorter = null;
+
+    /**
+     * LED Code Resolver Service instance.
+     *
+     * @var Services\LED_Code_Resolver|null
+     */
+    private ?Services\LED_Code_Resolver $led_code_resolver = null;
+
+    /**
+     * Batch AJAX Handler instance.
+     *
+     * @var Ajax\Batch_Ajax_Handler|null
+     */
+    private ?Ajax\Batch_Ajax_Handler $batch_ajax_handler = null;
+
+    /**
+     * Private constructor to prevent direct instantiation.
     private function __construct() {
         // Empty constructor - initialization happens in init().
     }
@@ -301,7 +321,19 @@ final class Plugin {
      * @return void
      */
     private function init_services(): void {
-        $this->module_selector = new Services\Module_Selector( $this->batch_repository );
+        $this->module_selector   = new Services\Module_Selector( $this->batch_repository );
+        $this->batch_sorter      = new Services\Batch_Sorter();
+        $this->led_code_resolver = new Services\LED_Code_Resolver();
+
+        // Initialize AJAX handler.
+        $this->batch_ajax_handler = new Ajax\Batch_Ajax_Handler(
+            $this->module_selector,
+            $this->batch_sorter,
+            $this->batch_repository,
+            $this->serial_repository,
+            $this->led_code_resolver
+        );
+        $this->batch_ajax_handler->register();
     }
 
     /**
@@ -334,28 +366,82 @@ final class Plugin {
             QSA_ENGRAVING_VERSION
         );
 
-        // Admin JavaScript (React bundle when available).
-        $js_path = QSA_ENGRAVING_PLUGIN_DIR . 'assets/js/build/admin.js';
-        if ( file_exists( $js_path ) ) {
-            wp_enqueue_script(
-                'qsa-engraving-admin',
-                QSA_ENGRAVING_PLUGIN_URL . 'assets/js/build/admin.js',
-                array( 'wp-element', 'wp-components', 'wp-api-fetch' ),
-                QSA_ENGRAVING_VERSION,
-                true
-            );
+        // Determine which page we're on and load appropriate assets.
+        $page = isset( $_GET['page'] ) ? sanitize_text_field( wp_unslash( $_GET['page'] ) ) : '';
 
-            // Localize script with REST API info.
-            wp_localize_script(
-                'qsa-engraving-admin',
-                'qsaEngraving',
-                array(
-                    'nonce'   => wp_create_nonce( 'qsa_engraving_nonce' ),
-                    'ajaxUrl' => admin_url( 'admin-ajax.php' ),
-                    'restUrl' => rest_url( 'qsa-engraving/v1/' ),
-                )
+        // Localization data for all scripts.
+        $localization_data = array(
+            'nonce'   => wp_create_nonce( 'qsa_engraving_nonce' ),
+            'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+            'restUrl' => rest_url( 'qsa-engraving/v1/' ),
+        );
+
+        // Batch Creator page.
+        if ( 'qsa-engraving-batch-creator' === $page ) {
+            $this->enqueue_react_bundle( 'batch-creator', $localization_data );
+        }
+
+        // Engraving Queue page (Phase 6).
+        if ( 'qsa-engraving-queue' === $page ) {
+            $this->enqueue_react_bundle( 'engraving-queue', $localization_data );
+        }
+
+        // Batch History page (Phase 8).
+        if ( 'qsa-engraving-history' === $page ) {
+            $this->enqueue_react_bundle( 'batch-history', $localization_data );
+        }
+    }
+
+    /**
+     * Enqueue a React bundle with its dependencies.
+     *
+     * @param string $bundle_name      The bundle name (e.g., 'batch-creator').
+     * @param array  $localization_data Data to pass to the script.
+     * @return void
+     */
+    private function enqueue_react_bundle( string $bundle_name, array $localization_data ): void {
+        $js_path    = QSA_ENGRAVING_PLUGIN_DIR . "assets/js/build/{$bundle_name}.js";
+        $asset_path = QSA_ENGRAVING_PLUGIN_DIR . "assets/js/build/{$bundle_name}.asset.php";
+
+        if ( ! file_exists( $js_path ) ) {
+            return;
+        }
+
+        // Load dependencies from asset file if available.
+        $dependencies = array( 'wp-element', 'wp-i18n', 'wp-api-fetch' );
+        $version      = QSA_ENGRAVING_VERSION;
+
+        if ( file_exists( $asset_path ) ) {
+            $asset        = require $asset_path;
+            $dependencies = $asset['dependencies'] ?? $dependencies;
+            $version      = $asset['version'] ?? $version;
+        }
+
+        wp_enqueue_script(
+            "qsa-engraving-{$bundle_name}",
+            QSA_ENGRAVING_PLUGIN_URL . "assets/js/build/{$bundle_name}.js",
+            $dependencies,
+            $version,
+            true
+        );
+
+        // Enqueue the CSS if available.
+        $css_path = QSA_ENGRAVING_PLUGIN_DIR . "assets/js/build/{$bundle_name}.css";
+        if ( file_exists( $css_path ) ) {
+            wp_enqueue_style(
+                "qsa-engraving-{$bundle_name}",
+                QSA_ENGRAVING_PLUGIN_URL . "assets/js/build/{$bundle_name}.css",
+                array(),
+                $version
             );
         }
+
+        // Localize script.
+        wp_localize_script(
+            "qsa-engraving-{$bundle_name}",
+            'qsaEngraving',
+            $localization_data
+        );
     }
 
     /**
