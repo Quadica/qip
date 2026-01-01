@@ -135,8 +135,10 @@ class Datamatrix_Renderer {
                 array( 0, 0, 0, 0 ) // No padding.
             );
 
-            // Get the raw barcode grid data.
-            $grid = $bobj->getGrid();
+            // Get the raw barcode grid data as 2D array.
+            // getGridArray() returns array<int, array<int, string>> which is more reliable
+            // than getGrid() which returns a newline-separated string.
+            $grid = $bobj->getGridArray();
             if ( empty( $grid ) ) {
                 return new WP_Error(
                     'barcode_generation_failed',
@@ -162,14 +164,16 @@ class Datamatrix_Renderer {
     /**
      * Convert barcode grid to SVG rect elements.
      *
-     * @param array $grid   2D array of module states (1 = filled, 0 = empty).
+     * @param array $grid   2D array from getGridArray() - array<int, array<int, string>>.
+     *                      Each inner array element is '0' (space) or '1' (bar).
      * @param float $width  Target width in mm.
      * @param float $height Target height in mm.
      * @return string SVG group markup.
      */
     private static function grid_to_svg( array $grid, float $width, float $height ): string {
-        $rows       = count( $grid );
-        $cols       = ! empty( $grid[0] ) ? strlen( (string) $grid[0] ) : 0;
+        $rows = count( $grid );
+        // getGridArray returns array<int, array<int, string>>, so count the first row.
+        $cols = ! empty( $grid[0] ) ? count( $grid[0] ) : 0;
 
         if ( 0 === $rows || 0 === $cols ) {
             return '<g><!-- Empty barcode grid --></g>';
@@ -191,8 +195,9 @@ class Datamatrix_Renderer {
         // Build SVG rects for filled modules.
         $rects = array();
         for ( $row = 0; $row < $rows; $row++ ) {
-            $row_data = (string) $grid[ $row ];
+            $row_data = $grid[ $row ];
             for ( $col = 0; $col < $cols; $col++ ) {
+                // getGridArray returns '1' for bars, '0' for spaces.
                 if ( isset( $row_data[ $col ] ) && '1' === $row_data[ $col ] ) {
                     $x = $offset_x + ( $col * $module_size );
                     $y = $offset_y + ( $row * $module_size );

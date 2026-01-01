@@ -404,6 +404,20 @@ class SVG_Document {
         foreach ( $led_codes as $index => $led_code ) {
             $config_key = 'led_code_' . ( $index + 1 );
             if ( ! empty( $led_code ) && isset( $config[ $config_key ] ) ) {
+                // Validate LED code against allowed character set.
+                if ( ! Text_Renderer::validate_led_code( $led_code ) ) {
+                    return new WP_Error(
+                        'invalid_led_code',
+                        sprintf(
+                            /* translators: 1: LED code, 2: Position number, 3: Allowed characters */
+                            __( 'Invalid LED code "%1$s" at position %2$d. Only these characters allowed: %3$s', 'qsa-engraving' ),
+                            $led_code,
+                            $position,
+                            Text_Renderer::get_led_code_charset()
+                        )
+                    );
+                }
+
                 $elements[] = '  ' . $this->render_text_element(
                     'led_code',
                     $led_code,
@@ -433,6 +447,12 @@ class SVG_Document {
             $config['origin_y']
         );
 
+        // Validate coordinates are within bounds (warn but don't fail).
+        if ( ! $this->transformer->is_within_bounds( $svg_coords['x'], $svg_coords['y'] ) ) {
+            // Clamp to bounds to ensure valid SVG output.
+            $svg_coords = $this->transformer->clamp_to_bounds( $svg_coords['x'], $svg_coords['y'] );
+        }
+
         return Micro_ID_Encoder::render_svg_positioned(
             $serial_int,
             $svg_coords['x'],
@@ -455,6 +475,11 @@ class SVG_Document {
             $config['origin_x'],
             $config['origin_y']
         );
+
+        // Validate coordinates are within bounds (clamp if needed).
+        if ( ! $this->transformer->is_within_bounds( $svg_coords['x'], $svg_coords['y'] ) ) {
+            $svg_coords = $this->transformer->clamp_to_bounds( $svg_coords['x'], $svg_coords['y'] );
+        }
 
         return Datamatrix_Renderer::render_positioned(
             $serial_number,
@@ -480,6 +505,11 @@ class SVG_Document {
             $config['origin_x'],
             $config['origin_y']
         );
+
+        // Validate coordinates are within bounds (clamp if needed).
+        if ( ! $this->transformer->is_within_bounds( $svg_coords['x'], $svg_coords['y'] ) ) {
+            $svg_coords = $this->transformer->clamp_to_bounds( $svg_coords['x'], $svg_coords['y'] );
+        }
 
         $height   = $config['text_height'] ?? ( Text_Renderer::DEFAULT_HEIGHTS[ $type ] ?? 1.0 );
         $rotation = $config['rotation'] ?? 0;
