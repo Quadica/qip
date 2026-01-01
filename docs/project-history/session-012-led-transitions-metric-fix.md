@@ -1,3 +1,7 @@
+This report provides details of the code changes made to address the issues you identified and suggestions you made. Please perform a code review and security check of the fixes to ensure that the fix has solved the problem and that the changes made have not introduced any additional problems.
+
+---
+
 # Session 012: LED Transitions Metric Fix
 
 - Date/Time: 2025-12-31 20:16
