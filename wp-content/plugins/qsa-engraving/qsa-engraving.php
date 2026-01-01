@@ -120,6 +120,13 @@ final class Plugin {
     private ?Ajax\Queue_Ajax_Handler $queue_ajax_handler = null;
 
     /**
+     * LightBurn AJAX Handler instance.
+     *
+     * @var Ajax\LightBurn_Ajax_Handler|null
+     */
+    private ?Ajax\LightBurn_Ajax_Handler $lightburn_ajax_handler = null;
+
+    /**
      * Private constructor to prevent direct instantiation.
      */
     private function __construct() {
@@ -350,6 +357,14 @@ final class Plugin {
             $this->serial_repository
         );
         $this->queue_ajax_handler->register();
+
+        // Initialize LightBurn AJAX handler (Phase 7).
+        $this->lightburn_ajax_handler = new Ajax\LightBurn_Ajax_Handler(
+            $this->batch_repository,
+            $this->serial_repository,
+            $this->led_code_resolver
+        );
+        $this->lightburn_ajax_handler->register();
     }
 
     /**
@@ -385,11 +400,16 @@ final class Plugin {
         // Determine which page we're on and load appropriate assets.
         $page = isset( $_GET['page'] ) ? sanitize_text_field( wp_unslash( $_GET['page'] ) ) : '';
 
+        // Get LightBurn settings.
+        $settings = get_option( 'qsa_engraving_settings', array() );
+
         // Localization data for all scripts.
         $localization_data = array(
-            'nonce'   => wp_create_nonce( 'qsa_engraving_nonce' ),
-            'ajaxUrl' => admin_url( 'admin-ajax.php' ),
-            'restUrl' => rest_url( 'qsa-engraving/v1/' ),
+            'nonce'            => wp_create_nonce( 'qsa_engraving_nonce' ),
+            'ajaxUrl'          => admin_url( 'admin-ajax.php' ),
+            'restUrl'          => rest_url( 'qsa-engraving/v1/' ),
+            'lightburnEnabled' => (bool) ( $settings['lightburn_enabled'] ?? false ),
+            'lightburnAutoLoad' => (bool) ( $settings['lightburn_auto_load'] ?? true ),
         );
 
         // Batch Creator page.

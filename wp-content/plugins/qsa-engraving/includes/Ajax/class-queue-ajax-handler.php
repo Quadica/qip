@@ -267,12 +267,27 @@ class Queue_Ajax_Handler {
 				$status = 'pending';
 			}
 
-			// Get serial numbers if already assigned.
+			// Get serial numbers for this QSA - filter based on row status.
+			// For in_progress rows: show reserved serials (the current working set).
+			// For complete rows: show engraved serials (the committed serials).
+			// For pending rows: no serials to show.
 			$serials = $this->serial_repository->get_by_batch( $batch_id );
-			$row_serials = array_filter(
-				$serials,
-				fn( $s ) => (int) $s['qsa_sequence'] === $qsa_seq
-			);
+
+			// Determine which serial status to display based on row status.
+			$serial_status_filter = null;
+			if ( 'in_progress' === $status ) {
+				$serial_status_filter = 'reserved';
+			} elseif ( 'complete' === $status ) {
+				$serial_status_filter = 'engraved';
+			}
+
+			$row_serials = array();
+			if ( null !== $serial_status_filter ) {
+				$row_serials = array_filter(
+					$serials,
+					fn( $s ) => (int) $s['qsa_sequence'] === $qsa_seq && $s['status'] === $serial_status_filter
+				);
+			}
 
 			// Get start position from first module in this QSA.
 			$start_position = (int) $qsa_modules[0]['array_position'];
@@ -352,6 +367,9 @@ class Queue_Ajax_Handler {
 	/**
 	 * Handle start row request - reserves serials and prepares for engraving.
 	 *
+	 * Enforces row status transition: only pending rows can be started.
+	 * Checks for existing reserved serials to prevent duplicate reservations.
+	 *
 	 * @return void
 	 */
 	public function handle_start_row(): void {
@@ -384,6 +402,35 @@ class Queue_Ajax_Handler {
 			return;
 		}
 
+		// Check current row status - only allow starting from 'pending' state.
+		$current_status = $qsa_modules[0]['row_status'] ?? 'pending';
+		if ( 'pending' !== $current_status ) {
+			$this->send_error(
+				sprintf(
+					/* translators: %s: Current row status */
+					__( 'Cannot start row: current status is "%s". Only pending rows can be started.', 'qsa-engraving' ),
+					$current_status
+				),
+				'invalid_row_status'
+			);
+			return;
+		}
+
+		// Check for existing reserved serials to prevent duplicate reservations.
+		$existing_serials = $this->serial_repository->get_by_batch( $batch_id, 'reserved' );
+		$existing_for_qsa = array_filter(
+			$existing_serials,
+			fn( $s ) => (int) $s['qsa_sequence'] === $qsa_sequence
+		);
+
+		if ( ! empty( $existing_for_qsa ) ) {
+			$this->send_error(
+				__( 'This row already has reserved serials. Use Retry to get new serials or Complete to finish.', 'qsa-engraving' ),
+				'serials_already_reserved'
+			);
+			return;
+		}
+
 		// Reserve serials for these modules.
 		$modules_for_serial = array_map(
 			fn( $m ) => array(
@@ -404,7 +451,16 @@ class Queue_Ajax_Handler {
 		}
 
 		// Update module row status to in_progress.
-		$this->batch_repository->update_row_status( $batch_id, $qsa_sequence, 'in_progress' );
+		$status_result = $this->batch_repository->update_row_status( $batch_id, $qsa_sequence, 'in_progress' );
+		if ( is_wp_error( $status_result ) ) {
+			// Compensating action: void the reserved serials to prevent orphaned reservations.
+			$this->serial_repository->void_serials( $batch_id, $qsa_sequence );
+			$this->send_error(
+				__( 'Failed to update row status. Reserved serials have been voided.', 'qsa-engraving' ),
+				'status_update_failed'
+			);
+			return;
+		}
 
 		$this->send_success(
 			array(
@@ -417,10 +473,13 @@ class Queue_Ajax_Handler {
 	}
 
 	/**
-	 * Handle next array request - commits current array serials and loads next.
+	 * Handle next array request - commits current array serials and marks row done.
 	 *
-	 * Note: In the current implementation, each QSA row IS one array, so this
-	 * commits the serials and marks the row complete.
+	 * Note: In the current one-array-per-row implementation, each QSA row IS one array.
+	 * This action commits the serials and marks the row as done, making it functionally
+	 * equivalent to handle_complete_row but kept for API consistency.
+	 *
+	 * Enforces same guards as handle_complete_row(): row must be in_progress with reserved serials.
 	 *
 	 * @return void
 	 */
@@ -441,6 +500,46 @@ class Queue_Ajax_Handler {
 			return;
 		}
 
+		// Check that the row is in_progress (valid state to complete from).
+		$all_modules = $this->batch_repository->get_modules_for_batch( $batch_id );
+		$qsa_modules = array_filter(
+			$all_modules,
+			fn( $m ) => (int) $m['qsa_sequence'] === $qsa_sequence
+		);
+
+		if ( empty( $qsa_modules ) ) {
+			$this->send_error( __( 'No modules found for this QSA.', 'qsa-engraving' ), 'no_modules' );
+			return;
+		}
+
+		$current_status = reset( $qsa_modules )['row_status'] ?? 'pending';
+		if ( 'in_progress' !== $current_status ) {
+			$this->send_error(
+				sprintf(
+					/* translators: %s: Current row status */
+					__( 'Cannot complete row: current status is "%s". Only in-progress rows can be completed.', 'qsa-engraving' ),
+					$current_status
+				),
+				'invalid_row_status'
+			);
+			return;
+		}
+
+		// Check for reserved serials - must have serials to commit.
+		$reserved_serials = $this->serial_repository->get_by_batch( $batch_id, 'reserved' );
+		$reserved_for_qsa = array_filter(
+			$reserved_serials,
+			fn( $s ) => (int) $s['qsa_sequence'] === $qsa_sequence
+		);
+
+		if ( empty( $reserved_for_qsa ) ) {
+			$this->send_error(
+				__( 'No reserved serials found to commit. The row may have already been completed or serials were voided.', 'qsa-engraving' ),
+				'no_reserved_serials'
+			);
+			return;
+		}
+
 		// Commit the serials for this QSA.
 		$committed = $this->serial_repository->commit_serials( $batch_id, $qsa_sequence );
 
@@ -449,18 +548,37 @@ class Queue_Ajax_Handler {
 			return;
 		}
 
+		// Mark the row as done (one-array-per-row implementation).
+		$mark_result = $this->batch_repository->mark_qsa_done( $batch_id, $qsa_sequence );
+		if ( is_wp_error( $mark_result ) ) {
+			$this->send_error( $mark_result->get_error_message(), $mark_result->get_error_code() );
+			return;
+		}
+
+		// Check if entire batch is complete.
+		$batch_complete = $this->batch_repository->is_batch_complete( $batch_id );
+		if ( $batch_complete ) {
+			$this->batch_repository->complete_batch( $batch_id );
+		}
+
 		$this->send_success(
 			array(
-				'batch_id'        => $batch_id,
-				'qsa_sequence'    => $qsa_sequence,
+				'batch_id'          => $batch_id,
+				'qsa_sequence'      => $qsa_sequence,
 				'serials_committed' => $committed,
+				'batch_complete'    => $batch_complete,
 			),
-			__( 'Serials committed.', 'qsa-engraving' )
+			$batch_complete
+				? __( 'Array complete. Batch is now complete!', 'qsa-engraving' )
+				: __( 'Serials committed. Row complete.', 'qsa-engraving' )
 		);
 	}
 
 	/**
 	 * Handle complete row request - finalizes the row as done.
+	 *
+	 * Enforces that the row must be in_progress with reserved serials to complete.
+	 * Commits serials (reserved -> engraved) and marks row as done.
 	 *
 	 * @return void
 	 */
@@ -481,6 +599,46 @@ class Queue_Ajax_Handler {
 			return;
 		}
 
+		// Check that the row is in_progress (valid state to complete from).
+		$all_modules = $this->batch_repository->get_modules_for_batch( $batch_id );
+		$qsa_modules = array_filter(
+			$all_modules,
+			fn( $m ) => (int) $m['qsa_sequence'] === $qsa_sequence
+		);
+
+		if ( empty( $qsa_modules ) ) {
+			$this->send_error( __( 'No modules found for this QSA.', 'qsa-engraving' ), 'no_modules' );
+			return;
+		}
+
+		$current_status = reset( $qsa_modules )['row_status'] ?? 'pending';
+		if ( 'in_progress' !== $current_status ) {
+			$this->send_error(
+				sprintf(
+					/* translators: %s: Current row status */
+					__( 'Cannot complete row: current status is "%s". Only in-progress rows can be completed.', 'qsa-engraving' ),
+					$current_status
+				),
+				'invalid_row_status'
+			);
+			return;
+		}
+
+		// Check for reserved serials - must have serials to commit.
+		$reserved_serials = $this->serial_repository->get_by_batch( $batch_id, 'reserved' );
+		$reserved_for_qsa = array_filter(
+			$reserved_serials,
+			fn( $s ) => (int) $s['qsa_sequence'] === $qsa_sequence
+		);
+
+		if ( empty( $reserved_for_qsa ) ) {
+			$this->send_error(
+				__( 'No reserved serials found to commit. The row may have already been completed or serials were voided.', 'qsa-engraving' ),
+				'no_reserved_serials'
+			);
+			return;
+		}
+
 		// Commit the serials.
 		$committed = $this->serial_repository->commit_serials( $batch_id, $qsa_sequence );
 
@@ -490,7 +648,11 @@ class Queue_Ajax_Handler {
 		}
 
 		// Mark the row as done.
-		$this->batch_repository->mark_qsa_done( $batch_id, $qsa_sequence );
+		$mark_result = $this->batch_repository->mark_qsa_done( $batch_id, $qsa_sequence );
+		if ( is_wp_error( $mark_result ) ) {
+			$this->send_error( $mark_result->get_error_message(), $mark_result->get_error_code() );
+			return;
+		}
 
 		// Check if entire batch is complete.
 		$batch_complete = $this->batch_repository->is_batch_complete( $batch_id );
@@ -500,9 +662,10 @@ class Queue_Ajax_Handler {
 
 		$this->send_success(
 			array(
-				'batch_id'       => $batch_id,
-				'qsa_sequence'   => $qsa_sequence,
-				'batch_complete' => $batch_complete,
+				'batch_id'         => $batch_id,
+				'qsa_sequence'     => $qsa_sequence,
+				'serials_committed' => $committed,
+				'batch_complete'   => $batch_complete,
 			),
 			$batch_complete
 				? __( 'Row completed. Batch is now complete!', 'qsa-engraving' )
@@ -655,8 +818,12 @@ class Queue_Ajax_Handler {
 			return;
 		}
 
-		// Void any currently reserved serials.
-		$this->serial_repository->void_serials( $batch_id, $qsa_sequence );
+		// Void any currently reserved serials - check for errors.
+		$voided = $this->serial_repository->void_serials( $batch_id, $qsa_sequence );
+		if ( is_wp_error( $voided ) ) {
+			$this->send_error( $voided->get_error_message(), $voided->get_error_code() );
+			return;
+		}
 
 		// Get modules for this QSA to reserve new serials.
 		$all_modules = $this->batch_repository->get_modules_for_batch( $batch_id );
@@ -665,6 +832,11 @@ class Queue_Ajax_Handler {
 			fn( $m ) => (int) $m['qsa_sequence'] === $qsa_sequence
 		);
 		$qsa_modules = array_values( $qsa_modules );
+
+		if ( empty( $qsa_modules ) ) {
+			$this->send_error( __( 'No modules found for this QSA.', 'qsa-engraving' ), 'no_modules' );
+			return;
+		}
 
 		// Reserve new serials.
 		$modules_for_serial = array_map(
@@ -687,9 +859,10 @@ class Queue_Ajax_Handler {
 
 		$this->send_success(
 			array(
-				'batch_id'     => $batch_id,
-				'qsa_sequence' => $qsa_sequence,
-				'serials'      => $reserved,
+				'batch_id'       => $batch_id,
+				'qsa_sequence'   => $qsa_sequence,
+				'serials_voided' => $voided,
+				'serials'        => $reserved,
 			),
 			__( 'Going back with new serials.', 'qsa-engraving' )
 		);
@@ -720,19 +893,25 @@ class Queue_Ajax_Handler {
 			return;
 		}
 
-		// Reset the row status to pending.
-		$this->batch_repository->reset_row_status( $batch_id, $qsa_sequence );
+		// Reset the row status to pending - check for errors.
+		$reset_result = $this->batch_repository->reset_row_status( $batch_id, $qsa_sequence );
+		if ( is_wp_error( $reset_result ) ) {
+			$this->send_error( $reset_result->get_error_message(), $reset_result->get_error_code() );
+			return;
+		}
 
 		// If the batch was marked complete, reopen it.
 		$batch = $this->batch_repository->get_batch( $batch_id );
+		$batch_reopened = false;
 		if ( $batch && $batch['status'] === 'completed' ) {
-			$this->batch_repository->reopen_batch( $batch_id );
+			$batch_reopened = $this->batch_repository->reopen_batch( $batch_id );
 		}
 
 		$this->send_success(
 			array(
-				'batch_id'     => $batch_id,
-				'qsa_sequence' => $qsa_sequence,
+				'batch_id'       => $batch_id,
+				'qsa_sequence'   => $qsa_sequence,
+				'batch_reopened' => $batch_reopened,
 			),
 			__( 'Row reset to pending. Ready for re-engraving.', 'qsa-engraving' )
 		);
@@ -740,6 +919,9 @@ class Queue_Ajax_Handler {
 
 	/**
 	 * Handle update start position request.
+	 *
+	 * Only allows updating start position when row is in 'pending' status.
+	 * Once a row is started (in_progress) or completed (done), position cannot be changed.
 	 *
 	 * @return void
 	 */
@@ -759,6 +941,31 @@ class Queue_Ajax_Handler {
 
 		if ( $batch_id <= 0 || $qsa_sequence <= 0 ) {
 			$this->send_error( __( 'Invalid batch or QSA sequence.', 'qsa-engraving' ), 'invalid_params' );
+			return;
+		}
+
+		// Enforce pending-only: check row status before allowing update.
+		$all_modules = $this->batch_repository->get_modules_for_batch( $batch_id );
+		$qsa_modules = array_filter(
+			$all_modules,
+			fn( $m ) => (int) $m['qsa_sequence'] === $qsa_sequence
+		);
+
+		if ( empty( $qsa_modules ) ) {
+			$this->send_error( __( 'No modules found for this QSA.', 'qsa-engraving' ), 'no_modules' );
+			return;
+		}
+
+		$current_status = reset( $qsa_modules )['row_status'] ?? 'pending';
+		if ( 'pending' !== $current_status ) {
+			$this->send_error(
+				sprintf(
+					/* translators: %s: Current row status */
+					__( 'Cannot update start position: row status is "%s". Only pending rows can have their start position changed.', 'qsa-engraving' ),
+					$current_status
+				),
+				'invalid_row_status'
+			);
 			return;
 		}
 
