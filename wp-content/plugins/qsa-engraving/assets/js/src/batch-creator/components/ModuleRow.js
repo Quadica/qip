@@ -57,7 +57,7 @@ export default function ModuleRow( {
 			<div className="qsa-module-qty">
 				<input
 					type="number"
-					min="0"
+					min="1"
 					max={ qty_to_engrave }
 					value={ engraveQty }
 					onChange={ ( e ) => onUpdateQty( e.target.value ) }

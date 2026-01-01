@@ -66,10 +66,10 @@
 	font-size: 16px;
 }
 
-/* Stats bar */
+/* Stats bar - flexible grid for 3-6 columns */
 .qsa-stats-bar {
 	display: grid;
-	grid-template-columns: repeat(3, 1fr);
+	grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
 	background-color: var(--qsa-bg-card);
 	border-bottom: 1px solid var(--qsa-border);
 }
