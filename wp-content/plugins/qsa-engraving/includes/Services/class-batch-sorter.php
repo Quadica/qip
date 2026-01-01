@@ -193,41 +193,42 @@ class Batch_Sorter {
 	}
 
 	/**
-	 * Calculate the number of LED transitions in a sorted list.
+	 * Calculate the number of LED bin switch events in a sorted list.
 	 *
-	 * Used for testing and optimization verification.
+	 * Counts how many times you need to open a new LED bin when moving
+	 * from one module to the next. This metric IS order-dependent and
+	 * reflects sorting effectiveness - sorted lists with overlapping
+	 * LED codes adjacent will have fewer switch events.
+	 *
+	 * For the first module, all its LED codes count as switch events
+	 * (opening initial bins). For subsequent modules, only LED codes
+	 * that weren't needed for the previous module count as switches.
 	 *
 	 * @param array $modules Sorted array of modules.
-	 * @return int Number of LED type transitions.
+	 * @return int Number of LED bin switch events.
 	 */
 	public function count_transitions( array $modules ): int {
 		if ( count( $modules ) <= 1 ) {
 			return 0;
 		}
 
-		$active_leds  = array();
-		$transitions  = 0;
-		$first_module = true;
+		$previous_leds = array();
+		$transitions   = 0;
 
 		foreach ( $modules as $module ) {
-			$led_codes = $module['led_codes'] ?? array();
+			$led_codes    = $module['led_codes'] ?? array();
+			$current_leds = array_flip( $led_codes );
 
-			if ( $first_module ) {
-				// First module: all LEDs are new transitions.
-				$active_leds  = array_flip( $led_codes );
-				$transitions += count( $led_codes );
-				$first_module = false;
-				continue;
-			}
-
-			// Check which LEDs need to be opened.
+			// Count how many LEDs in current module weren't in previous.
 			foreach ( $led_codes as $code ) {
-				if ( ! isset( $active_leds[ $code ] ) ) {
-					// New LED type = transition.
+				if ( ! isset( $previous_leds[ $code ] ) ) {
+					// Need to open a new bin = switch event.
 					$transitions++;
-					$active_leds[ $code ] = true;
 				}
 			}
+
+			// Current becomes previous for next iteration.
+			$previous_leds = $current_leds;
 		}
 
 		return $transitions;

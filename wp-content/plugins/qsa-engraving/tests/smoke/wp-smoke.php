@@ -2318,6 +2318,37 @@ run_test(
 
         echo "  count_transitions calculates LED type changes correctly.\n";
 
+        // Test order-dependence: overlapping LEDs adjacent = fewer transitions.
+        $sorted_order = array(
+            array( 'led_codes' => array( 'K7P', '4T9' ) ), // Opens K7P, 4T9 (2).
+            array( 'led_codes' => array( '4T9', 'CF4' ) ), // 4T9 already open, opens CF4 (1).
+            array( 'led_codes' => array( 'CF4' ) ),        // CF4 already open (0).
+        );
+        $transitions_sorted = $sorter->count_transitions( $sorted_order );
+
+        $unsorted_order = array(
+            array( 'led_codes' => array( 'K7P', '4T9' ) ), // Opens K7P, 4T9 (2).
+            array( 'led_codes' => array( 'CF4' ) ),        // K7P/4T9 not used, opens CF4 (1).
+            array( 'led_codes' => array( '4T9', 'CF4' ) ), // CF4 open, opens 4T9 (1).
+        );
+        $transitions_unsorted = $sorter->count_transitions( $unsorted_order );
+
+        // Sorted order should have 3 transitions; unsorted should have 4.
+        if ( $transitions_sorted !== 3 ) {
+            return new WP_Error(
+                'order_fail',
+                "Sorted order should have 3 transitions, got {$transitions_sorted}."
+            );
+        }
+        if ( $transitions_unsorted !== 4 ) {
+            return new WP_Error(
+                'order_fail',
+                "Unsorted order should have 4 transitions, got {$transitions_unsorted}."
+            );
+        }
+
+        echo "  count_transitions is order-dependent (sorted: {$transitions_sorted}, unsorted: {$transitions_unsorted}).\n";
+
         return true;
     },
     'Batch_Sorter counts LED transitions accurately.'
@@ -2621,6 +2652,9 @@ run_test(
 // ============================================
 // Summary
 // ============================================
+// Re-declare global to ensure PHP 8.1 recognizes the variables in eval-file context.
+global $tests_passed, $tests_failed, $tests_total;
+
 echo "===========================================\n";
 echo "Test Summary\n";
 echo "===========================================\n";
