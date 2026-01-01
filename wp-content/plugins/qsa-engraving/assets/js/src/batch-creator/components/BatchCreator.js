@@ -39,7 +39,6 @@ export default function BatchCreator() {
 	const [ moduleData, setModuleData ] = useState( {} );
 	const [ loading, setLoading ] = useState( true );
 	const [ error, setError ] = useState( null );
-	const [ warning, setWarning ] = useState( null );
 	const [ selectedModules, setSelectedModules ] = useState( new Set() );
 	const [ engraveQuantities, setEngraveQuantities ] = useState( {} );
 	const [ expandedBaseTypes, setExpandedBaseTypes ] = useState( new Set() );
@@ -366,7 +365,6 @@ export default function BatchCreator() {
 		setSelectedModules( new Set() );
 		setEngraveQuantities( {} );
 		setPreviewData( null );
-		setWarning( null );
 	}, [] );
 
 	/**
@@ -416,7 +414,6 @@ export default function BatchCreator() {
 
 		setPreviewing( true );
 		setError( null );
-		setWarning( null );
 
 		try {
 			const response = await ajaxRequest( 'qsa_preview_batch', {
@@ -429,11 +426,6 @@ export default function BatchCreator() {
 
 			if ( response.success && response.data ) {
 				setPreviewData( response.data );
-
-				// Check for fallback warning.
-				if ( response.data.fallback_warning ) {
-					setWarning( response.data.fallback_warning );
-				}
 			} else {
 				// Extract error message from response.
 				const errorMsg = response.message || response.data?.message || __( 'Failed to preview batch.', 'qsa-engraving' );
@@ -536,40 +528,6 @@ export default function BatchCreator() {
 				unitCount={ totals.unitCount }
 				previewData={ previewData }
 			/>
-
-			{ /* Fallback warning display */ }
-			{ warning && (
-				<div className="notice notice-warning" style={ {
-					padding: '12px 20px',
-					marginBottom: '16px',
-					backgroundColor: '#fff3cd',
-					borderLeft: '4px solid #ffc107',
-				} }>
-					<p style={ { margin: 0, fontSize: '14px', color: '#856404', fontWeight: 'bold' } }>
-						{ __( 'Warning: Fallback LED Codes in Use', 'qsa-engraving' ) }
-					</p>
-					<p style={ { margin: '8px 0', fontSize: '13px', color: '#856404' } }>
-						{ warning.message }
-					</p>
-					<p style={ { margin: '8px 0 0 0', fontSize: '13px', color: '#856404' } }>
-						<strong>{ __( 'Fallback code:', 'qsa-engraving' ) }</strong> { warning.fallback_code }
-					</p>
-					{ warning.modules && warning.modules.length > 0 && (
-						<details style={ { marginTop: '10px' } }>
-							<summary style={ { cursor: 'pointer', fontSize: '13px', color: '#856404' } }>
-								{ __( 'Affected modules', 'qsa-engraving' ) } ({ warning.modules.length })
-							</summary>
-							<ul style={ { margin: '8px 0 0 20px', padding: 0, listStyle: 'disc' } }>
-								{ warning.modules.map( ( mod, index ) => (
-									<li key={ index } style={ { margin: '4px 0', fontSize: '12px', color: '#856404' } }>
-										{ mod }
-									</li>
-								) ) }
-							</ul>
-						</details>
-					) }
-				</div>
-			) }
 
 			<ActionBar
 				hasSelection={ totals.moduleCount > 0 }
