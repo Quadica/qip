@@ -142,16 +142,18 @@ class LED_Code_Resolver {
 	/**
 	 * Find the Order BOM post for an order/module combination.
 	 *
-	 * Order BOM is stored as a CPT with metadata linking it to orders.
+	 * Order BOM is stored as a CPT (quad_order_bom) with metadata linking it to orders.
+	 * The module SKU is stored in the 'sku' meta field (not 'module_sku').
 	 *
 	 * @param int    $order_id   The order ID.
-	 * @param string $module_sku The module SKU.
+	 * @param string $module_sku The module SKU (assembly_sku from oms_batch_items).
 	 * @return int|null|WP_Error Post ID, null if not found, or WP_Error.
 	 */
 	private function find_order_bom_post( int $order_id, string $module_sku ): int|null|WP_Error {
-		// Query for order_bom posts matching this order and module.
+		// Query for quad_order_bom posts matching this order and module.
+		// The 'sku' field stores the assembly_sku (e.g., "STAR-29654").
 		$args = array(
-			'post_type'      => 'order_bom',
+			'post_type'      => 'quad_order_bom',
 			'post_status'    => 'publish',
 			'posts_per_page' => 1,
 			'meta_query'     => array(
@@ -163,7 +165,7 @@ class LED_Code_Resolver {
 					'type'    => 'NUMERIC',
 				),
 				array(
-					'key'     => 'module_sku',
+					'key'     => 'sku',
 					'value'   => $module_sku,
 					'compare' => '=',
 				),
@@ -173,31 +175,14 @@ class LED_Code_Resolver {
 
 		$posts = get_posts( $args );
 
-		if ( empty( $posts ) ) {
-			// Try alternative meta key names.
-			$args['meta_query'] = array(
-				'relation' => 'AND',
-				array(
-					'key'     => '_order_id',
-					'value'   => $order_id,
-					'compare' => '=',
-					'type'    => 'NUMERIC',
-				),
-				array(
-					'key'     => '_module_sku',
-					'value'   => $module_sku,
-					'compare' => '=',
-				),
-			);
-
-			$posts = get_posts( $args );
-		}
-
 		return ! empty( $posts ) ? $posts[0] : null;
 	}
 
 	/**
 	 * Get LED data from an Order BOM post.
+	 *
+	 * The Order BOM stores LED data in an ACF repeater field 'leds_and_positions'
+	 * with subfields: led_sku, position, description.
 	 *
 	 * @param int $post_id The BOM post ID.
 	 * @return array Array of LED data with 'sku' and 'position' keys.
@@ -205,7 +190,41 @@ class LED_Code_Resolver {
 	private function get_led_data_from_bom( int $post_id ): array {
 		$led_data = array();
 
-		// Try ACF repeater field first.
+		// Try ACF repeater field 'leds_and_positions' first.
+		if ( function_exists( 'get_field' ) ) {
+			$leds = get_field( 'leds_and_positions', $post_id );
+			if ( is_array( $leds ) ) {
+				foreach ( $leds as $index => $led ) {
+					$led_data[] = array(
+						'sku'      => $led['led_sku'] ?? '',
+						'position' => $led['position'] ?? ( $index + 1 ),
+					);
+				}
+				return array_filter( $led_data, fn( $l ) => ! empty( $l['sku'] ) );
+			}
+		}
+
+		// Fallback: Try reading ACF repeater data from meta directly.
+		// ACF stores repeater count in 'leds_and_positions' and rows as
+		// 'leds_and_positions_0_led_sku', 'leds_and_positions_0_position', etc.
+		$count = get_post_meta( $post_id, 'leds_and_positions', true );
+		if ( is_numeric( $count ) && $count > 0 ) {
+			for ( $i = 0; $i < (int) $count; $i++ ) {
+				$sku = get_post_meta( $post_id, "leds_and_positions_{$i}_led_sku", true );
+				$position = get_post_meta( $post_id, "leds_and_positions_{$i}_position", true );
+				if ( ! empty( $sku ) ) {
+					$led_data[] = array(
+						'sku'      => $sku,
+						'position' => $position ?: ( $i + 1 ),
+					);
+				}
+			}
+			if ( ! empty( $led_data ) ) {
+				return $led_data;
+			}
+		}
+
+		// Legacy fallback: Try 'leds' field name.
 		if ( function_exists( 'get_field' ) ) {
 			$leds = get_field( 'leds', $post_id );
 			if ( is_array( $leds ) ) {
@@ -216,29 +235,6 @@ class LED_Code_Resolver {
 					);
 				}
 				return array_filter( $led_data, fn( $l ) => ! empty( $l['sku'] ) );
-			}
-		}
-
-		// Fallback: Try post meta.
-		$leds_meta = get_post_meta( $post_id, 'led_components', true );
-		if ( is_array( $leds_meta ) ) {
-			foreach ( $leds_meta as $index => $led ) {
-				$led_data[] = array(
-					'sku'      => $led['sku'] ?? '',
-					'position' => $led['position'] ?? ( $index + 1 ),
-				);
-			}
-			return array_filter( $led_data, fn( $l ) => ! empty( $l['sku'] ) );
-		}
-
-		// Try individual meta keys (led_1_sku, led_2_sku, etc.).
-		for ( $i = 1; $i <= 9; $i++ ) {
-			$sku = get_post_meta( $post_id, "led_{$i}_sku", true );
-			if ( ! empty( $sku ) ) {
-				$led_data[] = array(
-					'sku'      => $sku,
-					'position' => $i,
-				);
 			}
 		}
 
