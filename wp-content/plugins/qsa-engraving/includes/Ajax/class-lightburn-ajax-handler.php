@@ -335,6 +335,8 @@ class LightBurn_Ajax_Handler {
 
 		// Build module data for each position.
 		$module_data = array();
+		$led_code_errors = array();
+
 		foreach ( $modules as $module ) {
 			$position = (int) $module['array_position'];
 			$serial   = $serial_map[ $position ] ?? null;
@@ -346,10 +348,33 @@ class LightBurn_Ajax_Handler {
 			// Resolve LED codes.
 			$led_codes = $this->resolve_led_codes( $module );
 
+			// Collect LED code resolution errors but continue processing.
+			if ( is_wp_error( $led_codes ) ) {
+				$led_code_errors[] = sprintf(
+					'Position %d (%s): %s',
+					$position,
+					$module['module_sku'] ?? 'unknown',
+					$led_codes->get_error_message()
+				);
+				continue; // Skip this module - cannot engrave without LED codes.
+			}
+
 			$module_data[ $position ] = array(
 				'serial_number' => $serial,
 				'module_id'     => $module['module_sku'],
 				'led_codes'     => $led_codes,
+			);
+		}
+
+		// If any LED code errors occurred, block SVG generation with detailed error.
+		if ( ! empty( $led_code_errors ) ) {
+			return new WP_Error(
+				'led_code_resolution_failed',
+				sprintf(
+					/* translators: %s: List of errors */
+					__( 'Cannot generate SVG - LED code resolution failed: %s', 'qsa-engraving' ),
+					implode( '; ', $led_code_errors )
+				)
 			);
 		}
 
@@ -378,29 +403,60 @@ class LightBurn_Ajax_Handler {
 	/**
 	 * Resolve LED codes for a module.
 	 *
+	 * Uses the LED_Code_Resolver to query Order BOM and product metadata
+	 * for the 3-character LED shortcodes.
+	 *
 	 * @param array $module The module data.
-	 * @return array Array of LED shortcodes.
+	 * @return array|WP_Error Array of LED shortcodes or WP_Error if resolution fails.
 	 */
-	private function resolve_led_codes( array $module ): array {
-		// For now, return placeholder codes.
-		// Full resolution requires Order BOM integration.
-		// This is a placeholder - actual implementation should query:
-		// 1. Order BOM for LED SKUs at each position
-		// 2. LED product for led_shortcode_3 field.
-		$led_codes = array();
-
-		// Check if module has LED info in its data.
+	private function resolve_led_codes( array $module ): array|WP_Error {
+		// Check if module already has LED codes in its data (from batch sorter).
 		if ( ! empty( $module['led_codes'] ) ) {
 			if ( is_array( $module['led_codes'] ) ) {
-				$led_codes = $module['led_codes'];
+				$led_codes = array_filter( $module['led_codes'], fn( $code ) => ! empty( $code ) && '---' !== $code );
+				if ( ! empty( $led_codes ) ) {
+					return array_values( $led_codes );
+				}
 			} elseif ( is_string( $module['led_codes'] ) ) {
 				$led_codes = array_map( 'trim', explode( ',', $module['led_codes'] ) );
+				$led_codes = array_filter( $led_codes, fn( $code ) => ! empty( $code ) && '---' !== $code );
+				if ( ! empty( $led_codes ) ) {
+					return array_values( $led_codes );
+				}
 			}
 		}
 
-		// If no LED codes, use placeholder.
+		// Use LED_Code_Resolver to query Order BOM for LED shortcodes.
+		$order_id   = (int) ( $module['order_id'] ?? 0 );
+		$module_sku = $module['module_sku'] ?? '';
+
+		if ( $order_id <= 0 || empty( $module_sku ) ) {
+			return new WP_Error(
+				'missing_module_data',
+				sprintf(
+					/* translators: %s: Module SKU */
+					__( 'Missing order ID or module SKU for module: %s', 'qsa-engraving' ),
+					$module_sku ?: 'unknown'
+				)
+			);
+		}
+
+		$led_codes = $this->led_code_resolver->get_led_codes_for_module( $order_id, $module_sku );
+
+		if ( is_wp_error( $led_codes ) ) {
+			return $led_codes;
+		}
+
 		if ( empty( $led_codes ) ) {
-			$led_codes = array( '---' ); // Placeholder for unknown LED code.
+			return new WP_Error(
+				'no_led_codes',
+				sprintf(
+					/* translators: 1: Order ID, 2: Module SKU */
+					__( 'No LED codes found for order %1$d, module %2$s.', 'qsa-engraving' ),
+					$order_id,
+					$module_sku
+				)
+			);
 		}
 
 		return $led_codes;

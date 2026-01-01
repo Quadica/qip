@@ -202,7 +202,9 @@ class LightBurn_Client {
 		}
 
 		// Bind input socket to receive responses.
-		$bind_result = @socket_bind( $this->in_socket, $this->host, $this->in_port );
+		// Bind to 0.0.0.0 (all local interfaces) to receive replies from remote LightBurn.
+		// The $this->host is only used for sending commands, not for binding.
+		$bind_result = @socket_bind( $this->in_socket, '0.0.0.0', $this->in_port );
 		if ( false === $bind_result ) {
 			$this->last_error = socket_strerror( socket_last_error( $this->in_socket ) );
 			$this->close();

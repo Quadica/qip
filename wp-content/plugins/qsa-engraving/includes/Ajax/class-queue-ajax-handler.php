@@ -14,6 +14,7 @@ namespace Quadica\QSA_Engraving\Ajax;
 
 use Quadica\QSA_Engraving\Services\Batch_Sorter;
 use Quadica\QSA_Engraving\Services\SVG_Generator;
+use Quadica\QSA_Engraving\Services\SVG_File_Manager;
 use Quadica\QSA_Engraving\Database\Batch_Repository;
 use Quadica\QSA_Engraving\Database\Serial_Repository;
 use Quadica\QSA_Engraving\Admin\Admin_Menu;
@@ -60,6 +61,13 @@ class Queue_Ajax_Handler {
 	private Serial_Repository $serial_repository;
 
 	/**
+	 * SVG File Manager.
+	 *
+	 * @var SVG_File_Manager
+	 */
+	private SVG_File_Manager $svg_file_manager;
+
+	/**
 	 * Constructor.
 	 *
 	 * @param Batch_Sorter      $batch_sorter      Batch sorter service.
@@ -74,6 +82,7 @@ class Queue_Ajax_Handler {
 		$this->batch_sorter      = $batch_sorter;
 		$this->batch_repository  = $batch_repository;
 		$this->serial_repository = $serial_repository;
+		$this->svg_file_manager  = new SVG_File_Manager();
 	}
 
 	/**
@@ -559,6 +568,12 @@ class Queue_Ajax_Handler {
 		$batch_complete = $this->batch_repository->is_batch_complete( $batch_id );
 		if ( $batch_complete ) {
 			$this->batch_repository->complete_batch( $batch_id );
+
+			// Clean up all SVG files for the completed batch (ephemeral files).
+			$this->svg_file_manager->cleanup_batch_files( $batch_id );
+		} else {
+			// Clean up SVG files for this completed row.
+			$this->svg_file_manager->cleanup_old_files( $batch_id, $qsa_sequence );
 		}
 
 		$this->send_success(
@@ -658,6 +673,12 @@ class Queue_Ajax_Handler {
 		$batch_complete = $this->batch_repository->is_batch_complete( $batch_id );
 		if ( $batch_complete ) {
 			$this->batch_repository->complete_batch( $batch_id );
+
+			// Clean up all SVG files for the completed batch (ephemeral files).
+			$this->svg_file_manager->cleanup_batch_files( $batch_id );
+		} else {
+			// Clean up SVG files for this completed row.
+			$this->svg_file_manager->cleanup_old_files( $batch_id, $qsa_sequence );
 		}
 
 		$this->send_success(

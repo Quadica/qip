@@ -38,8 +38,8 @@ export default function EngravingQueue() {
 	const [ error, setError ] = useState( null );
 	const [ activeItemId, setActiveItemId ] = useState( null );
 	const [ lightburnStatus, setLightburnStatus ] = useState( {
-		enabled: window.qsaEngraving?.lightburnEnabled || false,
-		autoLoad: window.qsaEngraving?.lightburnAutoLoad || true,
+		enabled: window.qsaEngraving?.lightburnEnabled ?? false,
+		autoLoad: window.qsaEngraving?.lightburnAutoLoad ?? true,
 		connected: false,
 		loading: false,
 		lastFile: null,
@@ -261,6 +261,8 @@ export default function EngravingQueue() {
 	/**
 	 * Handle retry for current array.
 	 *
+	 * Voids current serials, assigns new ones, regenerates SVG, and loads in LightBurn.
+	 *
 	 * @param {number} qsaSequence The QSA sequence number.
 	 */
 	const handleRetry = async ( qsaSequence ) => {
@@ -278,6 +280,14 @@ export default function EngravingQueue() {
 						item.id === qsaSequence ? { ...item, serials: data.data.serials } : item
 					)
 				);
+
+				// Regenerate SVG with new serials and load in LightBurn if enabled.
+				if ( lightburnStatus.enabled ) {
+					const svgResult = await generateSvg( qsaSequence, lightburnStatus.autoLoad );
+					if ( svgResult && ! svgResult.lightburn_loaded && lightburnStatus.autoLoad ) {
+						console.warn( 'SVG regenerated but LightBurn load failed:', svgResult.lightburn_error );
+					}
+				}
 			} else {
 				alert( data.message || __( 'Failed to retry.', 'qsa-engraving' ) );
 			}
