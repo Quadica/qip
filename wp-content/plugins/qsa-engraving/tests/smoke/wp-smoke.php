@@ -206,7 +206,8 @@ run_test(
         global $wpdb;
 
         // Check if oms_batch_items table exists.
-        $oms_table = $wpdb->prefix . 'oms_batch_items';
+        // Note: This is a legacy OMS table that does NOT use the WordPress prefix.
+        $oms_table = 'oms_batch_items';
         $table_exists = $wpdb->get_var(
             $wpdb->prepare( 'SHOW TABLES LIKE %s', $oms_table )
         );
