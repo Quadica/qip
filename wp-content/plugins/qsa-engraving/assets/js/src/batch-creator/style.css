@@ -1,0 +1,521 @@
+/**
+ * Batch Creator Styles
+ *
+ * Dark theme styling based on Luxeon Star LEDs brand guidelines.
+ *
+ * @package QSA_Engraving
+ * @since 1.0.0
+ */
+
+/* Brand color variables */
+:root {
+	--qsa-bg-primary: #0a1628;
+	--qsa-bg-card: #0f1f35;
+	--qsa-bg-elevated: #152a45;
+	--qsa-bg-hover: #1a3352;
+	--qsa-deep-navy: #01236d;
+	--qsa-luxeon-blue: #0056a4;
+	--qsa-electric-blue: #00a0e3;
+	--qsa-sky-blue: #109cf6;
+	--qsa-cool-led: #87ceeb;
+	--qsa-text-primary: #ffffff;
+	--qsa-text-secondary: #a8b4bd;
+	--qsa-text-muted: #6b7c8f;
+	--qsa-warm-led: #ffb347;
+	--qsa-success: #28a745;
+	--qsa-alert: #dc3545;
+	--qsa-border: #1e3a5f;
+	--qsa-border-light: #2a4a6f;
+}
+
+/* Main container */
+.qsa-batch-creator {
+	font-family: 'Roboto', 'Segoe UI', Arial, sans-serif;
+	color: var(--qsa-text-primary);
+	background-color: var(--qsa-bg-primary);
+	border-radius: 8px;
+	overflow: hidden;
+	margin-top: 10px;
+}
+
+/* Loading and error states */
+.qsa-batch-creator.qsa-loading,
+.qsa-batch-creator.qsa-error {
+	padding: 40px;
+	text-align: center;
+}
+
+.qsa-batch-creator.qsa-loading .spinner {
+	float: none;
+	margin: 0 10px 0 0;
+}
+
+.qsa-batch-creator .notice {
+	margin: 0 0 20px;
+}
+
+/* Empty state */
+.qsa-empty-state {
+	padding: 60px 40px;
+	text-align: center;
+	color: var(--qsa-text-muted);
+}
+
+.qsa-empty-state p {
+	margin: 0 0 20px;
+	font-size: 16px;
+}
+
+/* Stats bar */
+.qsa-stats-bar {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	background-color: var(--qsa-bg-card);
+	border-bottom: 1px solid var(--qsa-border);
+}
+
+.qsa-stat {
+	padding: 20px;
+	text-align: center;
+	border-right: 1px solid var(--qsa-border);
+}
+
+.qsa-stat:last-child {
+	border-right: none;
+}
+
+.qsa-stat-value {
+	display: block;
+	font-size: 32px;
+	font-weight: 700;
+	color: var(--qsa-sky-blue);
+	line-height: 1.2;
+}
+
+.qsa-stat:nth-child(2) .qsa-stat-value {
+	color: var(--qsa-electric-blue);
+}
+
+.qsa-stat:nth-child(3) .qsa-stat-value {
+	color: var(--qsa-success);
+}
+
+.qsa-stat-label {
+	display: block;
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+	color: var(--qsa-text-muted);
+	margin-top: 4px;
+}
+
+/* Action bar */
+.qsa-action-bar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 12px 16px;
+	background-color: var(--qsa-bg-elevated);
+	border-bottom: 1px solid var(--qsa-border);
+	min-height: 56px;
+	box-sizing: border-box;
+}
+
+.qsa-action-bar--selected {
+	background-color: rgba(0, 160, 227, 0.1);
+	border-bottom-color: rgba(0, 160, 227, 0.3);
+}
+
+.qsa-action-info {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.qsa-action-icon {
+	color: var(--qsa-electric-blue);
+}
+
+.qsa-action-bar--selected .qsa-action-icon {
+	width: 32px;
+	height: 32px;
+	font-size: 32px;
+	background-color: var(--qsa-electric-blue);
+	color: white;
+	border-radius: 50%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	box-shadow: 0 0 15px rgba(0, 160, 227, 0.5);
+}
+
+.qsa-action-text {
+	color: var(--qsa-electric-blue);
+	font-size: 12px;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+	font-weight: 600;
+}
+
+.qsa-action-bar--selected .qsa-action-text {
+	color: var(--qsa-sky-blue);
+	font-size: 14px;
+	text-transform: none;
+}
+
+.qsa-action-buttons {
+	display: flex;
+	gap: 8px;
+}
+
+.qsa-btn-refresh {
+	padding: 4px 8px;
+	min-height: 32px;
+}
+
+.qsa-btn-refresh .dashicons {
+	margin: 0;
+}
+
+.qsa-btn-clear {
+	border-color: var(--qsa-border);
+	color: var(--qsa-text-secondary);
+	background: transparent;
+}
+
+.qsa-btn-clear:hover {
+	background-color: var(--qsa-bg-elevated);
+	border-color: var(--qsa-border-light);
+	color: var(--qsa-text-primary);
+}
+
+.qsa-btn-create {
+	background-color: var(--qsa-electric-blue);
+	border-color: var(--qsa-electric-blue);
+	box-shadow: 0 0 15px rgba(0, 160, 227, 0.3);
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.qsa-btn-create:hover {
+	background-color: var(--qsa-sky-blue);
+	border-color: var(--qsa-sky-blue);
+	box-shadow: 0 0 25px rgba(16, 156, 246, 0.5);
+}
+
+.qsa-btn-create .spinner {
+	float: none;
+	margin: 0;
+}
+
+/* Module tree */
+.qsa-module-tree {
+	background-color: var(--qsa-bg-card);
+	border: 1px solid var(--qsa-border);
+	border-radius: 0 0 8px 8px;
+	border-top: none;
+}
+
+.qsa-tree-header {
+	display: none; /* Hidden when action bar is shown */
+}
+
+.qsa-tree-body {
+	background-color: var(--qsa-bg-card);
+}
+
+/* Base type row */
+.qsa-base-type {
+	border-bottom: 1px solid var(--qsa-border);
+}
+
+.qsa-base-type.is-last {
+	border-bottom: none;
+}
+
+.qsa-base-type.is-selected {
+	background-color: rgba(0, 160, 227, 0.08);
+}
+
+.qsa-base-type-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 12px 16px;
+	cursor: pointer;
+	transition: background-color 0.15s ease;
+}
+
+.qsa-base-type-row:hover {
+	background-color: var(--qsa-bg-elevated);
+}
+
+.qsa-base-type.is-selected .qsa-base-type-row:hover {
+	background-color: rgba(0, 160, 227, 0.12);
+}
+
+/* Expand button */
+.qsa-expand-btn {
+	background: none;
+	border: none;
+	padding: 4px;
+	cursor: pointer;
+	color: var(--qsa-text-muted);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.qsa-expand-btn:hover {
+	color: var(--qsa-text-primary);
+}
+
+/* Checkbox */
+.qsa-checkbox {
+	width: 24px;
+	height: 24px;
+	border-radius: 4px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background-color: var(--qsa-bg-elevated);
+	border: none;
+	cursor: pointer;
+	transition: all 0.15s ease;
+}
+
+.qsa-checkbox .dashicons {
+	font-size: 16px;
+	width: 16px;
+	height: 16px;
+}
+
+.qsa-checkbox--none {
+	color: var(--qsa-text-muted);
+}
+
+.qsa-checkbox--none .qsa-checkbox-empty {
+	opacity: 0.4;
+}
+
+.qsa-checkbox--partial {
+	background-color: var(--qsa-sky-blue);
+	color: white;
+}
+
+.qsa-checkbox--all {
+	background-color: var(--qsa-electric-blue);
+	color: white;
+	box-shadow: 0 0 10px rgba(0, 160, 227, 0.4);
+}
+
+/* Base type info */
+.qsa-base-type-info {
+	flex: 1;
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+
+.qsa-base-type-code {
+	font-family: 'Roboto Mono', Consolas, monospace;
+	font-size: 13px;
+	font-weight: 700;
+	color: var(--qsa-sky-blue);
+	background-color: rgba(16, 156, 246, 0.2);
+	padding: 2px 8px;
+	border-radius: 4px;
+}
+
+.qsa-base-type-name {
+	color: var(--qsa-text-primary);
+	font-size: 14px;
+}
+
+.qsa-base-type-stats {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	font-size: 13px;
+}
+
+.qsa-stat-orders {
+	color: var(--qsa-text-muted);
+}
+
+.qsa-stat-units {
+	background-color: var(--qsa-bg-elevated);
+	color: var(--qsa-text-secondary);
+	padding: 4px 8px;
+	border-radius: 4px;
+	font-size: 12px;
+}
+
+/* Orders container */
+.qsa-orders {
+	background-color: var(--qsa-bg-primary);
+}
+
+/* Order row */
+.qsa-order {
+	margin-left: 16px;
+	border-left: 3px solid var(--qsa-electric-blue);
+}
+
+.qsa-order.is-selected .qsa-order-row {
+	background-color: rgba(0, 160, 227, 0.05);
+}
+
+.qsa-order-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 10px 16px 10px 12px;
+	cursor: pointer;
+	transition: background-color 0.15s ease;
+}
+
+.qsa-order-row:hover {
+	background-color: var(--qsa-bg-card);
+}
+
+.qsa-order-icon {
+	color: var(--qsa-text-muted);
+	font-size: 16px;
+}
+
+.qsa-order-info {
+	flex: 1;
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+
+.qsa-order-id {
+	font-size: 14px;
+	font-weight: 500;
+	color: var(--qsa-cool-led);
+}
+
+.qsa-order-stats {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	font-size: 12px;
+}
+
+.qsa-stat-skus {
+	color: var(--qsa-text-muted);
+}
+
+/* Modules container */
+.qsa-modules {
+	background-color: var(--qsa-bg-primary);
+}
+
+/* Module row */
+.qsa-module {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 16px 8px 20px;
+	margin-left: 32px;
+	border-left: 3px solid rgba(16, 156, 246, 0.3);
+	transition: background-color 0.15s ease;
+}
+
+.qsa-module:hover {
+	background-color: var(--qsa-bg-card);
+}
+
+.qsa-module.is-selected {
+	background-color: rgba(16, 156, 246, 0.08);
+}
+
+.qsa-module .qsa-checkbox {
+	width: 18px;
+	height: 18px;
+}
+
+.qsa-module .qsa-checkbox .dashicons {
+	font-size: 14px;
+	width: 14px;
+	height: 14px;
+}
+
+.qsa-module-icon {
+	color: var(--qsa-text-muted);
+	font-size: 14px;
+}
+
+.qsa-module-info {
+	flex: 1;
+}
+
+.qsa-module-sku {
+	font-family: 'Roboto Mono', Consolas, monospace;
+	font-size: 13px;
+	color: var(--qsa-text-secondary);
+}
+
+.qsa-module.is-selected .qsa-module-sku {
+	color: var(--qsa-sky-blue);
+}
+
+.qsa-module-progress {
+	font-size: 12px;
+	color: var(--qsa-text-muted);
+}
+
+.qsa-module-qty {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.qsa-qty-input {
+	width: 60px;
+	padding: 4px 8px;
+	border-radius: 4px;
+	text-align: center;
+	font-size: 12px;
+	font-weight: 700;
+	background-color: var(--qsa-bg-elevated);
+	border: 1px solid var(--qsa-border);
+	color: var(--qsa-text-muted);
+	transition: all 0.15s ease;
+}
+
+.qsa-qty-input:focus {
+	outline: none;
+	border-color: var(--qsa-electric-blue);
+	box-shadow: 0 0 0 2px rgba(0, 160, 227, 0.3);
+}
+
+.qsa-module.is-selected .qsa-qty-input {
+	background-color: rgba(16, 156, 246, 0.15);
+	border-color: var(--qsa-sky-blue);
+	color: var(--qsa-sky-blue);
+}
+
+.qsa-qty-max {
+	font-size: 12px;
+	color: var(--qsa-text-muted);
+}
+
+/* Remove WordPress admin default styling overrides */
+.qsa-batch-creator button:focus {
+	outline: none;
+	box-shadow: none;
+}
+
+.qsa-batch-creator input[type="number"]::-webkit-outer-spin-button,
+.qsa-batch-creator input[type="number"]::-webkit-inner-spin-button {
+	-webkit-appearance: none;
+	margin: 0;
+}
+
+.qsa-batch-creator input[type="number"] {
+	-moz-appearance: textfield;
+}

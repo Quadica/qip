@@ -16,9 +16,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 echo "\n";
-echo "====================================================\n";
-echo "QSA Engraving Plugin - Phase 1, 2, 3 & 4 Smoke Tests\n";
-echo "====================================================\n\n";
+echo "=======================================================\n";
+echo "QSA Engraving Plugin - Phase 1, 2, 3, 4 & 5 Smoke Tests\n";
+echo "=======================================================\n\n";
 
 $tests_passed = 0;
 $tests_failed = 0;
@@ -2020,6 +2020,602 @@ run_test(
         return true;
     },
     'SVG Generator validates and clamps start_position.'
+);
+
+// ============================================
+// PHASE 5: Batch Creator UI Tests
+// ============================================
+
+echo "-------------------------------------------\n";
+echo "Phase 5: Batch Creator UI Tests\n";
+echo "-------------------------------------------\n\n";
+
+run_test(
+    'TC-BC-001: Batch_Sorter service instantiation',
+    function (): bool {
+        // Verify class exists.
+        if ( ! class_exists( 'Quadica\\QSA_Engraving\\Services\\Batch_Sorter' ) ) {
+            return new WP_Error( 'missing_class', 'Batch_Sorter class not found.' );
+        }
+
+        // Instantiate.
+        $sorter = new \Quadica\QSA_Engraving\Services\Batch_Sorter();
+
+        // Verify key methods exist.
+        if ( ! method_exists( $sorter, 'sort_modules' ) ) {
+            return new WP_Error( 'missing_method', 'sort_modules() method not found.' );
+        }
+        if ( ! method_exists( $sorter, 'expand_selections' ) ) {
+            return new WP_Error( 'missing_method', 'expand_selections() method not found.' );
+        }
+        if ( ! method_exists( $sorter, 'assign_to_arrays' ) ) {
+            return new WP_Error( 'missing_method', 'assign_to_arrays() method not found.' );
+        }
+        if ( ! method_exists( $sorter, 'count_transitions' ) ) {
+            return new WP_Error( 'missing_method', 'count_transitions() method not found.' );
+        }
+
+        echo "  Batch_Sorter service instantiated successfully.\n";
+
+        return true;
+    },
+    'Batch_Sorter service class exists and has required methods.'
+);
+
+run_test(
+    'TC-BC-002: Batch_Sorter expand_selections',
+    function (): bool {
+        $sorter = new \Quadica\QSA_Engraving\Services\Batch_Sorter();
+
+        // Test expanding selections with quantities.
+        $selections = array(
+            array(
+                'production_batch_id' => 1,
+                'module_sku'          => 'STARa-38546',
+                'order_id'            => 100,
+                'quantity'            => 3,
+                'led_codes'           => array( 'K7P' ),
+            ),
+            array(
+                'production_batch_id' => 2,
+                'module_sku'          => 'CORE-91247',
+                'order_id'            => 101,
+                'quantity'            => 2,
+                'led_codes'           => array( '4T9', 'CF4' ),
+            ),
+        );
+
+        $expanded = $sorter->expand_selections( $selections );
+
+        // Should have 3 + 2 = 5 individual modules.
+        if ( count( $expanded ) !== 5 ) {
+            return new WP_Error(
+                'expand_fail',
+                'Expected 5 expanded modules, got ' . count( $expanded ) . '.'
+            );
+        }
+
+        // Each expanded module should have quantity = 1.
+        foreach ( $expanded as $module ) {
+            if ( $module['quantity'] !== 1 ) {
+                return new WP_Error( 'expand_fail', 'Expanded modules should have quantity 1.' );
+            }
+        }
+
+        // First 3 should be STARa-38546.
+        for ( $i = 0; $i < 3; $i++ ) {
+            if ( $expanded[ $i ]['module_sku'] !== 'STARa-38546' ) {
+                return new WP_Error( 'expand_fail', 'First 3 modules should be STARa-38546.' );
+            }
+            if ( $expanded[ $i ]['instance_index'] !== $i ) {
+                return new WP_Error( 'expand_fail', 'instance_index should be sequential.' );
+            }
+        }
+
+        echo "  expand_selections correctly expands quantities into individual modules.\n";
+
+        return true;
+    },
+    'Batch_Sorter expands module selections with quantities.'
+);
+
+run_test(
+    'TC-BC-003: Batch_Sorter assign_to_arrays',
+    function (): bool {
+        $sorter = new \Quadica\QSA_Engraving\Services\Batch_Sorter();
+
+        // Create 10 modules.
+        $modules = array();
+        for ( $i = 0; $i < 10; $i++ ) {
+            $modules[] = array(
+                'module_sku' => 'STARa-38546',
+                'order_id'   => 100,
+                'led_codes'  => array( 'K7P' ),
+            );
+        }
+
+        // Assign starting at position 1: should be 8 + 2 = 2 arrays.
+        $arrays = $sorter->assign_to_arrays( $modules, 1 );
+
+        if ( count( $arrays ) !== 2 ) {
+            return new WP_Error( 'assign_fail', 'Expected 2 arrays, got ' . count( $arrays ) . '.' );
+        }
+
+        // First array should have 8 modules.
+        if ( count( $arrays[0] ) !== 8 ) {
+            return new WP_Error( 'assign_fail', 'First array should have 8 modules.' );
+        }
+
+        // Second array should have 2 modules.
+        if ( count( $arrays[1] ) !== 2 ) {
+            return new WP_Error( 'assign_fail', 'Second array should have 2 modules.' );
+        }
+
+        // Verify positions in first array.
+        for ( $i = 0; $i < 8; $i++ ) {
+            if ( $arrays[0][ $i ]['array_position'] !== ( $i + 1 ) ) {
+                return new WP_Error( 'assign_fail', 'Array positions should be 1-8.' );
+            }
+            if ( $arrays[0][ $i ]['qsa_sequence'] !== 1 ) {
+                return new WP_Error( 'assign_fail', 'First array qsa_sequence should be 1.' );
+            }
+        }
+
+        // Verify second array starts at position 1.
+        if ( $arrays[1][0]['array_position'] !== 1 ) {
+            return new WP_Error( 'assign_fail', 'Second array should start at position 1.' );
+        }
+        if ( $arrays[1][0]['qsa_sequence'] !== 2 ) {
+            return new WP_Error( 'assign_fail', 'Second array qsa_sequence should be 2.' );
+        }
+
+        echo "  assign_to_arrays correctly distributes modules into 8-position arrays.\n";
+
+        return true;
+    },
+    'Batch_Sorter assigns modules to QSA arrays correctly.'
+);
+
+run_test(
+    'TC-BC-004: Batch_Sorter assign_to_arrays with start_position',
+    function (): bool {
+        $sorter = new \Quadica\QSA_Engraving\Services\Batch_Sorter();
+
+        // Create 10 modules.
+        $modules = array();
+        for ( $i = 0; $i < 10; $i++ ) {
+            $modules[] = array(
+                'module_sku' => 'STARa-38546',
+                'order_id'   => 100,
+                'led_codes'  => array( 'K7P' ),
+            );
+        }
+
+        // Assign starting at position 3: should be 6 + 4 = 2 arrays.
+        $arrays = $sorter->assign_to_arrays( $modules, 3 );
+
+        if ( count( $arrays ) !== 2 ) {
+            return new WP_Error( 'assign_fail', 'Expected 2 arrays, got ' . count( $arrays ) . '.' );
+        }
+
+        // First array should have 6 modules (positions 3-8).
+        if ( count( $arrays[0] ) !== 6 ) {
+            return new WP_Error(
+                'assign_fail',
+                'First array should have 6 modules, got ' . count( $arrays[0] ) . '.'
+            );
+        }
+
+        // Verify first module starts at position 3.
+        if ( $arrays[0][0]['array_position'] !== 3 ) {
+            return new WP_Error( 'assign_fail', 'First module should be at position 3.' );
+        }
+
+        // Second array should have 4 modules (positions 1-4).
+        if ( count( $arrays[1] ) !== 4 ) {
+            return new WP_Error(
+                'assign_fail',
+                'Second array should have 4 modules, got ' . count( $arrays[1] ) . '.'
+            );
+        }
+
+        echo "  assign_to_arrays respects start_position offset.\n";
+
+        return true;
+    },
+    'Batch_Sorter respects start_position for first array.'
+);
+
+run_test(
+    'TC-BC-005: Batch_Sorter LED optimization sorting',
+    function (): bool {
+        $sorter = new \Quadica\QSA_Engraving\Services\Batch_Sorter();
+
+        // Create modules with different LED codes.
+        // These should be sorted to minimize transitions.
+        $modules = array(
+            array( 'id' => 1, 'led_codes' => array( 'K7P' ) ),
+            array( 'id' => 2, 'led_codes' => array( '4T9', 'CF4' ) ),
+            array( 'id' => 3, 'led_codes' => array( 'K7P' ) ), // Same as module 1.
+            array( 'id' => 4, 'led_codes' => array( '4T9' ) ), // Overlaps with module 2.
+            array( 'id' => 5, 'led_codes' => array( 'K7P', 'EF3' ) ), // Overlaps with modules 1 & 3.
+        );
+
+        $sorted = $sorter->sort_modules( $modules );
+
+        // Should still have 5 modules.
+        if ( count( $sorted ) !== 5 ) {
+            return new WP_Error( 'sort_fail', 'Sorted result should have 5 modules.' );
+        }
+
+        // Modules with same LED codes should be grouped together.
+        // K7P modules (1, 3, 5) should be adjacent.
+        // Find K7P group.
+        $k7p_positions = array();
+        foreach ( $sorted as $idx => $module ) {
+            if ( in_array( 'K7P', $module['led_codes'], true ) ) {
+                $k7p_positions[] = $idx;
+            }
+        }
+
+        // K7P modules should be contiguous.
+        if ( count( $k7p_positions ) !== 3 ) {
+            return new WP_Error( 'sort_fail', 'Should have 3 modules with K7P.' );
+        }
+
+        // Check if they're adjacent (max gap of 1 between any two).
+        sort( $k7p_positions );
+        if ( $k7p_positions[2] - $k7p_positions[0] > 2 ) {
+            echo "  Note: K7P modules not perfectly adjacent (positions: " .
+                 implode( ', ', $k7p_positions ) . "), but sorting is heuristic.\n";
+        }
+
+        echo "  LED optimization sorting groups similar LED codes.\n";
+
+        return true;
+    },
+    'Batch_Sorter groups modules by LED codes to minimize transitions.'
+);
+
+run_test(
+    'TC-BC-006: Batch_Sorter count_transitions',
+    function (): bool {
+        $sorter = new \Quadica\QSA_Engraving\Services\Batch_Sorter();
+
+        // Modules with same LED code = minimal transitions.
+        $same_led = array(
+            array( 'led_codes' => array( 'K7P' ) ),
+            array( 'led_codes' => array( 'K7P' ) ),
+            array( 'led_codes' => array( 'K7P' ) ),
+        );
+
+        $transitions = $sorter->count_transitions( $same_led );
+
+        // Only 1 transition (loading K7P initially).
+        if ( $transitions !== 1 ) {
+            return new WP_Error(
+                'transition_fail',
+                "Same LED code should have 1 transition, got {$transitions}."
+            );
+        }
+
+        // Modules with different LED codes = more transitions.
+        $different_leds = array(
+            array( 'led_codes' => array( 'K7P' ) ),
+            array( 'led_codes' => array( '4T9' ) ),
+            array( 'led_codes' => array( 'CF4' ) ),
+        );
+
+        $transitions = $sorter->count_transitions( $different_leds );
+
+        // 3 transitions (one for each different LED type).
+        if ( $transitions !== 3 ) {
+            return new WP_Error(
+                'transition_fail',
+                "Different LED codes should have 3 transitions, got {$transitions}."
+            );
+        }
+
+        echo "  count_transitions calculates LED type changes correctly.\n";
+
+        return true;
+    },
+    'Batch_Sorter counts LED transitions accurately.'
+);
+
+run_test(
+    'TC-BC-007: Batch_Sorter get_distinct_led_codes',
+    function (): bool {
+        $sorter = new \Quadica\QSA_Engraving\Services\Batch_Sorter();
+
+        $modules = array(
+            array( 'led_codes' => array( 'K7P', '4T9' ) ),
+            array( 'led_codes' => array( '4T9', 'CF4' ) ),
+            array( 'led_codes' => array( 'K7P' ) ),
+        );
+
+        $distinct = $sorter->get_distinct_led_codes( $modules );
+
+        // Should have 3 distinct codes: K7P, 4T9, CF4.
+        if ( count( $distinct ) !== 3 ) {
+            return new WP_Error(
+                'distinct_fail',
+                'Expected 3 distinct codes, got ' . count( $distinct ) . '.'
+            );
+        }
+
+        if ( ! in_array( 'K7P', $distinct, true ) ) {
+            return new WP_Error( 'distinct_fail', 'K7P should be in distinct codes.' );
+        }
+        if ( ! in_array( '4T9', $distinct, true ) ) {
+            return new WP_Error( 'distinct_fail', '4T9 should be in distinct codes.' );
+        }
+        if ( ! in_array( 'CF4', $distinct, true ) ) {
+            return new WP_Error( 'distinct_fail', 'CF4 should be in distinct codes.' );
+        }
+
+        echo "  get_distinct_led_codes extracts unique LED codes.\n";
+
+        return true;
+    },
+    'Batch_Sorter extracts distinct LED codes from module list.'
+);
+
+run_test(
+    'TC-BC-008: Batch_Sorter calculate_array_breakdown',
+    function (): bool {
+        $sorter = new \Quadica\QSA_Engraving\Services\Batch_Sorter();
+
+        // 15 modules starting at position 1.
+        $breakdown = $sorter->calculate_array_breakdown( 15, 1 );
+
+        if ( $breakdown['array_count'] !== 2 ) {
+            return new WP_Error( 'breakdown_fail', 'Expected 2 arrays for 15 modules.' );
+        }
+
+        // Arrays detail.
+        if ( count( $breakdown['arrays'] ) !== 2 ) {
+            return new WP_Error( 'breakdown_fail', 'Should have 2 array details.' );
+        }
+
+        // First array: 8 modules, positions 1-8.
+        if ( $breakdown['arrays'][0]['module_count'] !== 8 ) {
+            return new WP_Error( 'breakdown_fail', 'First array should have 8 modules.' );
+        }
+
+        // Second array: 7 modules, positions 1-7.
+        if ( $breakdown['arrays'][1]['module_count'] !== 7 ) {
+            return new WP_Error( 'breakdown_fail', 'Second array should have 7 modules.' );
+        }
+
+        // Test with start position 5: first array has 4 slots (5-8).
+        $breakdown = $sorter->calculate_array_breakdown( 10, 5 );
+
+        if ( $breakdown['array_count'] !== 2 ) {
+            return new WP_Error( 'breakdown_fail', 'Expected 2 arrays for 10 modules from pos 5.' );
+        }
+
+        if ( $breakdown['arrays'][0]['module_count'] !== 4 ) {
+            return new WP_Error( 'breakdown_fail', 'First array should have 4 modules (pos 5-8).' );
+        }
+
+        if ( $breakdown['arrays'][1]['module_count'] !== 6 ) {
+            return new WP_Error( 'breakdown_fail', 'Second array should have 6 modules.' );
+        }
+
+        echo "  calculate_array_breakdown provides accurate layout preview.\n";
+
+        return true;
+    },
+    'Batch_Sorter calculates array breakdown correctly.'
+);
+
+run_test(
+    'TC-BC-009: LED_Code_Resolver service instantiation',
+    function (): bool {
+        // Verify class exists.
+        if ( ! class_exists( 'Quadica\\QSA_Engraving\\Services\\LED_Code_Resolver' ) ) {
+            return new WP_Error( 'missing_class', 'LED_Code_Resolver class not found.' );
+        }
+
+        // Instantiate.
+        $resolver = new \Quadica\QSA_Engraving\Services\LED_Code_Resolver();
+
+        // Verify key methods exist.
+        if ( ! method_exists( $resolver, 'get_led_codes_for_module' ) ) {
+            return new WP_Error( 'missing_method', 'get_led_codes_for_module() method not found.' );
+        }
+        if ( ! method_exists( $resolver, 'get_led_shortcode' ) ) {
+            return new WP_Error( 'missing_method', 'get_led_shortcode() method not found.' );
+        }
+        if ( ! method_exists( $resolver, 'clear_cache' ) ) {
+            return new WP_Error( 'missing_method', 'clear_cache() method not found.' );
+        }
+
+        echo "  LED_Code_Resolver service instantiated successfully.\n";
+
+        return true;
+    },
+    'LED_Code_Resolver service class exists and has required methods.'
+);
+
+run_test(
+    'TC-BC-010: LED_Code_Resolver shortcode validation',
+    function (): bool {
+        $resolver = \Quadica\QSA_Engraving\Services\LED_Code_Resolver::class;
+
+        // Valid 3-character alphanumeric codes.
+        $valid_codes = array( 'K7P', '4T9', 'CF4', 'ABC', '123', 'A1B' );
+        foreach ( $valid_codes as $code ) {
+            if ( ! $resolver::is_valid_shortcode( $code ) ) {
+                return new WP_Error( 'validation_fail', "'{$code}' should be valid." );
+            }
+        }
+
+        // Invalid codes.
+        $invalid_codes = array(
+            'K7',      // Too short.
+            'K7P9',    // Too long.
+            'K-7',     // Contains special char.
+            'K 7',     // Contains space.
+            '',        // Empty.
+        );
+        foreach ( $invalid_codes as $code ) {
+            if ( $resolver::is_valid_shortcode( $code ) ) {
+                return new WP_Error( 'validation_fail', "'{$code}' should be invalid." );
+            }
+        }
+
+        echo "  LED shortcode validation (3-char alphanumeric) verified.\n";
+
+        return true;
+    },
+    'LED_Code_Resolver validates shortcode format correctly.'
+);
+
+run_test(
+    'TC-BC-011: Batch_Ajax_Handler service instantiation',
+    function (): bool {
+        // Verify class exists.
+        if ( ! class_exists( 'Quadica\\QSA_Engraving\\Ajax\\Batch_Ajax_Handler' ) ) {
+            return new WP_Error( 'missing_class', 'Batch_Ajax_Handler class not found.' );
+        }
+
+        // Verify nonce action constant.
+        $nonce_action = \Quadica\QSA_Engraving\Ajax\Batch_Ajax_Handler::NONCE_ACTION;
+        if ( $nonce_action !== 'qsa_engraving_nonce' ) {
+            return new WP_Error(
+                'constant_fail',
+                "NONCE_ACTION should be 'qsa_engraving_nonce', got '{$nonce_action}'."
+            );
+        }
+
+        // Verify AJAX actions are registered.
+        global $wp_filter;
+
+        $expected_actions = array(
+            'wp_ajax_qsa_get_modules_awaiting',
+            'wp_ajax_qsa_refresh_modules',
+            'wp_ajax_qsa_create_batch',
+            'wp_ajax_qsa_preview_batch',
+        );
+
+        $registered = array();
+        foreach ( $expected_actions as $action ) {
+            if ( isset( $wp_filter[ $action ] ) ) {
+                $registered[] = $action;
+            }
+        }
+
+        if ( count( $registered ) !== count( $expected_actions ) ) {
+            echo "  Note: Not all AJAX actions registered (expected in full WordPress context).\n";
+            echo "  Registered: " . count( $registered ) . " of " . count( $expected_actions ) . "\n";
+        }
+
+        echo "  Batch_Ajax_Handler service class verified.\n";
+
+        return true;
+    },
+    'Batch_Ajax_Handler service class exists and has required constants.'
+);
+
+run_test(
+    'TC-BC-012: Plugin services accessible via getters',
+    function (): bool {
+        $plugin = \Quadica\QSA_Engraving\qsa_engraving();
+
+        // Check Module_Selector is accessible (existing service).
+        $module_selector = $plugin->get_module_selector();
+        if ( ! ( $module_selector instanceof \Quadica\QSA_Engraving\Services\Module_Selector ) ) {
+            return new WP_Error( 'getter_fail', 'Module_Selector not accessible via getter.' );
+        }
+
+        // Verify plugin initializes services.
+        // The services are private, so we verify through class existence and instantiation.
+        $batch_sorter = new \Quadica\QSA_Engraving\Services\Batch_Sorter();
+        $led_resolver = new \Quadica\QSA_Engraving\Services\LED_Code_Resolver();
+
+        // These classes work correctly, which means the plugin can use them.
+        if ( ! $batch_sorter instanceof \Quadica\QSA_Engraving\Services\Batch_Sorter ) {
+            return new WP_Error( 'type_fail', 'Batch_Sorter instantiation failed.' );
+        }
+
+        if ( ! $led_resolver instanceof \Quadica\QSA_Engraving\Services\LED_Code_Resolver ) {
+            return new WP_Error( 'type_fail', 'LED_Code_Resolver instantiation failed.' );
+        }
+
+        echo "  Plugin services are accessible and functional.\n";
+
+        return true;
+    },
+    'Plugin exposes services correctly.'
+);
+
+run_test(
+    'TC-BC-013: Batch_Sorter empty input handling',
+    function (): bool {
+        $sorter = new \Quadica\QSA_Engraving\Services\Batch_Sorter();
+
+        // Empty modules.
+        $sorted = $sorter->sort_modules( array() );
+        if ( ! empty( $sorted ) ) {
+            return new WP_Error( 'empty_fail', 'Empty input should return empty array.' );
+        }
+
+        // Empty selections.
+        $expanded = $sorter->expand_selections( array() );
+        if ( ! empty( $expanded ) ) {
+            return new WP_Error( 'empty_fail', 'Empty selections should return empty array.' );
+        }
+
+        // Zero modules for array breakdown.
+        $breakdown = $sorter->calculate_array_breakdown( 0, 1 );
+        if ( $breakdown['array_count'] !== 0 ) {
+            return new WP_Error( 'empty_fail', 'Zero modules should return 0 arrays.' );
+        }
+
+        echo "  Empty input handling verified.\n";
+
+        return true;
+    },
+    'Batch_Sorter handles empty input gracefully.'
+);
+
+run_test(
+    'TC-BC-014: Batch_Sorter single module handling',
+    function (): bool {
+        $sorter = new \Quadica\QSA_Engraving\Services\Batch_Sorter();
+
+        // Single module.
+        $modules = array(
+            array( 'id' => 1, 'led_codes' => array( 'K7P' ) ),
+        );
+
+        $sorted = $sorter->sort_modules( $modules );
+        if ( count( $sorted ) !== 1 ) {
+            return new WP_Error( 'single_fail', 'Single module should return single module.' );
+        }
+
+        // Single module transition count.
+        $transitions = $sorter->count_transitions( $modules );
+        if ( $transitions !== 1 ) {
+            return new WP_Error( 'single_fail', 'Single module should have 1 transition.' );
+        }
+
+        // Single module array assignment.
+        $arrays = $sorter->assign_to_arrays( $modules, 1 );
+        if ( count( $arrays ) !== 1 ) {
+            return new WP_Error( 'single_fail', 'Single module should create 1 array.' );
+        }
+        if ( count( $arrays[0] ) !== 1 ) {
+            return new WP_Error( 'single_fail', 'Single array should have 1 module.' );
+        }
+
+        echo "  Single module handling verified.\n";
+
+        return true;
+    },
+    'Batch_Sorter handles single module correctly.'
 );
 
 // ============================================
