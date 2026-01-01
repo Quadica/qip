@@ -582,15 +582,15 @@ Note: LightBurn integration tests require on-site testing with actual LightBurn 
 - [ ] Verify positions match sample SVG output
 - [ ] Create seed SQL script: `02-qsa-config-seed-stara.sql`
 
-#### 9.2 QUAD Configuration
-- [ ] Import coordinates from QUAD coordinate data (to be provided)
+#### 9.2 CUBEa Configuration
+- [ ] Import coordinates from CUBEa coordinate data (to be provided)
 - [ ] Verify positions with test SVG output
-- [ ] Create seed SQL script: `03-qsa-config-seed-quad.sql`
+- [ ] Create seed SQL script: `03-qsa-config-seed-cubea.sql`
 
-#### 9.3 PICO Configuration
-- [ ] Import coordinates from PICO coordinate data (to be provided)
+#### 9.3 PICOa Configuration
+- [ ] Import coordinates from PICOa coordinate data (to be provided)
 - [ ] Verify positions with test SVG output
-- [ ] Create seed SQL script: `04-qsa-config-seed-pico.sql`
+- [ ] Create seed SQL script: `04-qsa-config-seed-picoa.sql`
 
 #### 9.4 Revision Support
 - [ ] Handle design revisions (e.g., "STARa" vs "STARb")
@@ -599,8 +599,8 @@ Note: LightBurn integration tests require on-site testing with actual LightBurn 
 
 ### Completion Criteria
 - [ ] STARa configuration produces correct SVG positions
-- [ ] QUAD configuration produces correct SVG positions
-- [ ] PICO configuration produces correct SVG positions
+- [ ] CUBEa configuration produces correct SVG positions
+- [ ] PICOa configuration produces correct SVG positions
 - [ ] Configuration revision system tested
 
 ### Reference Files
@@ -707,7 +707,7 @@ npm run build
 
 3. **Data Matrix Library:** The `tecnickcom/tc-lib-barcode` library has been validated and works correctly for ECC 200 generation.
 
-4. **Additional QSA Designs:** Beyond STARa, coordinate data will be provided for QUAD and PICO designs.
+4. **Additional QSA Designs:** Beyond STARa, coordinate data will be provided for CUBEa and PICOa designs.
 
 ---
 
@@ -716,6 +716,6 @@ npm run build
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0 | 2025-12-31 | Claude | Initial plan from discovery document |
-| 1.1 | 2025-12-31 | Claude | Resolved open questions; added QUAD and PICO to Phase 9 |
+| 1.1 | 2025-12-31 | Claude | Resolved open questions; added CUBEa and PICOa to Phase 9 |
 | 1.2 | 2025-12-31 | Claude | Phase 4 complete: SVG Generation Core with 17 smoke tests |
 | 1.3 | 2025-12-31 | Claude | Phase 5 complete: Batch Creator UI with 14 smoke tests (63 total) |

@@ -184,6 +184,55 @@ final class Plugin {
         add_action( 'admin_init', array( $this, 'check_serial_capacity' ) );
         add_action( 'admin_menu', array( $this, 'init_admin_menu' ), 99 );
         add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_assets' ) );
+
+        // Register scheduled cleanup for old SVG files.
+        add_action( 'qsa_engraving_cleanup_svg_files', array( $this, 'cleanup_old_svg_files' ) );
+        $this->schedule_svg_cleanup();
+    }
+
+    /**
+     * Schedule the recurring SVG cleanup task.
+     *
+     * Uses Action Scheduler if available, otherwise falls back to WP-Cron.
+     *
+     * @return void
+     */
+    private function schedule_svg_cleanup(): void {
+        // Check if Action Scheduler is available (WooCommerce includes it).
+        if ( function_exists( 'as_next_scheduled_action' ) ) {
+            // Use Action Scheduler.
+            if ( false === as_next_scheduled_action( 'qsa_engraving_cleanup_svg_files' ) ) {
+                as_schedule_recurring_action(
+                    time() + HOUR_IN_SECONDS,
+                    DAY_IN_SECONDS,
+                    'qsa_engraving_cleanup_svg_files',
+                    array(),
+                    'qsa-engraving'
+                );
+            }
+        } else {
+            // Fall back to WP-Cron.
+            if ( ! wp_next_scheduled( 'qsa_engraving_cleanup_svg_files' ) ) {
+                wp_schedule_event( time() + HOUR_IN_SECONDS, 'daily', 'qsa_engraving_cleanup_svg_files' );
+            }
+        }
+    }
+
+    /**
+     * Clean up old SVG files based on age.
+     *
+     * SVG files are ephemeral and should not persist beyond their immediate use.
+     * This cleanup runs daily and removes files older than 24 hours.
+     *
+     * @return void
+     */
+    public function cleanup_old_svg_files(): void {
+        $file_manager = new Services\SVG_File_Manager();
+        $deleted      = $file_manager->cleanup_old_files_by_age( 24 ); // 24 hours max age.
+
+        if ( $deleted > 0 && defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+            error_log( sprintf( 'QSA Engraving: Cleaned up %d old SVG files.', $deleted ) );
+        }
     }
 
     /**

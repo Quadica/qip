@@ -92,7 +92,7 @@ Implemented Phase 7 of the QSA Engraving system: LightBurn Integration. This pha
 - LightBurn status indicator in header (Ready/Sending with color)
 - `generateSvg()` function called on row start
 - Auto-load to LightBurn when enabled in settings
-- Resend button loads existing SVG via `qsa_resend_svg`
+- Resend button loads existing SVG via `qsa_load_svg` (tries existing file first, regenerates if not found)
 - Last loaded file display in status
 - Visual feedback during LightBurn operations
 
