@@ -188,3 +188,152 @@
         font-size: 20px;
     }
 }
+
+/* =========================================
+   Settings Page
+   ========================================= */
+
+.qsa-settings-wrap {
+    max-width: 900px;
+    margin-top: 20px;
+}
+
+.qsa-settings-section {
+    background: #fff;
+    border: 1px solid #c3c4c7;
+    border-radius: 4px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.qsa-settings-section h2 {
+    margin: 0 0 5px 0;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.qsa-settings-section > .description {
+    margin: 0 0 20px 0;
+    color: #666;
+}
+
+.qsa-settings-section .form-table {
+    margin-top: 0;
+}
+
+.qsa-settings-section .form-table th {
+    width: 200px;
+    padding-left: 0;
+}
+
+.qsa-settings-section .form-table td .description {
+    font-size: 12px;
+    margin-top: 5px;
+}
+
+/* Test Result Indicator */
+.qsa-test-result {
+    display: inline-block;
+    margin-left: 10px;
+    padding: 4px 8px;
+    border-radius: 3px;
+    font-size: 13px;
+}
+
+.qsa-test-result.success {
+    background: #d4edda;
+    color: #155724;
+}
+
+.qsa-test-result.error {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+/* Save Result Indicator */
+.qsa-save-result {
+    display: inline-block;
+    margin-left: 10px;
+    padding: 4px 8px;
+    border-radius: 3px;
+    font-size: 13px;
+}
+
+.qsa-save-result.success {
+    background: #d4edda;
+    color: #155724;
+}
+
+.qsa-save-result.error {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+/* Directory Status */
+.qsa-directory-status {
+    background: #f6f7f7;
+    padding: 15px;
+    border-radius: 4px;
+}
+
+.qsa-directory-status p {
+    margin: 0 0 8px 0;
+}
+
+.qsa-directory-status p:last-child {
+    margin-bottom: 0;
+}
+
+.qsa-directory-status code {
+    background: #fff;
+    padding: 2px 5px;
+    word-break: break-all;
+}
+
+.qsa-directory-status .status-ok {
+    color: #00a32a;
+}
+
+.qsa-directory-status .status-warning {
+    color: #996800;
+}
+
+.qsa-directory-status .status-info {
+    color: #0073aa;
+}
+
+.qsa-directory-status .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    vertical-align: text-bottom;
+}
+
+/* Button with Icon */
+#qsa-test-lightburn .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    margin-right: 4px;
+    vertical-align: text-bottom;
+}
+
+/* =========================================
+   Batch Creator Navigation
+   ========================================= */
+
+.qsa-batch-creator-nav {
+    margin: 15px 0;
+}
+
+.qsa-batch-creator-nav .page-title-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.qsa-batch-creator-nav .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+}

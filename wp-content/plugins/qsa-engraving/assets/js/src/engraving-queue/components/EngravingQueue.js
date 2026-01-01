@@ -37,6 +37,13 @@ export default function EngravingQueue() {
 	const [ loading, setLoading ] = useState( true );
 	const [ error, setError ] = useState( null );
 	const [ activeItemId, setActiveItemId ] = useState( null );
+	const [ lightburnStatus, setLightburnStatus ] = useState( {
+		enabled: window.qsaEngraving?.lightburnEnabled || false,
+		autoLoad: window.qsaEngraving?.lightburnAutoLoad || true,
+		connected: false,
+		loading: false,
+		lastFile: null,
+	} );
 
 	/**
 	 * Fetch queue data from the server.
@@ -82,10 +89,35 @@ export default function EngravingQueue() {
 	}, [ fetchQueue ] );
 
 	/**
+	 * Restore active item ID from queue state on load/reload.
+	 * Sets activeItemId to the first in_progress row if one exists.
+	 */
+	useEffect( () => {
+		if ( queueItems.length > 0 && activeItemId === null ) {
+			const inProgressItem = queueItems.find( ( item ) => item.status === 'in_progress' );
+			if ( inProgressItem ) {
+				setActiveItemId( inProgressItem.id );
+			}
+		}
+	}, [ queueItems, activeItemId ] );
+
+	/**
 	 * Handle keyboard shortcuts.
 	 */
 	useEffect( () => {
 		const handleKeyDown = ( e ) => {
+			// Ignore keyboard shortcuts when an input, textarea, or select is focused.
+			const activeElement = document.activeElement;
+			const tagName = activeElement?.tagName?.toLowerCase();
+			if ( tagName === 'input' || tagName === 'textarea' || tagName === 'select' ) {
+				return;
+			}
+
+			// Also check for contenteditable elements.
+			if ( activeElement?.isContentEditable ) {
+				return;
+			}
+
 			// Spacebar advances to next array (when in progress).
 			if ( e.code === 'Space' && activeItemId !== null ) {
 				e.preventDefault();
@@ -128,6 +160,39 @@ export default function EngravingQueue() {
 	};
 
 	/**
+	 * Generate and optionally load SVG in LightBurn.
+	 *
+	 * @param {number}  qsaSequence The QSA sequence number.
+	 * @param {boolean} autoLoad    Whether to auto-load in LightBurn.
+	 * @return {Promise<Object|null>} The SVG generation result or null on error.
+	 */
+	const generateSvg = async ( qsaSequence, autoLoad = true ) => {
+		try {
+			setLightburnStatus( ( prev ) => ( { ...prev, loading: true } ) );
+
+			const data = await queueAction( 'qsa_generate_svg', {
+				qsa_sequence: qsaSequence,
+				auto_load: autoLoad && lightburnStatus.enabled ? '1' : '0',
+			} );
+
+			if ( data.success ) {
+				setLightburnStatus( ( prev ) => ( {
+					...prev,
+					loading: false,
+					lastFile: data.data.filename,
+					connected: data.data.lightburn_loaded || prev.connected,
+				} ) );
+				return data.data;
+			}
+			setLightburnStatus( ( prev ) => ( { ...prev, loading: false } ) );
+			return null;
+		} catch ( err ) {
+			setLightburnStatus( ( prev ) => ( { ...prev, loading: false } ) );
+			return null;
+		}
+	};
+
+	/**
 	 * Handle start engraving for a row.
 	 *
 	 * @param {number} qsaSequence The QSA sequence number.
@@ -146,6 +211,15 @@ export default function EngravingQueue() {
 							: item
 					)
 				);
+
+				// Generate SVG and optionally auto-load in LightBurn.
+				if ( lightburnStatus.enabled ) {
+					const svgResult = await generateSvg( qsaSequence, lightburnStatus.autoLoad );
+					if ( svgResult && ! svgResult.lightburn_loaded && lightburnStatus.autoLoad ) {
+						// SVG generated but LightBurn load failed.
+						console.warn( 'SVG generated but LightBurn load failed:', svgResult.lightburn_error );
+					}
+				}
 			} else {
 				alert( data.message || __( 'Failed to start row.', 'qsa-engraving' ) );
 			}
@@ -213,21 +287,36 @@ export default function EngravingQueue() {
 	};
 
 	/**
-	 * Handle resend SVG.
+	 * Handle resend SVG to LightBurn.
 	 *
 	 * @param {number} qsaSequence The QSA sequence number.
 	 */
 	const handleResend = async ( qsaSequence ) => {
 		try {
-			const data = await queueAction( 'qsa_resend_svg', { qsa_sequence: qsaSequence } );
+			setLightburnStatus( ( prev ) => ( { ...prev, loading: true } ) );
+
+			// Try to load existing SVG in LightBurn.
+			const data = await queueAction( 'qsa_load_svg', { qsa_sequence: qsaSequence } );
 
 			if ( data.success ) {
-				// Just show confirmation - serials stay the same.
-				alert( __( 'SVG resent to laser.', 'qsa-engraving' ) );
+				setLightburnStatus( ( prev ) => ( {
+					...prev,
+					loading: false,
+					lastFile: data.data.filename,
+					connected: true,
+				} ) );
 			} else {
-				alert( data.message || __( 'Failed to resend.', 'qsa-engraving' ) );
+				// File not found - regenerate it.
+				const svgResult = await generateSvg( qsaSequence, true );
+				if ( svgResult ) {
+					setLightburnStatus( ( prev ) => ( { ...prev, loading: false } ) );
+				} else {
+					setLightburnStatus( ( prev ) => ( { ...prev, loading: false } ) );
+					alert( data.message || __( 'Failed to load SVG. Try generating a new one.', 'qsa-engraving' ) );
+				}
 			}
 		} catch ( err ) {
+			setLightburnStatus( ( prev ) => ( { ...prev, loading: false } ) );
 			alert( __( 'Network error during resend.', 'qsa-engraving' ) );
 		}
 	};
@@ -330,6 +419,29 @@ export default function EngravingQueue() {
 				stats={ stats }
 				capacity={ capacity }
 			/>
+
+			{ /* LightBurn Status Indicator */ }
+			{ lightburnStatus.enabled && (
+				<div className={ `qsa-lightburn-status ${ lightburnStatus.loading ? 'loading' : '' }` }>
+					<span className="dashicons dashicons-admin-generic"></span>
+					<span className="qsa-lightburn-label">{ __( 'LightBurn:', 'qsa-engraving' ) }</span>
+					{ lightburnStatus.loading ? (
+						<span className="qsa-lightburn-state loading">
+							<span className="spinner is-active"></span>
+							{ __( 'Sending...', 'qsa-engraving' ) }
+						</span>
+					) : (
+						<span className="qsa-lightburn-state ready">
+							{ __( 'Ready', 'qsa-engraving' ) }
+						</span>
+					) }
+					{ lightburnStatus.lastFile && (
+						<span className="qsa-lightburn-file">
+							<code>{ lightburnStatus.lastFile }</code>
+						</span>
+					) }
+				</div>
+			) }
 
 			<div className="qsa-queue-list">
 				<div className="qsa-queue-list-header">

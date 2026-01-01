@@ -16,9 +16,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 echo "\n";
-echo "===========================================================\n";
-echo "QSA Engraving Plugin - Phase 1, 2, 3, 4, 5 & 6 Smoke Tests\n";
-echo "===========================================================\n\n";
+echo "================================================================\n";
+echo "QSA Engraving Plugin - Phase 1, 2, 3, 4, 5, 6 & 7 Smoke Tests\n";
+echo "================================================================\n\n";
 
 $tests_passed = 0;
 $tests_failed = 0;
@@ -3012,6 +3012,325 @@ run_test(
         return true;
     },
     'update_start_position() handles missing batches gracefully.'
+);
+
+// ============================================
+// Phase 7: LightBurn Integration Tests
+// ============================================
+echo "\n----------------------------------------\n";
+echo "Phase 7: LightBurn Integration Tests\n";
+echo "----------------------------------------\n\n";
+
+run_test(
+    'TC-LB-001: LightBurn_Client class exists',
+    function (): bool {
+        if ( ! class_exists( 'Quadica\\QSA_Engraving\\Services\\LightBurn_Client' ) ) {
+            return new WP_Error( 'class_missing', 'LightBurn_Client class not found.' );
+        }
+
+        $client = new \Quadica\QSA_Engraving\Services\LightBurn_Client();
+
+        // Check default settings.
+        if ( $client->get_host() !== '127.0.0.1' ) {
+            return new WP_Error(
+                'default_host',
+                'Default host should be 127.0.0.1, got ' . $client->get_host()
+            );
+        }
+
+        if ( $client->get_out_port() !== 19840 ) {
+            return new WP_Error(
+                'default_port',
+                'Default out port should be 19840, got ' . $client->get_out_port()
+            );
+        }
+
+        if ( $client->get_in_port() !== 19841 ) {
+            return new WP_Error(
+                'default_in_port',
+                'Default in port should be 19841, got ' . $client->get_in_port()
+            );
+        }
+
+        echo "  LightBurn_Client class instantiated with correct defaults.\n";
+
+        return true;
+    },
+    'LightBurn_Client class exists and has correct default settings.'
+);
+
+run_test(
+    'TC-LB-002: LightBurn_Client has required methods',
+    function (): bool {
+        $client = new \Quadica\QSA_Engraving\Services\LightBurn_Client();
+
+        $expected_methods = array(
+            'send_command',
+            'ping',
+            'load_file',
+            'load_file_with_retry',
+            'test_connection',
+            'is_enabled',
+            'close',
+        );
+
+        $missing = array();
+        foreach ( $expected_methods as $method ) {
+            if ( ! method_exists( $client, $method ) ) {
+                $missing[] = $method;
+            }
+        }
+
+        if ( ! empty( $missing ) ) {
+            return new WP_Error(
+                'methods_missing',
+                'Missing client methods: ' . implode( ', ', $missing )
+            );
+        }
+
+        echo "  All 7 LightBurn_Client methods exist.\n";
+
+        return true;
+    },
+    'LightBurn_Client has all required methods.'
+);
+
+run_test(
+    'TC-LB-003: SVG_File_Manager class exists',
+    function (): bool {
+        if ( ! class_exists( 'Quadica\\QSA_Engraving\\Services\\SVG_File_Manager' ) ) {
+            return new WP_Error( 'class_missing', 'SVG_File_Manager class not found.' );
+        }
+
+        $manager = new \Quadica\QSA_Engraving\Services\SVG_File_Manager();
+
+        // Check default output directory.
+        $output_dir = $manager->get_output_dir();
+        if ( empty( $output_dir ) ) {
+            return new WP_Error( 'empty_dir', 'Output directory is empty.' );
+        }
+
+        echo "  SVG_File_Manager using output directory: {$output_dir}\n";
+
+        return true;
+    },
+    'SVG_File_Manager class exists and has valid output directory.'
+);
+
+run_test(
+    'TC-LB-004: SVG_File_Manager has required methods',
+    function (): bool {
+        $manager = new \Quadica\QSA_Engraving\Services\SVG_File_Manager();
+
+        $expected_methods = array(
+            'ensure_directory',
+            'generate_filename',
+            'get_full_path',
+            'get_lightburn_path',
+            'save_svg',
+            'cleanup_old_files',
+            'cleanup_batch_files',
+            'get_existing_file',
+            'file_exists',
+            'get_status',
+        );
+
+        $missing = array();
+        foreach ( $expected_methods as $method ) {
+            if ( ! method_exists( $manager, $method ) ) {
+                $missing[] = $method;
+            }
+        }
+
+        if ( ! empty( $missing ) ) {
+            return new WP_Error(
+                'methods_missing',
+                'Missing file manager methods: ' . implode( ', ', $missing )
+            );
+        }
+
+        echo "  All 10 SVG_File_Manager methods exist.\n";
+
+        return true;
+    },
+    'SVG_File_Manager has all required methods.'
+);
+
+run_test(
+    'TC-LB-005: LightBurn AJAX Handler exists',
+    function (): bool {
+        if ( ! class_exists( 'Quadica\\QSA_Engraving\\Ajax\\LightBurn_Ajax_Handler' ) ) {
+            return new WP_Error( 'class_missing', 'LightBurn_Ajax_Handler class not found.' );
+        }
+
+        // Check that it has the expected methods.
+        $expected_methods = array(
+            'register',
+            'handle_test_connection',
+            'handle_generate_svg',
+            'handle_load_svg',
+            'handle_resend_svg',
+            'handle_get_status',
+            'handle_save_settings',
+        );
+
+        $missing = array();
+        foreach ( $expected_methods as $method ) {
+            if ( ! method_exists( 'Quadica\\QSA_Engraving\\Ajax\\LightBurn_Ajax_Handler', $method ) ) {
+                $missing[] = $method;
+            }
+        }
+
+        if ( ! empty( $missing ) ) {
+            return new WP_Error(
+                'methods_missing',
+                'Missing handler methods: ' . implode( ', ', $missing )
+            );
+        }
+
+        echo "  All 7 LightBurn AJAX handler methods exist.\n";
+
+        return true;
+    },
+    'LightBurn_Ajax_Handler has all required methods.'
+);
+
+run_test(
+    'TC-LB-006: LightBurn AJAX actions are registered',
+    function (): bool {
+        global $wp_filter;
+
+        $expected_actions = array(
+            'wp_ajax_qsa_test_lightburn',
+            'wp_ajax_qsa_generate_svg',
+            'wp_ajax_qsa_load_svg',
+            'wp_ajax_qsa_resend_svg',
+            'wp_ajax_qsa_get_lightburn_status',
+            'wp_ajax_qsa_save_lightburn_settings',
+        );
+
+        $missing = array();
+        foreach ( $expected_actions as $action ) {
+            if ( ! has_action( $action ) ) {
+                $missing[] = $action;
+            }
+        }
+
+        if ( ! empty( $missing ) ) {
+            return new WP_Error(
+                'actions_not_registered',
+                'Missing AJAX actions: ' . implode( ', ', $missing )
+            );
+        }
+
+        echo "  All 6 LightBurn AJAX actions are registered.\n";
+
+        return true;
+    },
+    'LightBurn AJAX actions are registered with WordPress.'
+);
+
+run_test(
+    'TC-LB-007: SVG filename generation format',
+    function (): bool {
+        $manager = new \Quadica\QSA_Engraving\Services\SVG_File_Manager();
+
+        $filename = $manager->generate_filename( 123, 5 );
+
+        // Should match format: {batch_id}-{qsa_sequence}-{timestamp}.svg.
+        if ( ! preg_match( '/^123-5-\d+\.svg$/', $filename ) ) {
+            return new WP_Error(
+                'invalid_format',
+                "Filename format incorrect: {$filename}"
+            );
+        }
+
+        echo "  Generated filename: {$filename}\n";
+
+        return true;
+    },
+    'SVG filename follows expected format {batch_id}-{qsa_sequence}-{timestamp}.svg'
+);
+
+run_test(
+    'TC-LB-008: LightBurn path conversion',
+    function (): bool {
+        $manager = new \Quadica\QSA_Engraving\Services\SVG_File_Manager();
+
+        $filename      = 'test-1-123456.svg';
+        $lightburn_path = $manager->get_lightburn_path( $filename );
+
+        // Path should have backslashes for Windows.
+        if ( strpos( $lightburn_path, '/' ) !== false && strpos( $lightburn_path, '\\' ) === false ) {
+            return new WP_Error(
+                'no_backslashes',
+                "Path should have Windows backslashes: {$lightburn_path}"
+            );
+        }
+
+        // Path should end with the filename.
+        if ( substr( $lightburn_path, -strlen( $filename ) ) !== $filename ) {
+            return new WP_Error(
+                'missing_filename',
+                "Path should end with filename: {$lightburn_path}"
+            );
+        }
+
+        echo "  LightBurn path: {$lightburn_path}\n";
+
+        return true;
+    },
+    'LightBurn path conversion produces Windows-compatible paths.'
+);
+
+run_test(
+    'TC-LB-009: File manager status check',
+    function (): bool {
+        $manager = new \Quadica\QSA_Engraving\Services\SVG_File_Manager();
+
+        $status = $manager->get_status();
+
+        // Should have required keys.
+        $required_keys = array( 'exists', 'writable', 'path', 'custom', 'file_count' );
+
+        foreach ( $required_keys as $key ) {
+            if ( ! array_key_exists( $key, $status ) ) {
+                return new WP_Error(
+                    'missing_key',
+                    "Status missing required key: {$key}"
+                );
+            }
+        }
+
+        echo "  Status: exists=" . ( $status['exists'] ? 'yes' : 'no' );
+        echo ", writable=" . ( $status['writable'] ? 'yes' : 'no' );
+        echo ", custom=" . ( $status['custom'] ? 'yes' : 'no' );
+        echo ", files=" . $status['file_count'] . "\n";
+
+        return true;
+    },
+    'File manager status returns all required fields.'
+);
+
+run_test(
+    'TC-LB-010: Settings option structure',
+    function (): bool {
+        // Get or create settings.
+        $settings = get_option( 'qsa_engraving_settings', array() );
+
+        // Just verify we can access the settings array.
+        if ( ! is_array( $settings ) ) {
+            return new WP_Error(
+                'not_array',
+                'Settings is not an array.'
+            );
+        }
+
+        echo "  Settings option accessible. Currently set keys: " . count( $settings ) . "\n";
+
+        return true;
+    },
+    'qsa_engraving_settings option is accessible.'
 );
 
 // ============================================

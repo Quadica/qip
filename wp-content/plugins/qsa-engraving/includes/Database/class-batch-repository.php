@@ -309,6 +309,9 @@ class Batch_Repository {
     /**
      * Mark modules as done for a QSA.
      *
+     * Updates modules with row_status of 'pending' or 'in_progress' to 'done'.
+     * This handles the normal workflow where rows transition from pending -> in_progress -> done.
+     *
      * @param int $batch_id The batch ID.
      * @param int $qsa_sequence The QSA sequence number.
      * @return int|WP_Error Number of updated rows or WP_Error on failure.
@@ -320,7 +323,7 @@ class Batch_Repository {
                 SET row_status = 'done', engraved_at = NOW()
                 WHERE engraving_batch_id = %d
                   AND qsa_sequence = %d
-                  AND row_status = 'pending'",
+                  AND row_status IN ('pending', 'in_progress')",
                 $batch_id,
                 $qsa_sequence
             )
@@ -479,6 +482,9 @@ class Batch_Repository {
     /**
      * Update start position for all modules in a QSA.
      *
+     * Validates that all modules fit within positions 1-8 from the start position.
+     * Does NOT wrap positions - returns an error if modules would exceed position 8.
+     *
      * @param int $batch_id       The batch ID.
      * @param int $qsa_sequence   The QSA sequence number.
      * @param int $start_position The new start position (1-8).
@@ -501,15 +507,28 @@ class Batch_Repository {
             return new WP_Error( 'no_modules', __( 'No modules found for this QSA.', 'qsa-engraving' ) );
         }
 
+        $module_count = count( $modules );
+
+        // Validate that modules will fit within positions 1-8 without wrapping.
+        // The last module position would be: start_position + module_count - 1.
+        $last_position = $start_position + $module_count - 1;
+        if ( $last_position > 8 ) {
+            return new WP_Error(
+                'position_overflow',
+                sprintf(
+                    /* translators: 1: Module count, 2: Start position, 3: Last position */
+                    __( 'Cannot place %1$d modules starting at position %2$d. Last position would be %3$d, but maximum is 8.', 'qsa-engraving' ),
+                    $module_count,
+                    $start_position,
+                    $last_position
+                )
+            );
+        }
+
         // Update positions starting from the new start position.
         $updated = 0;
         foreach ( $modules as $index => $module ) {
             $new_position = $start_position + $index;
-
-            // Wrap around if exceeds 8 (positions are 1-8).
-            if ( $new_position > 8 ) {
-                $new_position = ( ( $new_position - 1 ) % 8 ) + 1;
-            }
 
             $result = $this->wpdb->update(
                 $this->modules_table,

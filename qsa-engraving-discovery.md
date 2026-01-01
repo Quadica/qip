@@ -54,6 +54,8 @@ The process will only process LED modules that use the QSA.
 - The operator will be able to refresh the list of modules by clicking on an refresh icon.
 - Needed modules can be determined by querying and comparing the values from the build_qty field with the value in the qty_recieved field in the oms_batch_items table. If the value in the qty_received field is less than the build_qty field, then the difference is what needs to be built and is included in the modules to build list.
 
+**Legacy OMS Table Note:** The `oms_batch_items` table is from the legacy Order Management System and intentionally does NOT use the WordPress table prefix (it's just `oms_batch_items`, not `{prefix}_oms_batch_items`). This table will eventually be deprecated but is required for the current engraving workflow integration.
+
 **Module Engraving Batch Creator Page Mockup**
 - [Functional React mockup page](https://claude.ai/public/artifacts/bc2959bd-0c6d-402b-ba37-2ada39964eda)
 - [JSX React Source Code](docs/reference/module-engraving-batch-creator-mockup.jsx)
@@ -246,18 +248,21 @@ Things can go wrong during the engraving process. A module may not be positioned
 | Control | When Available | What It Does | Serial Number Impact |
 |---------|----------------|--------------|---------------------|
 | **Resend** | During engraving | Sends the current SVG to LightBurn again. Use when the file didn't transfer properly but the QSA is still usable. | No change — same serials |
-| **Retry** | During engraving | Scraps the current QSA and generates a fresh SVG with new serial numbers. Use when the QSA is ruined and you need a fresh substrate. | Original serials stay reserved, new serials assigned |
-| **Back** | After first array | Returns to the previous array. The previous array's serials remain committed; you'll re-engrave on a new QSA with new serials. | Previous stays committed, new serials assigned for re-do |
-| **Rerun** | After row complete | Resets selected arrays (or entire row) back to pending. Allows adjusting starting position. | Original serials stay engraved, new serials assigned |
+| **Retry** | During engraving | Scraps the current QSA and generates a fresh SVG with new serial numbers. Use when the QSA is ruined and you need a fresh substrate. | Original serials voided, new serials assigned |
+| **Rerun** | After row complete | Resets row back to pending. Allows adjusting starting position. | Original serials stay engraved, new serials assigned on restart |
 
 **Resend vs Retry — Key Distinction:**
 - **Resend** = Same QSA, same serials, just re-transmit the file (communication issue)
 - **Retry** = New QSA, new serials, the old QSA is scrapped (physical failure)
 
+**Implementation Note — One Array Per Row:**
+The current implementation treats each QSA sequence row as a single array unit. This simplifies the workflow for our typical use case of partial arrays (fewer than 8 modules per QSA). Each row is processed as a single engraving operation:
+- "Engrave" reserves serials and marks row as in_progress
+- "Complete" commits serials (reserved → engraved) and marks row as done
+- The "Back" control (originally for multi-array navigation) is not implemented — use "Retry" instead to start fresh with new serials
+
 **Important Behaviors:**
-- The "Back" button only appears after the first array
 - The "Resend" and "Retry" buttons are available during an in-progress row
-- Using "Rerun" allows selecting which arrays to redo, or redoing the entire row
 - None of these actions affect other rows in the queue
 - Serial numbers are never recycled — new serials are always assigned for re-engraving
 

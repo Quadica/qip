@@ -28,6 +28,17 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Module_Selector {
 
     /**
+     * Legacy OMS batch items table name.
+     *
+     * Note: This table is from the legacy Order Management System and intentionally
+     * does NOT use the WordPress table prefix. It will eventually be deprecated
+     * but is required for the current engraving workflow integration.
+     *
+     * @var string
+     */
+    public const OMS_BATCH_ITEMS_TABLE = 'oms_batch_items';
+
+    /**
      * Regex pattern for QSA-compatible module SKUs.
      *
      * Pattern: 4 uppercase letters + optional lowercase revision + hyphen + 5 digits
@@ -79,8 +90,8 @@ class Module_Selector {
      * @return array Array of modules grouped by base type.
      */
     public function get_modules_awaiting(): array {
-        // Check if oms_batch_items table exists.
-        $oms_table = $this->wpdb->prefix . 'oms_batch_items';
+        // Check if legacy OMS table exists (no WordPress prefix - see class constant).
+        $oms_table    = self::OMS_BATCH_ITEMS_TABLE;
         $table_exists = $this->wpdb->get_var(
             $this->wpdb->prepare( 'SHOW TABLES LIKE %s', $oms_table )
         );
@@ -255,7 +266,8 @@ class Module_Selector {
      * @return array Array of modules for the order.
      */
     public function get_modules_for_order( int $order_id ): array {
-        $oms_table = $this->wpdb->prefix . 'oms_batch_items';
+        // Use legacy OMS table (no WordPress prefix).
+        $oms_table = self::OMS_BATCH_ITEMS_TABLE;
 
         $results = $this->wpdb->get_results(
             $this->wpdb->prepare(
