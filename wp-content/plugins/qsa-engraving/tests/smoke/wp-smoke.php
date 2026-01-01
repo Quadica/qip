@@ -2596,10 +2596,10 @@ run_test(
             return new WP_Error( 'single_fail', 'Single module should return single module.' );
         }
 
-        // Single module transition count.
+        // Single module transition count (0 for single module - no transitions needed).
         $transitions = $sorter->count_transitions( $modules );
-        if ( $transitions !== 1 ) {
-            return new WP_Error( 'single_fail', 'Single module should have 1 transition.' );
+        if ( $transitions !== 0 ) {
+            return new WP_Error( 'single_fail', "Single module should have 0 transitions, got {$transitions}." );
         }
 
         // Single module array assignment.
