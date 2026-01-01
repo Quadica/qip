@@ -127,6 +127,13 @@ final class Plugin {
     private ?Ajax\LightBurn_Ajax_Handler $lightburn_ajax_handler = null;
 
     /**
+     * History AJAX Handler instance.
+     *
+     * @var Ajax\History_Ajax_Handler|null
+     */
+    private ?Ajax\History_Ajax_Handler $history_ajax_handler = null;
+
+    /**
      * Private constructor to prevent direct instantiation.
      */
     private function __construct() {
@@ -414,6 +421,13 @@ final class Plugin {
             $this->led_code_resolver
         );
         $this->lightburn_ajax_handler->register();
+
+        // Initialize History AJAX handler (Phase 8).
+        $this->history_ajax_handler = new Ajax\History_Ajax_Handler(
+            $this->batch_repository,
+            $this->serial_repository
+        );
+        $this->history_ajax_handler->register();
     }
 
     /**

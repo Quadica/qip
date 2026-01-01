@@ -9,6 +9,7 @@ module.exports = {
 	entry: {
 		'batch-creator': path.resolve( __dirname, 'assets/js/src/batch-creator/index.js' ),
 		'engraving-queue': path.resolve( __dirname, 'assets/js/src/engraving-queue/index.js' ),
+		'batch-history': path.resolve( __dirname, 'assets/js/src/batch-history/index.js' ),
 	},
 	output: {
 		...defaultConfig.output,

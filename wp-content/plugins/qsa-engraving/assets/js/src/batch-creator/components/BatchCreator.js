@@ -421,13 +421,20 @@ export default function BatchCreator() {
 				start_position: 1,
 			} );
 
+			// eslint-disable-next-line no-console
+			console.log( 'Preview response:', response );
+
 			if ( response.success && response.data ) {
 				setPreviewData( response.data );
 			} else {
-				setError( response.message || __( 'Failed to preview batch.', 'qsa-engraving' ) );
+				// Extract error message from response.
+				const errorMsg = response.message || response.data?.message || __( 'Failed to preview batch.', 'qsa-engraving' );
+				setError( errorMsg );
 			}
 		} catch ( err ) {
-			setError( __( 'Failed to preview batch.', 'qsa-engraving' ) );
+			// eslint-disable-next-line no-console
+			console.error( 'Preview error:', err );
+			setError( __( 'Failed to preview batch.', 'qsa-engraving' ) + ' ' + ( err.message || '' ) );
 		} finally {
 			setPreviewing( false );
 		}
@@ -481,8 +488,10 @@ export default function BatchCreator() {
 	if ( error ) {
 		return (
 			<div className="qsa-batch-creator qsa-error">
-				<div className="notice notice-error">
-					<p>{ error }</p>
+				<div className="notice notice-error" style={ { padding: '12px 20px' } }>
+					<p style={ { margin: 0, fontSize: '14px', color: '#721c24' } }>
+						<strong>{ __( 'Error:', 'qsa-engraving' ) }</strong> { error }
+					</p>
 				</div>
 				<button className="button" onClick={ () => { setError( null ); fetchModules(); } }>
 					{ __( 'Retry', 'qsa-engraving' ) }
