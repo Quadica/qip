@@ -16,9 +16,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 echo "\n";
-echo "=======================================================\n";
-echo "QSA Engraving Plugin - Phase 1, 2, 3, 4 & 5 Smoke Tests\n";
-echo "=======================================================\n\n";
+echo "===========================================================\n";
+echo "QSA Engraving Plugin - Phase 1, 2, 3, 4, 5 & 6 Smoke Tests\n";
+echo "===========================================================\n\n";
 
 $tests_passed = 0;
 $tests_failed = 0;
@@ -2647,6 +2647,371 @@ run_test(
         return true;
     },
     'Batch_Sorter handles single module correctly.'
+);
+
+// ============================================
+// PHASE 6 TESTS: Engraving Queue UI
+// ============================================
+
+run_test(
+    'TC-EQ-001: Queue_Ajax_Handler class exists and instantiates',
+    function (): bool {
+        if ( ! class_exists( 'Quadica\\QSA_Engraving\\Ajax\\Queue_Ajax_Handler' ) ) {
+            return new WP_Error( 'missing_class', 'Queue_Ajax_Handler class not found.' );
+        }
+
+        // Get dependencies from plugin.
+        $plugin           = \Quadica\QSA_Engraving\qsa_engraving();
+        $batch_sorter     = new \Quadica\QSA_Engraving\Services\Batch_Sorter();
+        $batch_repository = $plugin->get_batch_repository();
+        $serial_repository = $plugin->get_serial_repository();
+
+        // Instantiate handler.
+        $handler = new \Quadica\QSA_Engraving\Ajax\Queue_Ajax_Handler(
+            $batch_sorter,
+            $batch_repository,
+            $serial_repository
+        );
+
+        if ( ! method_exists( $handler, 'register' ) ) {
+            return new WP_Error( 'missing_method', 'Queue_Ajax_Handler::register() not found.' );
+        }
+
+        echo "  Queue_Ajax_Handler instantiated successfully.\n";
+
+        return true;
+    },
+    'Queue AJAX handler class exists with required methods.'
+);
+
+run_test(
+    'TC-EQ-002: Batch_Repository has queue-related methods',
+    function (): bool {
+        $plugin = \Quadica\QSA_Engraving\qsa_engraving();
+        $batch_repo = $plugin->get_batch_repository();
+
+        $required_methods = array(
+            'update_row_status',
+            'reset_row_status',
+            'reopen_batch',
+            'update_start_position',
+            'get_queue_stats',
+        );
+
+        $missing = array();
+        foreach ( $required_methods as $method ) {
+            if ( ! method_exists( $batch_repo, $method ) ) {
+                $missing[] = $method;
+            }
+        }
+
+        if ( ! empty( $missing ) ) {
+            return new WP_Error(
+                'missing_methods',
+                'Missing Batch_Repository methods: ' . implode( ', ', $missing )
+            );
+        }
+
+        echo "  All required queue methods exist in Batch_Repository.\n";
+
+        return true;
+    },
+    'Batch_Repository has all queue-related methods for Phase 6.'
+);
+
+run_test(
+    'TC-EQ-003: Update row status validates status values',
+    function (): bool {
+        $plugin = \Quadica\QSA_Engraving\qsa_engraving();
+        $batch_repo = $plugin->get_batch_repository();
+
+        // Test with invalid status.
+        $result = $batch_repo->update_row_status( 1, 1, 'invalid_status' );
+
+        if ( ! is_wp_error( $result ) ) {
+            return new WP_Error( 'validation_fail', 'Invalid status should return WP_Error.' );
+        }
+
+        if ( $result->get_error_code() !== 'invalid_status' ) {
+            return new WP_Error(
+                'error_code_fail',
+                "Expected error code 'invalid_status', got '{$result->get_error_code()}'."
+            );
+        }
+
+        echo "  Invalid status correctly rejected.\n";
+
+        return true;
+    },
+    'update_row_status() validates status parameter.'
+);
+
+run_test(
+    'TC-EQ-004: Get queue stats returns correct structure',
+    function (): bool {
+        $plugin = \Quadica\QSA_Engraving\qsa_engraving();
+        $batch_repo = $plugin->get_batch_repository();
+
+        // Get stats for non-existent batch (should return zeros).
+        $stats = $batch_repo->get_queue_stats( 999999 );
+
+        $required_keys = array( 'pending', 'in_progress', 'done', 'total', 'total_qsas', 'done_qsas' );
+        $missing = array();
+
+        foreach ( $required_keys as $key ) {
+            if ( ! array_key_exists( $key, $stats ) ) {
+                $missing[] = $key;
+            }
+        }
+
+        if ( ! empty( $missing ) ) {
+            return new WP_Error(
+                'structure_fail',
+                'Missing stats keys: ' . implode( ', ', $missing )
+            );
+        }
+
+        // All values should be integers.
+        foreach ( $stats as $key => $value ) {
+            if ( ! is_int( $value ) ) {
+                return new WP_Error( 'type_fail', "Stats key '{$key}' should be integer." );
+            }
+        }
+
+        echo "  Queue stats structure verified.\n";
+        echo "  Stats: pending={$stats['pending']}, in_progress={$stats['in_progress']}, done={$stats['done']}\n";
+
+        return true;
+    },
+    'get_queue_stats() returns expected structure with integer values.'
+);
+
+run_test(
+    'TC-EQ-005: React bundle exists and enqueues',
+    function (): bool {
+        $bundle_path = QSA_ENGRAVING_PLUGIN_DIR . 'assets/js/build/engraving-queue.js';
+        $asset_path  = QSA_ENGRAVING_PLUGIN_DIR . 'assets/js/build/engraving-queue.asset.php';
+
+        if ( ! file_exists( $bundle_path ) ) {
+            return new WP_Error( 'bundle_missing', "React bundle not found at: {$bundle_path}" );
+        }
+
+        if ( ! file_exists( $asset_path ) ) {
+            return new WP_Error( 'asset_missing', "Asset file not found at: {$asset_path}" );
+        }
+
+        // Verify bundle has content.
+        $bundle_size = filesize( $bundle_path );
+        if ( $bundle_size < 1000 ) {
+            return new WP_Error( 'bundle_small', "Bundle seems too small: {$bundle_size} bytes." );
+        }
+
+        // Verify asset file returns dependencies.
+        $asset = require $asset_path;
+        if ( ! is_array( $asset ) || ! isset( $asset['dependencies'] ) ) {
+            return new WP_Error( 'asset_invalid', 'Asset file does not contain dependencies.' );
+        }
+
+        echo "  Bundle size: " . number_format( $bundle_size ) . " bytes\n";
+        echo "  Dependencies: " . implode( ', ', $asset['dependencies'] ) . "\n";
+
+        return true;
+    },
+    'Engraving queue React bundle exists with proper asset metadata.'
+);
+
+run_test(
+    'TC-EQ-006: React CSS bundle exists',
+    function (): bool {
+        $css_path = QSA_ENGRAVING_PLUGIN_DIR . 'assets/js/build/style-engraving-queue.css';
+
+        if ( ! file_exists( $css_path ) ) {
+            return new WP_Error( 'css_missing', "CSS bundle not found at: {$css_path}" );
+        }
+
+        $css_size = filesize( $css_path );
+        if ( $css_size < 500 ) {
+            return new WP_Error( 'css_small', "CSS seems too small: {$css_size} bytes." );
+        }
+
+        echo "  CSS size: " . number_format( $css_size ) . " bytes\n";
+
+        return true;
+    },
+    'Engraving queue CSS bundle exists with proper content.'
+);
+
+run_test(
+    'TC-EQ-007: Admin menu has queue page',
+    function (): bool {
+        $admin_menu = new \Quadica\QSA_Engraving\Admin\Admin_Menu();
+
+        // Check menu slug constant.
+        $expected_slug = 'qsa-engraving';
+        if ( \Quadica\QSA_Engraving\Admin\Admin_Menu::MENU_SLUG !== $expected_slug ) {
+            return new WP_Error(
+                'slug_fail',
+                "Expected menu slug '{$expected_slug}', got '" .
+                \Quadica\QSA_Engraving\Admin\Admin_Menu::MENU_SLUG . "'."
+            );
+        }
+
+        // Check render method exists for queue page.
+        if ( ! method_exists( $admin_menu, 'render_queue_page' ) ) {
+            return new WP_Error( 'method_missing', 'render_queue_page() method not found.' );
+        }
+
+        echo "  Admin menu queue page method exists.\n";
+
+        return true;
+    },
+    'Admin menu includes engraving queue page.'
+);
+
+run_test(
+    'TC-EQ-008: Serial lifecycle transitions work correctly',
+    function (): bool {
+        $serial_repo = \Quadica\QSA_Engraving\qsa_engraving()->get_serial_repository();
+
+        // Test valid transitions.
+        $valid_transitions = array(
+            array( 'reserved', 'engraved' ),
+            array( 'reserved', 'voided' ),
+        );
+
+        foreach ( $valid_transitions as $transition ) {
+            $from = $transition[0];
+            $to   = $transition[1];
+            if ( ! $serial_repo::is_transition_allowed( $from, $to ) ) {
+                return new WP_Error(
+                    'transition_fail',
+                    "Transition from '{$from}' to '{$to}' should be allowed."
+                );
+            }
+        }
+
+        // Test invalid transitions (terminal states).
+        $invalid_transitions = array(
+            array( 'engraved', 'reserved' ),
+            array( 'engraved', 'voided' ),
+            array( 'voided', 'reserved' ),
+            array( 'voided', 'engraved' ),
+        );
+
+        foreach ( $invalid_transitions as $transition ) {
+            $from = $transition[0];
+            $to   = $transition[1];
+            if ( $serial_repo::is_transition_allowed( $from, $to ) ) {
+                return new WP_Error(
+                    'transition_fail',
+                    "Transition from '{$from}' to '{$to}' should NOT be allowed."
+                );
+            }
+        }
+
+        echo "  Valid transitions: reserved->engraved, reserved->voided\n";
+        echo "  Terminal states (engraved, voided) correctly block transitions.\n";
+
+        return true;
+    },
+    'Serial number lifecycle enforces valid state transitions.'
+);
+
+run_test(
+    'TC-EQ-009: Queue AJAX actions are registered',
+    function (): bool {
+        $plugin = \Quadica\QSA_Engraving\qsa_engraving();
+
+        // The AJAX actions should be registered by the plugin init.
+        // We check if the action hooks exist.
+        $expected_actions = array(
+            'wp_ajax_qsa_get_queue',
+            'wp_ajax_qsa_start_row',
+            'wp_ajax_qsa_next_array',
+            'wp_ajax_qsa_complete_row',
+            'wp_ajax_qsa_retry_array',
+            'wp_ajax_qsa_resend_svg',
+            'wp_ajax_qsa_back_array',
+            'wp_ajax_qsa_rerun_row',
+            'wp_ajax_qsa_update_start_position',
+        );
+
+        // In CLI context, hooks may not be registered yet.
+        // Check that the handler class has corresponding methods.
+        $batch_sorter      = new \Quadica\QSA_Engraving\Services\Batch_Sorter();
+        $batch_repository  = $plugin->get_batch_repository();
+        $serial_repository = $plugin->get_serial_repository();
+
+        $handler = new \Quadica\QSA_Engraving\Ajax\Queue_Ajax_Handler(
+            $batch_sorter,
+            $batch_repository,
+            $serial_repository
+        );
+
+        $expected_methods = array(
+            'handle_get_queue',
+            'handle_start_row',
+            'handle_next_array',
+            'handle_complete_row',
+            'handle_retry_array',
+            'handle_resend_svg',
+            'handle_back_array',
+            'handle_rerun_row',
+            'handle_update_start_position',
+        );
+
+        $missing = array();
+        foreach ( $expected_methods as $method ) {
+            if ( ! method_exists( $handler, $method ) ) {
+                $missing[] = $method;
+            }
+        }
+
+        if ( ! empty( $missing ) ) {
+            return new WP_Error(
+                'methods_missing',
+                'Missing handler methods: ' . implode( ', ', $missing )
+            );
+        }
+
+        echo "  All 9 queue AJAX handler methods exist.\n";
+
+        return true;
+    },
+    'Queue AJAX handler has all required action methods.'
+);
+
+run_test(
+    'TC-EQ-010: Update start position with valid range',
+    function (): bool {
+        $plugin     = \Quadica\QSA_Engraving\qsa_engraving();
+        $batch_repo = $plugin->get_batch_repository();
+
+        // Test with non-existent batch (should return error for no modules).
+        $result = $batch_repo->update_start_position( 999999, 1, 5 );
+
+        if ( ! is_wp_error( $result ) ) {
+            // If not error, it means no modules to update (which is expected).
+            if ( $result !== 0 ) {
+                return new WP_Error(
+                    'unexpected_result',
+                    "Expected 0 or WP_Error for non-existent batch, got {$result}."
+                );
+            }
+            echo "  Non-existent batch correctly returns 0 updated rows.\n";
+        } else {
+            if ( $result->get_error_code() !== 'no_modules' ) {
+                return new WP_Error(
+                    'error_code_fail',
+                    "Expected 'no_modules' error, got '{$result->get_error_code()}'."
+                );
+            }
+            echo "  Non-existent batch correctly returns 'no_modules' error.\n";
+        }
+
+        return true;
+    },
+    'update_start_position() handles missing batches gracefully.'
 );
 
 // ============================================

@@ -1,0 +1,738 @@
+/**
+ * Engraving Queue Styles
+ *
+ * Dark theme styles for the engraving queue interface.
+ *
+ * @package QSA_Engraving
+ * @since 1.0.0
+ */
+
+/* ============================================
+   CSS Variables - Dark Theme
+   ============================================ */
+.qsa-engraving-queue {
+	--bg-primary: #0a1628;
+	--bg-card: #0f1f35;
+	--bg-elevated: #152a45;
+	--bg-hover: #1a3352;
+	--deep-navy: #01236d;
+	--luxeon-blue: #0056A4;
+	--electric-blue: #00A0E3;
+	--sky-blue: #109cf6;
+	--cool-led: #87CEEB;
+	--text-primary: #FFFFFF;
+	--text-secondary: #A8B4BD;
+	--text-muted: #6b7c8f;
+	--warm-led: #FFB347;
+	--success: #28A745;
+	--alert: #DC3545;
+	--border: #1e3a5f;
+	--border-light: #2a4a6f;
+}
+
+/* ============================================
+   Main Container
+   ============================================ */
+.qsa-engraving-queue {
+	font-family: 'Roboto', 'Segoe UI', Arial, sans-serif;
+	background-color: var(--bg-primary);
+	color: var(--text-primary);
+	padding: 20px;
+	min-height: 500px;
+	border-radius: 8px;
+}
+
+/* ============================================
+   Loading & Error States
+   ============================================ */
+.qsa-queue-loading,
+.qsa-queue-error {
+	text-align: center;
+	padding: 60px 20px;
+}
+
+.qsa-queue-loading .spinner {
+	float: none;
+	margin: 0 auto 10px;
+}
+
+/* ============================================
+   Header
+   ============================================ */
+.qsa-queue-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 16px 20px;
+	background: linear-gradient(135deg, var(--deep-navy) 0%, var(--luxeon-blue) 100%);
+	border-bottom: 1px solid var(--electric-blue);
+	border-radius: 8px 8px 0 0;
+	margin-bottom: 0;
+}
+
+.qsa-queue-header-left {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+
+.qsa-back-button {
+	padding: 8px;
+	color: var(--cool-led);
+	border-radius: 4px;
+	transition: background-color 0.2s;
+	text-decoration: none;
+}
+
+.qsa-back-button:hover {
+	background-color: rgba(255, 255, 255, 0.1);
+	color: var(--cool-led);
+}
+
+.qsa-queue-header-icon {
+	width: 40px;
+	height: 40px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background-color: var(--electric-blue);
+	border-radius: 8px;
+	box-shadow: 0 0 20px rgba(0, 160, 227, 0.4);
+}
+
+.qsa-queue-header-icon .dashicons {
+	font-size: 24px;
+	width: 24px;
+	height: 24px;
+	color: #fff;
+}
+
+.qsa-queue-header-text h1 {
+	margin: 0;
+	font-size: 20px;
+	font-weight: 700;
+	color: #fff;
+	letter-spacing: -0.5px;
+}
+
+.qsa-queue-header-text p {
+	margin: 0;
+	font-size: 13px;
+	color: var(--sky-blue);
+}
+
+.qsa-queue-header-right {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+
+.qsa-batch-id {
+	font-size: 13px;
+	color: var(--cool-led);
+}
+
+.qsa-batch-status {
+	padding: 4px 10px;
+	border-radius: 4px;
+	font-size: 12px;
+	font-weight: 600;
+}
+
+.qsa-batch-status.status-in_progress {
+	background-color: rgba(255, 179, 71, 0.2);
+	color: var(--warm-led);
+}
+
+.qsa-batch-status.status-completed {
+	background-color: rgba(40, 167, 69, 0.2);
+	color: var(--success);
+}
+
+/* ============================================
+   Stats Bar
+   ============================================ */
+.qsa-queue-stats {
+	background-color: var(--bg-card);
+	border-left: 1px solid var(--border);
+	border-right: 1px solid var(--border);
+	padding: 0 0 16px 0;
+}
+
+.qsa-stats-grid {
+	display: grid;
+	grid-template-columns: repeat(4, 1fr);
+}
+
+.qsa-stat-item {
+	padding: 16px;
+	text-align: center;
+	border-right: 1px solid var(--border);
+}
+
+.qsa-stat-item:last-child {
+	border-right: none;
+}
+
+.qsa-stat-label {
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+	color: var(--text-muted);
+	margin-bottom: 4px;
+}
+
+.qsa-stat-value {
+	font-size: 24px;
+	font-weight: 700;
+}
+
+.qsa-stat-completed {
+	color: var(--success);
+}
+
+.qsa-stat-separator {
+	color: var(--text-muted);
+	margin: 0 4px;
+}
+
+.qsa-stat-total {
+	color: var(--text-muted);
+}
+
+.qsa-stat-progress {
+	color: var(--electric-blue);
+}
+
+.qsa-progress-bar-container {
+	height: 8px;
+	background-color: var(--bg-primary);
+	border-radius: 4px;
+	margin: 0 16px;
+	overflow: hidden;
+}
+
+.qsa-progress-bar {
+	height: 100%;
+	background-color: var(--success);
+	border-radius: 4px;
+	transition: width 0.5s ease;
+	box-shadow: 0 0 10px rgba(40, 167, 69, 0.5);
+}
+
+.qsa-capacity-warning {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 10px 16px;
+	margin: 16px 16px 0;
+	background-color: rgba(255, 179, 71, 0.15);
+	border: 1px solid rgba(255, 179, 71, 0.3);
+	border-radius: 4px;
+	color: var(--warm-led);
+	font-size: 13px;
+}
+
+.qsa-capacity-warning.critical {
+	background-color: rgba(220, 53, 69, 0.15);
+	border-color: rgba(220, 53, 69, 0.3);
+	color: var(--alert);
+}
+
+/* ============================================
+   Queue List
+   ============================================ */
+.qsa-queue-list {
+	border: 1px solid var(--border);
+	border-radius: 0 0 8px 8px;
+	overflow: hidden;
+}
+
+.qsa-queue-list-header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 12px 16px;
+	background-color: var(--bg-elevated);
+	border-bottom: 1px solid var(--border);
+}
+
+.qsa-queue-list-header .dashicons {
+	color: var(--electric-blue);
+}
+
+.qsa-queue-list-title {
+	font-size: 12px;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+	font-weight: 600;
+	color: var(--electric-blue);
+}
+
+.qsa-queue-items {
+	background-color: var(--bg-card);
+}
+
+/* ============================================
+   Queue Item
+   ============================================ */
+.qsa-queue-item {
+	padding: 16px;
+	border-bottom: 1px solid var(--border);
+	transition: background-color 0.2s;
+}
+
+.qsa-queue-item:last-child,
+.qsa-queue-item.is-last {
+	border-bottom: none;
+}
+
+.qsa-queue-item.is-active {
+	background-color: rgba(255, 179, 71, 0.05);
+}
+
+.qsa-queue-item-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 12px;
+}
+
+.qsa-queue-item-left {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+
+/* Status Icon */
+.qsa-status-icon {
+	width: 32px;
+	height: 32px;
+	border-radius: 50%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.qsa-status-icon.status-complete {
+	background-color: rgba(40, 167, 69, 0.2);
+	color: var(--success);
+	box-shadow: 0 0 10px rgba(40, 167, 69, 0.3);
+}
+
+.qsa-status-icon.status-in-progress {
+	background-color: rgba(255, 179, 71, 0.2);
+	color: var(--warm-led);
+	box-shadow: 0 0 10px rgba(255, 179, 71, 0.3);
+}
+
+.qsa-status-icon.status-pending {
+	background-color: var(--bg-elevated);
+	color: var(--text-muted);
+}
+
+.qsa-status-icon .dashicons.spin {
+	animation: spin 2s linear infinite;
+}
+
+@keyframes spin {
+	0% { transform: rotate(0deg); }
+	100% { transform: rotate(360deg); }
+}
+
+/* Module Type */
+.qsa-module-type {
+	padding: 4px 12px;
+	background-color: rgba(0, 160, 227, 0.15);
+	color: var(--sky-blue);
+	border: 1px solid rgba(0, 160, 227, 0.3);
+	border-radius: 4px;
+	font-family: 'Roboto Mono', 'Consolas', monospace;
+	font-size: 13px;
+	font-weight: 700;
+}
+
+/* Group Type Badge */
+.qsa-group-type {
+	padding: 4px 8px;
+	border-radius: 4px;
+	font-size: 12px;
+}
+
+.qsa-group-type.group-same-full {
+	background-color: rgba(0, 160, 227, 0.2);
+	color: var(--electric-blue);
+}
+
+.qsa-group-type.group-same-partial {
+	background-color: rgba(16, 156, 246, 0.2);
+	color: var(--sky-blue);
+}
+
+.qsa-group-type.group-mixed-full {
+	background-color: rgba(255, 179, 71, 0.2);
+	color: var(--warm-led);
+}
+
+.qsa-group-type.group-mixed-partial {
+	background-color: rgba(135, 206, 235, 0.2);
+	color: var(--cool-led);
+}
+
+/* Status Badge */
+.qsa-status-badge {
+	padding: 4px 8px;
+	border-radius: 4px;
+	font-size: 12px;
+}
+
+.qsa-status-badge.status-complete {
+	background-color: rgba(40, 167, 69, 0.2);
+	color: var(--success);
+}
+
+.qsa-status-badge.status-in-progress {
+	background-color: rgba(255, 179, 71, 0.2);
+	color: var(--warm-led);
+}
+
+.qsa-status-badge.status-pending {
+	background-color: var(--bg-elevated);
+	color: var(--text-muted);
+}
+
+/* ============================================
+   Action Buttons
+   ============================================ */
+.qsa-action-buttons {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.qsa-btn-start {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	background-color: var(--electric-blue) !important;
+	border-color: var(--electric-blue) !important;
+	box-shadow: 0 0 15px rgba(0, 160, 227, 0.3);
+}
+
+.qsa-btn-start:hover {
+	background-color: var(--sky-blue) !important;
+	border-color: var(--sky-blue) !important;
+	box-shadow: 0 0 25px rgba(16, 156, 246, 0.5);
+}
+
+.qsa-btn-complete {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	background-color: var(--success) !important;
+	border-color: var(--success) !important;
+	box-shadow: 0 0 15px rgba(40, 167, 69, 0.3);
+}
+
+.qsa-btn-complete:hover {
+	box-shadow: 0 0 25px rgba(40, 167, 69, 0.5);
+}
+
+.qsa-btn-resend,
+.qsa-btn-retry,
+.qsa-btn-rerun {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	background-color: var(--bg-elevated) !important;
+	border-color: var(--border) !important;
+	color: var(--text-secondary) !important;
+}
+
+.qsa-btn-resend {
+	border-color: rgba(16, 156, 246, 0.5) !important;
+	color: var(--sky-blue) !important;
+}
+
+.qsa-btn-resend:hover {
+	background-color: rgba(16, 156, 246, 0.2) !important;
+	border-color: var(--sky-blue) !important;
+}
+
+.qsa-btn-retry {
+	border-color: rgba(255, 179, 71, 0.5) !important;
+	color: var(--warm-led) !important;
+}
+
+.qsa-btn-retry:hover {
+	background-color: rgba(255, 179, 71, 0.2) !important;
+	border-color: var(--warm-led) !important;
+}
+
+.qsa-btn-rerun:hover {
+	background-color: var(--bg-hover) !important;
+	border-color: var(--border-light) !important;
+}
+
+.qsa-done-badge {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 6px 12px;
+	background-color: rgba(40, 167, 69, 0.2);
+	color: var(--success);
+	border-radius: 4px;
+	font-size: 13px;
+}
+
+/* ============================================
+   Item Details
+   ============================================ */
+.qsa-queue-item-details {
+	margin-left: 44px;
+	margin-bottom: 8px;
+}
+
+.qsa-detail-group {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	color: var(--text-secondary);
+	font-size: 13px;
+}
+
+.qsa-detail-group .dashicons {
+	color: var(--text-muted);
+	font-size: 16px;
+	width: 16px;
+	height: 16px;
+}
+
+.qsa-detail-label {
+	color: var(--text-muted);
+}
+
+.qsa-modules-list {
+	display: flex;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+.qsa-module-sku {
+	padding: 2px 8px;
+	background-color: var(--bg-elevated);
+	border-radius: 4px;
+	font-family: 'Roboto Mono', 'Consolas', monospace;
+	font-size: 12px;
+	color: var(--text-secondary);
+}
+
+/* ============================================
+   Item Stats
+   ============================================ */
+.qsa-queue-item-stats {
+	display: flex;
+	align-items: center;
+	gap: 24px;
+	margin-left: 44px;
+	font-size: 13px;
+}
+
+.qsa-stat-group {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.qsa-stat-group .qsa-stat-label {
+	color: var(--text-muted);
+	font-size: 13px;
+	text-transform: none;
+	letter-spacing: normal;
+	margin-bottom: 0;
+}
+
+.qsa-stat-group .qsa-stat-value {
+	color: var(--text-primary);
+	font-weight: 700;
+	font-size: 14px;
+}
+
+.qsa-start-position-input {
+	width: 48px;
+	padding: 4px 8px;
+	text-align: center;
+	font-size: 13px;
+	font-weight: 700;
+	background-color: var(--bg-elevated);
+	color: var(--text-primary);
+	border: 1px solid var(--border);
+	border-radius: 4px;
+}
+
+.qsa-start-position-input:disabled {
+	opacity: 0.6;
+	background-color: var(--bg-primary);
+	color: var(--text-muted);
+}
+
+.qsa-start-position-input:focus {
+	border-color: var(--electric-blue);
+	box-shadow: 0 0 0 2px rgba(0, 160, 227, 0.3);
+	outline: none;
+}
+
+.qsa-serial-range {
+	font-family: 'Roboto Mono', 'Consolas', monospace;
+	font-size: 12px;
+	padding: 2px 8px;
+	background-color: var(--bg-elevated);
+	color: var(--sky-blue);
+	border-radius: 4px;
+}
+
+/* ============================================
+   In Progress Details
+   ============================================ */
+.qsa-in-progress-details {
+	margin: 12px 0 0 44px;
+	padding: 12px;
+	background-color: rgba(255, 179, 71, 0.1);
+	border: 1px solid rgba(255, 179, 71, 0.2);
+	border-radius: 8px;
+}
+
+.qsa-progress-indicator {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	flex-wrap: wrap;
+}
+
+.qsa-progress-badge {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 4px 12px;
+	background-color: var(--warm-led);
+	color: #000;
+	border-radius: 16px;
+	font-weight: 700;
+	font-size: 13px;
+}
+
+.qsa-progress-info {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.qsa-info-label {
+	color: var(--text-muted);
+	font-size: 13px;
+}
+
+.qsa-info-value {
+	font-weight: 700;
+	padding: 2px 8px;
+	background-color: var(--bg-elevated);
+	border-radius: 4px;
+	color: var(--text-primary);
+}
+
+.qsa-serial-range-active {
+	font-family: 'Roboto Mono', 'Consolas', monospace;
+	font-size: 12px;
+	padding: 2px 8px;
+	background-color: var(--bg-elevated);
+	color: var(--sky-blue);
+	border-radius: 4px;
+}
+
+.qsa-keyboard-hint {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-top: 12px;
+	padding-top: 12px;
+	border-top: 1px solid rgba(255, 179, 71, 0.15);
+	color: var(--text-muted);
+	font-size: 12px;
+}
+
+/* ============================================
+   Footer
+   ============================================ */
+.qsa-queue-footer {
+	margin-top: 20px;
+	padding: 16px;
+	background-color: var(--bg-card);
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+}
+
+.qsa-queue-legend {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	font-size: 12px;
+	color: var(--text-muted);
+}
+
+.qsa-legend-title {
+	font-weight: 600;
+	color: var(--text-secondary);
+}
+
+.qsa-legend-item {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.qsa-legend-dot {
+	width: 12px;
+	height: 12px;
+	border-radius: 2px;
+}
+
+.qsa-legend-item.same-full .qsa-legend-dot {
+	background-color: var(--electric-blue);
+}
+
+.qsa-legend-item.same-partial .qsa-legend-dot {
+	background-color: var(--sky-blue);
+}
+
+.qsa-legend-item.mixed-full .qsa-legend-dot {
+	background-color: var(--warm-led);
+}
+
+.qsa-legend-item.mixed-partial .qsa-legend-dot {
+	background-color: var(--cool-led);
+}
+
+.qsa-queue-keyboard-hint {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	color: var(--text-muted);
+	font-size: 12px;
+}
+
+/* ============================================
+   Keyboard Key Style
+   ============================================ */
+.keyboard-key {
+	display: inline-block;
+	padding: 2px 8px;
+	font-family: 'Roboto Mono', 'Consolas', monospace;
+	font-size: 11px;
+	background-color: var(--bg-elevated);
+	color: var(--text-secondary);
+	border: 1px solid var(--border);
+	border-radius: 4px;
+}

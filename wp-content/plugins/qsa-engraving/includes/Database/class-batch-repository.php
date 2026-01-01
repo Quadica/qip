@@ -369,11 +369,212 @@ class Batch_Repository {
         $pending_count = (int) $this->wpdb->get_var(
             $this->wpdb->prepare(
                 "SELECT COUNT(*) FROM {$this->modules_table}
-                WHERE engraving_batch_id = %d AND row_status = 'pending'",
+                WHERE engraving_batch_id = %d AND row_status != 'done'",
                 $batch_id
             )
         );
 
         return 0 === $pending_count;
+    }
+
+    /**
+     * Update row status for all modules in a QSA.
+     *
+     * @param int    $batch_id     The batch ID.
+     * @param int    $qsa_sequence The QSA sequence number.
+     * @param string $status       The new status (pending, in_progress, done).
+     * @return int|WP_Error Number of updated rows or WP_Error on failure.
+     */
+    public function update_row_status( int $batch_id, int $qsa_sequence, string $status ): int|WP_Error {
+        $valid_statuses = array( 'pending', 'in_progress', 'done' );
+        if ( ! in_array( $status, $valid_statuses, true ) ) {
+            return new WP_Error(
+                'invalid_status',
+                sprintf( 'Invalid status: %s. Valid statuses are: %s', $status, implode( ', ', $valid_statuses ) )
+            );
+        }
+
+        $update_data = array( 'row_status' => $status );
+        $update_format = array( '%s' );
+
+        if ( 'done' === $status ) {
+            $update_data['engraved_at'] = current_time( 'mysql' );
+            $update_format[] = '%s';
+        }
+
+        $result = $this->wpdb->update(
+            $this->modules_table,
+            $update_data,
+            array(
+                'engraving_batch_id' => $batch_id,
+                'qsa_sequence'       => $qsa_sequence,
+            ),
+            $update_format,
+            array( '%d', '%d' )
+        );
+
+        if ( false === $result ) {
+            return new WP_Error(
+                'update_failed',
+                __( 'Failed to update row status.', 'qsa-engraving' )
+            );
+        }
+
+        return (int) $result;
+    }
+
+    /**
+     * Reset row status to pending for a QSA.
+     *
+     * @param int $batch_id     The batch ID.
+     * @param int $qsa_sequence The QSA sequence number.
+     * @return int|WP_Error Number of updated rows or WP_Error on failure.
+     */
+    public function reset_row_status( int $batch_id, int $qsa_sequence ): int|WP_Error {
+        $result = $this->wpdb->update(
+            $this->modules_table,
+            array(
+                'row_status'  => 'pending',
+                'engraved_at' => null,
+            ),
+            array(
+                'engraving_batch_id' => $batch_id,
+                'qsa_sequence'       => $qsa_sequence,
+            ),
+            array( '%s', '%s' ),
+            array( '%d', '%d' )
+        );
+
+        if ( false === $result ) {
+            return new WP_Error(
+                'update_failed',
+                __( 'Failed to reset row status.', 'qsa-engraving' )
+            );
+        }
+
+        return (int) $result;
+    }
+
+    /**
+     * Reopen a completed batch.
+     *
+     * @param int $batch_id The batch ID.
+     * @return bool
+     */
+    public function reopen_batch( int $batch_id ): bool {
+        $result = $this->wpdb->update(
+            $this->batches_table,
+            array(
+                'status'       => 'in_progress',
+                'completed_at' => null,
+            ),
+            array( 'id' => $batch_id ),
+            array( '%s', '%s' ),
+            array( '%d' )
+        );
+
+        return false !== $result;
+    }
+
+    /**
+     * Update start position for all modules in a QSA.
+     *
+     * @param int $batch_id       The batch ID.
+     * @param int $qsa_sequence   The QSA sequence number.
+     * @param int $start_position The new start position (1-8).
+     * @return int|WP_Error Number of updated rows or WP_Error on failure.
+     */
+    public function update_start_position( int $batch_id, int $qsa_sequence, int $start_position ): int|WP_Error {
+        // Get all modules in this QSA.
+        $modules = $this->wpdb->get_results(
+            $this->wpdb->prepare(
+                "SELECT id, array_position FROM {$this->modules_table}
+                WHERE engraving_batch_id = %d AND qsa_sequence = %d
+                ORDER BY array_position ASC",
+                $batch_id,
+                $qsa_sequence
+            ),
+            ARRAY_A
+        );
+
+        if ( empty( $modules ) ) {
+            return new WP_Error( 'no_modules', __( 'No modules found for this QSA.', 'qsa-engraving' ) );
+        }
+
+        // Update positions starting from the new start position.
+        $updated = 0;
+        foreach ( $modules as $index => $module ) {
+            $new_position = $start_position + $index;
+
+            // Wrap around if exceeds 8 (positions are 1-8).
+            if ( $new_position > 8 ) {
+                $new_position = ( ( $new_position - 1 ) % 8 ) + 1;
+            }
+
+            $result = $this->wpdb->update(
+                $this->modules_table,
+                array( 'array_position' => $new_position ),
+                array( 'id' => $module['id'] ),
+                array( '%d' ),
+                array( '%d' )
+            );
+
+            if ( false !== $result ) {
+                $updated++;
+            }
+        }
+
+        return $updated;
+    }
+
+    /**
+     * Get queue statistics for a batch.
+     *
+     * @param int $batch_id The batch ID.
+     * @return array Statistics including counts by status.
+     */
+    public function get_queue_stats( int $batch_id ): array {
+        $results = $this->wpdb->get_results(
+            $this->wpdb->prepare(
+                "SELECT row_status, COUNT(*) as count
+                FROM {$this->modules_table}
+                WHERE engraving_batch_id = %d
+                GROUP BY row_status",
+                $batch_id
+            ),
+            ARRAY_A
+        );
+
+        $stats = array(
+            'pending'     => 0,
+            'in_progress' => 0,
+            'done'        => 0,
+            'total'       => 0,
+        );
+
+        foreach ( $results as $row ) {
+            if ( isset( $stats[ $row['row_status'] ] ) ) {
+                $stats[ $row['row_status'] ] = (int) $row['count'];
+            }
+            $stats['total'] += (int) $row['count'];
+        }
+
+        // Calculate QSA counts.
+        $qsa_counts = $this->wpdb->get_row(
+            $this->wpdb->prepare(
+                "SELECT
+                    COUNT(DISTINCT qsa_sequence) as total_qsas,
+                    COUNT(DISTINCT CASE WHEN row_status = 'done' THEN qsa_sequence END) as done_qsas
+                FROM {$this->modules_table}
+                WHERE engraving_batch_id = %d",
+                $batch_id
+            ),
+            ARRAY_A
+        );
+
+        $stats['total_qsas'] = (int) ( $qsa_counts['total_qsas'] ?? 0 );
+        $stats['done_qsas']  = (int) ( $qsa_counts['done_qsas'] ?? 0 );
+
+        return $stats;
     }
 }
