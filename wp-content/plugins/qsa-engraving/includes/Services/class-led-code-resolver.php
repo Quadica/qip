@@ -67,6 +67,14 @@ class LED_Code_Resolver {
 	private const FALLBACK_LED_CODE = 'K7P';
 
 	/**
+	 * Track modules that used fallback LED codes.
+	 * Each entry contains: ['order_id' => int, 'module_sku' => string, 'reason' => string]
+	 *
+	 * @var array
+	 */
+	private array $fallback_used = array();
+
+	/**
 	 * Constructor.
 	 */
 	public function __construct() {
@@ -98,6 +106,13 @@ class LED_Code_Resolver {
 		if ( null === $bom_post ) {
 			// No BOM found - use fallback if enabled, otherwise return error.
 			if ( $this->use_fallback ) {
+				// Record fallback usage for UI warning.
+				$this->record_fallback_usage(
+					$order_id,
+					$module_sku,
+					__( 'No Order BOM record found', 'qsa-engraving' )
+				);
+
 				// Log warning but return fallback code for testing.
 				if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
 					error_log(
@@ -117,7 +132,7 @@ class LED_Code_Resolver {
 				'bom_not_found',
 				sprintf(
 					/* translators: 1: Order ID, 2: Module SKU */
-					__( 'No BOM found for order %1$d, module %2$s.', 'qsa-engraving' ),
+					__( 'No Order BOM record found for order #%1$d, module %2$s. FIX: Create an Order BOM entry linking this order to the module, or verify the order ID and module SKU are correct.', 'qsa-engraving' ),
 					$order_id,
 					$module_sku
 				)
@@ -130,6 +145,13 @@ class LED_Code_Resolver {
 		if ( empty( $led_data ) ) {
 			// BOM exists but no LED data - use fallback if enabled.
 			if ( $this->use_fallback ) {
+				// Record fallback usage for UI warning.
+				$this->record_fallback_usage(
+					$order_id,
+					$module_sku,
+					__( 'Order BOM has no LED component data', 'qsa-engraving' )
+				);
+
 				if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
 					error_log(
 						sprintf(
@@ -148,7 +170,7 @@ class LED_Code_Resolver {
 				'led_data_missing',
 				sprintf(
 					/* translators: 1: Order ID, 2: Module SKU */
-					__( 'BOM found for order %1$d, module %2$s, but no LED data present.', 'qsa-engraving' ),
+					__( 'Order BOM exists for order #%1$d, module %2$s, but contains no LED component data. FIX: Edit the Order BOM record and add LED SKUs to the LED components field.', 'qsa-engraving' ),
 					$order_id,
 					$module_sku
 				)
@@ -169,7 +191,20 @@ class LED_Code_Resolver {
 
 		if ( empty( $led_codes ) ) {
 			// BOM has LED SKUs but none resolved to shortcodes.
+			$led_skus_list = implode( ', ', array_column( $led_data, 'sku' ) );
+
 			if ( $this->use_fallback ) {
+				// Record fallback usage for UI warning.
+				$this->record_fallback_usage(
+					$order_id,
+					$module_sku,
+					sprintf(
+						/* translators: %s: List of LED SKUs */
+						__( 'LED products (%s) missing led_shortcode_3 field', 'qsa-engraving' ),
+						$led_skus_list
+					)
+				);
+
 				// Use fallback code for testing.
 				if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
 					error_log(
@@ -188,10 +223,11 @@ class LED_Code_Resolver {
 			return new WP_Error(
 				'led_shortcodes_missing',
 				sprintf(
-					/* translators: 1: Order ID, 2: Module SKU */
-					__( 'LED SKUs found for order %1$d, module %2$s, but no shortcodes resolved.', 'qsa-engraving' ),
+					/* translators: 1: Order ID, 2: Module SKU, 3: List of LED SKUs */
+					__( 'LED products found for order #%1$d, module %2$s (SKUs: %3$s), but none have the "led_shortcode_3" field set. FIX: Edit each LED product and add a 3-character shortcode (e.g., "K7P") to the led_shortcode_3 custom field.', 'qsa-engraving' ),
 					$order_id,
-					$module_sku
+					$module_sku,
+					$led_skus_list
 				)
 			);
 		}
@@ -373,5 +409,40 @@ class LED_Code_Resolver {
 	public function clear_cache(): void {
 		$this->cache         = array();
 		$this->product_cache = array();
+		$this->fallback_used = array();
+	}
+
+	/**
+	 * Get list of modules that used fallback LED codes.
+	 *
+	 * @return array Array of fallback usage records.
+	 */
+	public function get_fallback_usage(): array {
+		return $this->fallback_used;
+	}
+
+	/**
+	 * Check if any fallback LED codes were used.
+	 *
+	 * @return bool True if fallback was used for any module.
+	 */
+	public function has_fallback_usage(): bool {
+		return ! empty( $this->fallback_used );
+	}
+
+	/**
+	 * Record that fallback was used for a module.
+	 *
+	 * @param int    $order_id   The order ID.
+	 * @param string $module_sku The module SKU.
+	 * @param string $reason     The reason fallback was needed.
+	 * @return void
+	 */
+	private function record_fallback_usage( int $order_id, string $module_sku, string $reason ): void {
+		$this->fallback_used[] = array(
+			'order_id'   => $order_id,
+			'module_sku' => $module_sku,
+			'reason'     => $reason,
+		);
 	}
 }
