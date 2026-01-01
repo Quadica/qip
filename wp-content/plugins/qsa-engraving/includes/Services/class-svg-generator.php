@@ -154,6 +154,18 @@ class SVG_Generator {
         int $start_position = 1,
         array $options = array()
     ): array|WP_Error {
+        // Validate start_position is within valid range (1-8).
+        if ( $start_position < 1 || $start_position > 8 ) {
+            return new WP_Error(
+                'invalid_start_position',
+                sprintf(
+                    /* translators: %d: Position number */
+                    __( 'Invalid start position: %d. Must be between 1 and 8.', 'qsa-engraving' ),
+                    $start_position
+                )
+            );
+        }
+
         $config = $this->config_loader->get_config( $qsa_design, $revision );
         if ( empty( $config ) ) {
             return new WP_Error(
@@ -279,6 +291,9 @@ class SVG_Generator {
                 'last_array_count' => 0,
             );
         }
+
+        // Clamp start_position to valid range (1-8).
+        $start_position = max( 1, min( 8, $start_position ) );
 
         // First array can hold (9 - start_position) modules.
         $first_array_capacity = 9 - $start_position;

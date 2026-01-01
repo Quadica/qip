@@ -288,15 +288,22 @@ class Config_Loader {
     /**
      * Get calibration offsets for a design.
      *
-     * Currently returns zeros; can be extended to read from settings.
+     * Calibration offsets allow fine-tuning of SVG positions to compensate
+     * for mechanical alignment differences between the engraving fixture
+     * and the CAD design coordinates.
+     *
+     * NOTE: Currently returns zeros (no calibration offset applied).
+     * This is intentional for initial deployment. Calibration adjustment
+     * will be implemented in Phase 8 (Settings Page) when real-world
+     * testing determines if offsets are needed.
      *
      * @param string      $qsa_design Design name.
      * @param string|null $revision   Optional revision.
-     * @return array{x: float, y: float} Calibration offsets.
+     * @return array{x: float, y: float} Calibration offsets in mm.
      */
     public function get_calibration( string $qsa_design, ?string $revision = null ): array {
-        // Future: Read from options or config table.
-        // For now, return zeros (no calibration offset).
+        // Phase 8 TODO: Read from wp_options or admin settings page.
+        // For initial deployment, return zeros (no calibration offset).
         return array(
             'x' => 0.0,
             'y' => 0.0,

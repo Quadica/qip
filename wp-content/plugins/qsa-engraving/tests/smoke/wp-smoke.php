@@ -1440,7 +1440,63 @@ run_test(
 );
 
 run_test(
-    'TC-SVG-004: Text Renderer character spacing',
+    'TC-SVG-004: Micro-ID position transform',
+    function (): bool {
+        $transformer = new \Quadica\QSA_Engraving\SVG\Coordinate_Transformer();
+
+        // Test Micro-ID position transform.
+        // CAD coords for Micro-ID center, expecting offset for top-left of 1mm grid.
+        // get_micro_id_transform subtracts 0.5mm from both x and y.
+        $result = $transformer->get_micro_id_transform( 32.0, 63.7 );
+
+        // X should be 32.0 - 0.5 = 31.5.
+        if ( abs( $result['x'] - 31.5 ) > 0.001 ) {
+            return new WP_Error( 'micro_id_fail', "X should be 31.5, got {$result['x']}." );
+        }
+
+        // Y should be (113.7 - 63.7) - 0.5 = 49.5.
+        $expected_y = 113.7 - 63.7 - 0.5;
+        if ( abs( $result['y'] - $expected_y ) > 0.001 ) {
+            return new WP_Error( 'micro_id_fail', "Y should be {$expected_y}, got {$result['y']}." );
+        }
+
+        echo "  Micro-ID position transform verified (center to top-left offset).\n";
+
+        return true;
+    },
+    'Micro-ID position transform converts center to top-left correctly.'
+);
+
+run_test(
+    'TC-SVG-005: Data Matrix position transform',
+    function (): bool {
+        $transformer = new \Quadica\QSA_Engraving\SVG\Coordinate_Transformer();
+
+        // Test Data Matrix position transform.
+        // CAD coords for Data Matrix center, expecting offset for top-left.
+        // Default width=14, height=6.5, so offset is (7, 3.25).
+        $result = $transformer->get_datamatrix_position( 50.0, 50.0 );
+
+        // X should be 50.0 - 7 = 43.0.
+        if ( abs( $result['x'] - 43.0 ) > 0.001 ) {
+            return new WP_Error( 'dm_pos_fail', "X should be 43.0, got {$result['x']}." );
+        }
+
+        // Y should be (113.7 - 50) - 3.25 = 60.45.
+        $expected_y = 113.7 - 50.0 - 3.25;
+        if ( abs( $result['y'] - $expected_y ) > 0.001 ) {
+            return new WP_Error( 'dm_pos_fail', "Y should be {$expected_y}, got {$result['y']}." );
+        }
+
+        echo "  Data Matrix position transform verified (center to top-left offset).\n";
+
+        return true;
+    },
+    'Data Matrix position transform converts center to top-left correctly.'
+);
+
+run_test(
+    'TC-SVG-006: Hair-space character spacing',
     function (): bool {
         $renderer = \Quadica\QSA_Engraving\SVG\Text_Renderer::class;
 
@@ -1465,7 +1521,7 @@ run_test(
 );
 
 run_test(
-    'TC-SVG-005: Text Renderer font size calculation',
+    'TC-SVG-007: Text Renderer font size calculation',
     function (): bool {
         $renderer = \Quadica\QSA_Engraving\SVG\Text_Renderer::class;
 
@@ -1496,7 +1552,7 @@ run_test(
 );
 
 run_test(
-    'TC-SVG-006: Text Renderer SVG output',
+    'TC-SVG-008: Text Renderer SVG output',
     function (): bool {
         $renderer = \Quadica\QSA_Engraving\SVG\Text_Renderer::class;
 
@@ -1533,7 +1589,7 @@ run_test(
 );
 
 run_test(
-    'TC-SVG-007: Text Renderer with rotation',
+    'TC-SVG-009: Text Renderer with rotation',
     function (): bool {
         $renderer = \Quadica\QSA_Engraving\SVG\Text_Renderer::class;
 
@@ -1558,7 +1614,7 @@ run_test(
 );
 
 run_test(
-    'TC-SVG-008: LED code validation',
+    'TC-SVG-010: LED code validation',
     function (): bool {
         $renderer = \Quadica\QSA_Engraving\SVG\Text_Renderer::class;
 
@@ -1928,6 +1984,42 @@ run_test(
         return true;
     },
     'SVG Generator calculates array breakdown correctly.'
+);
+
+run_test(
+    'TC-SVG-GEN-006: SVG Generator start_position validation',
+    function (): bool {
+        $generator = new \Quadica\QSA_Engraving\Services\SVG_Generator();
+
+        // Valid positions should work (test with calculate_array_breakdown which clamps).
+        $breakdown = $generator->calculate_array_breakdown( 8, 1 );
+        if ( $breakdown['array_count'] !== 1 ) {
+            return new WP_Error( 'breakdown_fail', 'Position 1 should work.' );
+        }
+
+        $breakdown = $generator->calculate_array_breakdown( 8, 8 );
+        if ( $breakdown['array_count'] !== 2 ) {
+            return new WP_Error( 'breakdown_fail', 'Position 8 should work (1 + 7 remaining).' );
+        }
+
+        // Out of range positions should be clamped in calculate_array_breakdown.
+        $breakdown = $generator->calculate_array_breakdown( 8, 0 );
+        // 0 should be clamped to 1.
+        if ( $breakdown['array_count'] !== 1 ) {
+            return new WP_Error( 'clamp_fail', 'Position 0 should clamp to 1.' );
+        }
+
+        $breakdown = $generator->calculate_array_breakdown( 8, 10 );
+        // 10 should be clamped to 8.
+        if ( $breakdown['array_count'] !== 2 ) {
+            return new WP_Error( 'clamp_fail', 'Position 10 should clamp to 8.' );
+        }
+
+        echo "  start_position validation and clamping verified.\n";
+
+        return true;
+    },
+    'SVG Generator validates and clamps start_position.'
 );
 
 // ============================================
