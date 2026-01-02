@@ -70,7 +70,8 @@ class History_Ajax_Handler {
      */
     private function verify_nonce(): bool {
         $nonce = isset( $_POST['nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['nonce'] ) ) : '';
-        return wp_verify_nonce( $nonce, 'qsa_engraving_nonce' );
+        // wp_verify_nonce returns 1, 2 (valid) or false (invalid), cast to bool for strict typing.
+        return (bool) wp_verify_nonce( $nonce, 'qsa_engraving_nonce' );
     }
 
     /**
