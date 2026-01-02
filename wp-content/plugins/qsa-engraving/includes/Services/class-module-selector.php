@@ -112,6 +112,11 @@ class Module_Selector {
         }
 
         // Build the query.
+        // We need two LEFT JOINs:
+        // 1. Count modules that are completed (row_status = 'done') - these reduce qty_to_engrave
+        // 2. Count modules in ANY batch (any status) - these should be excluded entirely
+        $modules_table = $this->batch_repository->get_modules_table_name();
+
         $sql = "SELECT
                     bi.batch_id AS production_batch_id,
                     bi.assembly_sku AS module_sku,
@@ -119,8 +124,9 @@ class Module_Selector {
                     bi.build_qty,
                     COALESCE(bi.qty_received, 0) AS qty_received,
                     (bi.build_qty - COALESCE(bi.qty_received, 0)) AS qty_needed,
-                    COALESCE(em.qty_engraved, 0) AS qty_engraved,
-                    (bi.build_qty - COALESCE(bi.qty_received, 0) - COALESCE(em.qty_engraved, 0)) AS qty_to_engrave
+                    COALESCE(em_done.qty_engraved, 0) AS qty_engraved,
+                    COALESCE(em_all.qty_in_batch, 0) AS qty_in_batch,
+                    (bi.build_qty - COALESCE(bi.qty_received, 0) - COALESCE(em_all.qty_in_batch, 0)) AS qty_to_engrave
                 FROM {$oms_table} bi
                 LEFT JOIN (
                     SELECT
@@ -128,14 +134,25 @@ class Module_Selector {
                         module_sku,
                         order_id,
                         COUNT(*) AS qty_engraved
-                    FROM {$this->batch_repository->get_modules_table_name()}
+                    FROM {$modules_table}
                     WHERE row_status = 'done'
                     GROUP BY production_batch_id, module_sku, order_id
-                ) em ON bi.batch_id = em.production_batch_id
-                    AND bi.assembly_sku = em.module_sku
-                    AND bi.order_no = em.order_id
+                ) em_done ON bi.batch_id = em_done.production_batch_id
+                    AND bi.assembly_sku = em_done.module_sku
+                    AND bi.order_no = em_done.order_id
+                LEFT JOIN (
+                    SELECT
+                        production_batch_id,
+                        module_sku,
+                        order_id,
+                        COUNT(*) AS qty_in_batch
+                    FROM {$modules_table}
+                    GROUP BY production_batch_id, module_sku, order_id
+                ) em_all ON bi.batch_id = em_all.production_batch_id
+                    AND bi.assembly_sku = em_all.module_sku
+                    AND bi.order_no = em_all.order_id
                 WHERE bi.assembly_sku REGEXP %s
-                  AND (bi.build_qty - COALESCE(bi.qty_received, 0) - COALESCE(em.qty_engraved, 0)) > 0
+                  AND (bi.build_qty - COALESCE(bi.qty_received, 0) - COALESCE(em_all.qty_in_batch, 0)) > 0
                 ORDER BY bi.batch_id, bi.assembly_sku";
 
         $results = $this->wpdb->get_results(
