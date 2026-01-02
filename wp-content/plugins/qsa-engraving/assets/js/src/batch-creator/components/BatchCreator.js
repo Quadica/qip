@@ -769,8 +769,43 @@ export default function BatchCreator() {
 		);
 	};
 
+	/**
+	 * Get the batch history URL.
+	 *
+	 * @return {string} The batch history page URL.
+	 */
+	const getBatchHistoryUrl = () => {
+		const baseUrl = window.qsaEngraving?.adminUrl || '/wp-admin/';
+		return `${ baseUrl }admin.php?page=qsa-engraving-batch-history`;
+	};
+
 	return (
 		<div className="qsa-batch-creator">
+			{ /* Page Header - matches mockup design */ }
+			<div className="qsa-batch-creator-header">
+				<div className="qsa-batch-creator-header-left">
+					<div className="qsa-batch-creator-icon">
+						<span className="dashicons dashicons-superhero-alt"></span>
+					</div>
+					<div>
+						<h1 className="qsa-batch-creator-title">
+							{ __( 'Module Engraving Batch Creator', 'qsa-engraving' ) }
+						</h1>
+						<p className="qsa-batch-creator-subtitle">
+							{ __( 'Select modules to include in engraving batch', 'qsa-engraving' ) }
+						</p>
+					</div>
+				</div>
+				<a
+					href={ getBatchHistoryUrl() }
+					className="qsa-btn-history"
+					title={ __( 'View previously completed batches for re-engraving', 'qsa-engraving' ) }
+				>
+					<span className="dashicons dashicons-backup"></span>
+					{ __( 'View Batch History', 'qsa-engraving' ) }
+				</a>
+			</div>
+
 			<StatsBar
 				baseTypeCount={ Object.keys( moduleData ).length }
 				selectedCount={ totals.moduleCount }

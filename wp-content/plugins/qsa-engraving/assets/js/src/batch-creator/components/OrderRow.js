@@ -48,15 +48,6 @@ export default function OrderRow( {
 			{ /* Order Header */ }
 			<div className="qsa-order-row">
 				<button
-					className="qsa-expand-btn"
-					onClick={ onToggleExpand }
-					aria-expanded={ isExpanded }
-					aria-label={ isExpanded ? __( 'Collapse', 'qsa-engraving' ) : __( 'Expand', 'qsa-engraving' ) }
-				>
-					<span className={ `dashicons ${ isExpanded ? 'dashicons-arrow-down-alt2' : 'dashicons-arrow-right-alt2' }` }></span>
-				</button>
-
-				<button
 					className={ `qsa-checkbox qsa-checkbox--${ selectionState }` }
 					onClick={ onToggleSelect }
 					aria-checked={ selectionState === 'all' }
@@ -65,18 +56,24 @@ export default function OrderRow( {
 					<CheckboxIcon state={ selectionState } />
 				</button>
 
-				<span className="dashicons dashicons-clipboard qsa-order-icon"></span>
+				<button
+					className="qsa-expand-btn"
+					onClick={ onToggleExpand }
+					aria-expanded={ isExpanded }
+					aria-label={ isExpanded ? __( 'Collapse', 'qsa-engraving' ) : __( 'Expand', 'qsa-engraving' ) }
+				>
+					<span className={ `dashicons ${ isExpanded ? 'dashicons-arrow-down-alt2' : 'dashicons-arrow-right-alt2' }` }></span>
+				</button>
+
+				<span className="dashicons dashicons-portfolio qsa-order-icon"></span>
 
 				<div className="qsa-order-info" onClick={ onToggleExpand }>
 					<span className="qsa-order-id">#{ order.order_id }</span>
 				</div>
 
 				<div className="qsa-order-stats">
-					<span className="qsa-stat-skus">
-						{ skuCount } { skuCount === 1 ? __( 'SKU', 'qsa-engraving' ) : __( 'SKUs', 'qsa-engraving' ) }
-					</span>
-					<span className="qsa-stat-units">
-						{ totalQty } { __( 'units', 'qsa-engraving' ) }
+					<span className="qsa-order-module-count">
+						{ skuCount } { skuCount === 1 ? __( 'module', 'qsa-engraving' ) : __( 'modules', 'qsa-engraving' ) }
 					</span>
 				</div>
 			</div>

@@ -3,6 +3,7 @@
  *
  * Displays action buttons when modules are selected including
  * Preview (to see LED transitions) and Create Batch.
+ * Matches the mockup design with appropriate icons.
  *
  * @package QSA_Engraving
  * @since 1.0.0
@@ -40,23 +41,24 @@ export default function ActionBar( {
 		return (
 			<div className="qsa-action-bar qsa-action-bar--selected">
 				<div className="qsa-action-info">
-					<span className="dashicons dashicons-yes-alt qsa-action-icon"></span>
 					<span className="qsa-action-text">
 						{ moduleCount } { moduleCount === 1 ? __( 'module', 'qsa-engraving' ) : __( 'modules', 'qsa-engraving' ) }
-						{ ' ' }{ __( 'ready for engraving', 'qsa-engraving' ) }
-						{ ' ' }({ unitCount } { __( 'units', 'qsa-engraving' ) })
+						{ ' ' }{ __( 'selected', 'qsa-engraving' ) }
+					</span>
+					<span className="qsa-action-text-muted">
+						({ unitCount } { __( 'units', 'qsa-engraving' ) })
 					</span>
 				</div>
 				<div className="qsa-action-buttons">
 					<button
-						className="button qsa-btn-clear"
+						className="qsa-btn-clear"
 						onClick={ onClear }
 						disabled={ creating || previewing }
 					>
 						{ __( 'Clear Selection', 'qsa-engraving' ) }
 					</button>
 					<button
-						className="button qsa-btn-preview"
+						className="qsa-btn-preview"
 						onClick={ onPreview }
 						disabled={ creating || previewing }
 						title={ __( 'Preview LED transitions and array breakdown', 'qsa-engraving' ) }
@@ -74,7 +76,7 @@ export default function ActionBar( {
 						) }
 					</button>
 					<button
-						className="button button-primary qsa-btn-create"
+						className="qsa-btn-create"
 						onClick={ onCreateBatch }
 						disabled={ creating || previewing }
 					>
@@ -85,8 +87,8 @@ export default function ActionBar( {
 							</>
 						) : (
 							<>
+								<span className="dashicons dashicons-superhero-alt"></span>
 								{ __( 'Start Engraving', 'qsa-engraving' ) }
-								<span className="dashicons dashicons-arrow-right-alt"></span>
 							</>
 						) }
 					</button>
@@ -98,13 +100,13 @@ export default function ActionBar( {
 	return (
 		<div className="qsa-action-bar">
 			<div className="qsa-action-info">
-				<span className="dashicons dashicons-list-view qsa-action-icon"></span>
+				<span className="dashicons dashicons-editor-ul qsa-action-icon"></span>
 				<span className="qsa-action-text">
 					{ __( 'Modules Awaiting Engraving', 'qsa-engraving' ) }
 				</span>
 			</div>
 			<button
-				className="button qsa-btn-refresh"
+				className="qsa-btn-refresh"
 				onClick={ onRefresh }
 				title={ __( 'Refresh module list', 'qsa-engraving' ) }
 			>
