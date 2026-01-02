@@ -1,3 +1,21 @@
+This report provides details of the code that was created to implement phase 9 of this project.
+
+Please perform a comprehensive code and security review covering:
+- Correctness of functionality vs. intended behavior
+- Code quality (readability, maintainability, adherence to best practices)
+- Security vulnerabilities (injection, XSS, CSRF, data validation, authentication, authorization, etc.)
+- Performance and scalability concerns
+- Compliance with WordPress and WooCommerce coding standards (if applicable)
+
+Provide your response in this structure:
+- Summary of overall findings
+- Detailed list of issues with file name, line numbers (if applicable), issue description, and recommended fix
+- Security risk level (Low / Medium / High) for each issue
+- Suggested improvements or refactoring recommendations
+- End with a brief final assessment (e.g., "Ready for deployment", "Requires moderate refactoring", etc.).
+
+---
+
 # Session 023: Phase 9 QSA Configuration Data
 - Date/Time: 2026-01-02 11:03
 - Session Type(s): implementation
@@ -23,7 +41,7 @@ Implemented complete QSA configuration data seeding for all three initial QSA de
   - [x] 9.2 CUBEa Configuration - Import coordinates, verify positions, create seed SQL
   - [x] 9.3 PICOa Configuration - Import coordinates, verify positions, create seed SQL
   - [x] 9.4 Revision Support - Handle design revisions (revision 'a' explicitly set)
-- `qsa-engraving-prd.md` - Section 7 (QSA Configuration): Per-position coordinate configuration
+- `qsa-engraving-discovery.md` - Section 7 (QSA Configuration): Per-position coordinate configuration
 
 ### New Functionality Added
 - **STARa Configuration**: 40 database rows providing engraving coordinates for 8 module positions, each with 5 elements (datamatrix, led_code_1, micro_id, module_id, serial_url)
@@ -59,7 +77,7 @@ No commits made in this session yet - changes are staged for commit.
 
 - **Coordinate Storage Format**: Coordinates stored in CAD format (bottom-left origin) in database. Transformation to SVG format (top-left origin) happens at render time using `svg_y = 113.7 - cad_y`
 - **Text Height Specification**: module_id uses 1.3mm, serial_url and led_code elements use 1.2mm, micro_id and datamatrix have NULL text_height (non-text elements)
-- **Revision Handling**: All configurations explicitly use revision 'a'. NULL revision lookups fall back to specific revision matches.
+- **Revision Handling**: All configurations explicitly use revision 'a'. Callers must pass the specific revision (e.g., 'a') to retrieve configuration; passing NULL will only match rows where the database revision column is NULL (which are intended as design-level defaults that can be overridden by revision-specific rows).
 - **CUBEa LED Grid Layout**: 4 LED code positions arranged in 2x2 grid (led_code_1/led_code_2 top row, led_code_3/led_code_4 bottom row) to accommodate quad-LED module designs
 - **Seed Script Design**: Each script includes DELETE before INSERT for safe re-seeding, uses `{prefix}` placeholder for environment portability
 

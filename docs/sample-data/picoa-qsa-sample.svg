@@ -1,0 +1,322 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  PICOa QSA Sample SVG - Generated for QSA Engraving Discovery
+
+  NOTES:
+  - Coordinates transformed from bottom-left (CAD) to top-left (SVG) origin
+  - Formula: svg_y = 113.7 - csv_y
+  - Serial numbers: 00234501-00234508 (within 20-bit Micro-ID limit)
+  - Data Matrix shown as placeholder rectangles (14mm x 6.5mm)
+  - Text uses Roboto Thin font with hair-space character spacing
+  - PICOa modules have 1 LED position each
+
+  Module Layout (8 positions):
+    Row 1: [1] [2] [3] [4]  (csv Y ~79-95, svg Y ~18-34)
+    Row 2: [5] [6] [7] [8]  (csv Y ~18-31, svg Y ~82-95)
+-->
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="148mm" height="113.7mm"
+     viewBox="0 0 148 113.7">
+  <defs/>
+
+  <!-- Optional: Boundary rectangle for alignment (red = non-engraving layer) -->
+  <rect fill="none" stroke="#FF0000" stroke-width="0.25" x="0.5" y="0.5" width="147" height="112.7"/>
+
+  <!-- ========== MODULE POSITION 1 ========== -->
+  <!-- Serial: 00234501 | Module: PICO-28475 | LED: K7P -->
+  <g id="module-1">
+    <!-- Micro-ID at (32.0244, 34.5601) - serial 234501 -->
+    <g id="micro-id-1" transform="translate(31.5244, 34.0601)">
+      <!-- Orientation marker -->
+      <circle cx="-0.175" cy="0.05" r="0.05" fill="#000000"/>
+      <!-- Anchors (always ON) -->
+      <circle cx="0.05" cy="0.05" r="0.05" fill="#000000"/>
+      <circle cx="0.95" cy="0.05" r="0.05" fill="#000000"/>
+      <circle cx="0.05" cy="0.95" r="0.05" fill="#000000"/>
+      <circle cx="0.95" cy="0.95" r="0.05" fill="#000000"/>
+      <!-- Data bits for 234501 (binary: 00111001010000000101, parity: 1) -->
+      <!-- Row 0: bits 19,18,17 = 0,0,1 -->
+      <circle cx="0.5" cy="0.05" r="0.05" fill="#000000"/>
+      <!-- Row 1: bits 16,15,14,13,12 = 1,1,0,0,1 -->
+      <circle cx="0.05" cy="0.275" r="0.05" fill="#000000"/>
+      <circle cx="0.275" cy="0.275" r="0.05" fill="#000000"/>
+      <circle cx="0.95" cy="0.275" r="0.05" fill="#000000"/>
+      <!-- Row 2: bits 11,10,9,8,7 = 0,1,0,0,0 -->
+      <circle cx="0.275" cy="0.5" r="0.05" fill="#000000"/>
+      <!-- Row 3: bits 6,5,4,3,2 = 0,0,0,0,1 -->
+      <circle cx="0.95" cy="0.725" r="0.05" fill="#000000"/>
+      <!-- Row 4: bits 1,0 = 0,1; parity = 1 -->
+      <circle cx="0.5" cy="0.95" r="0.05" fill="#000000"/>
+      <circle cx="0.725" cy="0.95" r="0.05" fill="#000000"/>
+    </g>
+
+    <!-- Data Matrix placeholder (14mm x 6.5mm) at (29.7215, 18.4151) -->
+    <rect id="datamatrix-1" x="22.7215" y="15.1651" width="14" height="6.5"
+          fill="none" stroke="#000000" stroke-width="0.1" stroke-dasharray="0.5,0.5"/>
+    <text font-family="Roboto Thin, sans-serif" font-size="1.4" text-anchor="middle"
+          x="29.7215" y="18.9151" fill="#888888">DATA MATRIX</text>
+
+    <!-- Module ID: PICO-28475 at (29.7609, 25.5923) - height 1.3mm -->
+    <text font-family="Roboto Thin, sans-serif" font-size="1.8273" text-anchor="middle"
+          x="29.7609" y="25.5923">P&#x200A;I&#x200A;C&#x200A;O&#x200A;-&#x200A;2&#x200A;8&#x200A;4&#x200A;7&#x200A;5</text>
+
+    <!-- Serial URL: quadi.ca/00234501 at (29.7609, 23.365) - height 1.2mm -->
+    <text font-family="Roboto Thin, sans-serif" font-size="1.6867" text-anchor="middle"
+          x="29.7609" y="23.365">q&#x200A;u&#x200A;a&#x200A;d&#x200A;i&#x200A;.&#x200A;c&#x200A;a&#x200A;/&#x200A;0&#x200A;0&#x200A;2&#x200A;3&#x200A;4&#x200A;5&#x200A;0&#x200A;1</text>
+
+    <!-- LED Code: K7P at (30.4483, 28.6056) - height 1.2mm -->
+    <text font-family="Roboto Thin, sans-serif" font-size="1.6867" text-anchor="middle"
+          x="30.4483" y="28.6056">K&#x200A;7&#x200A;P</text>
+  </g>
+
+  <!-- ========== MODULE POSITION 2 ========== -->
+  <!-- Serial: 00234502 | Module: PICO-28475 | LED: K7P -->
+  <g id="module-2">
+    <!-- Micro-ID at (61.5244, 34.5601) - serial 234502 -->
+    <g id="micro-id-2" transform="translate(61.0244, 34.0601)">
+      <circle cx="-0.175" cy="0.05" r="0.05" fill="#000000"/>
+      <circle cx="0.05" cy="0.05" r="0.05" fill="#000000"/>
+      <circle cx="0.95" cy="0.05" r="0.05" fill="#000000"/>
+      <circle cx="0.05" cy="0.95" r="0.05" fill="#000000"/>
+      <circle cx="0.95" cy="0.95" r="0.05" fill="#000000"/>
+      <!-- Data bits for 234502 (binary: 00111001010000000110, parity: 1) -->
+      <circle cx="0.5" cy="0.05" r="0.05" fill="#000000"/>
+      <circle cx="0.05" cy="0.275" r="0.05" fill="#000000"/>
+      <circle cx="0.275" cy="0.275" r="0.05" fill="#000000"/>
+      <circle cx="0.95" cy="0.275" r="0.05" fill="#000000"/>
+      <circle cx="0.275" cy="0.5" r="0.05" fill="#000000"/>
+      <circle cx="0.95" cy="0.725" r="0.05" fill="#000000"/>
+      <circle cx="0.275" cy="0.95" r="0.05" fill="#000000"/>
+      <circle cx="0.725" cy="0.95" r="0.05" fill="#000000"/>
+    </g>
+
+    <rect id="datamatrix-2" x="52.2124" y="15.1651" width="14" height="6.5"
+          fill="none" stroke="#000000" stroke-width="0.1" stroke-dasharray="0.5,0.5"/>
+    <text font-family="Roboto Thin, sans-serif" font-size="1.4" text-anchor="middle"
+          x="59.2124" y="18.9151" fill="#888888">DATA MATRIX</text>
+
+    <text font-family="Roboto Thin, sans-serif" font-size="1.8273" text-anchor="middle"
+          x="59.2518" y="25.5923">P&#x200A;I&#x200A;C&#x200A;O&#x200A;-&#x200A;2&#x200A;8&#x200A;4&#x200A;7&#x200A;5</text>
+
+    <text font-family="Roboto Thin, sans-serif" font-size="1.6867" text-anchor="middle"
+          x="59.2518" y="23.365">q&#x200A;u&#x200A;a&#x200A;d&#x200A;i&#x200A;.&#x200A;c&#x200A;a&#x200A;/&#x200A;0&#x200A;0&#x200A;2&#x200A;3&#x200A;4&#x200A;5&#x200A;0&#x200A;2</text>
+
+    <text font-family="Roboto Thin, sans-serif" font-size="1.6867" text-anchor="middle"
+          x="59.9392" y="28.6056">K&#x200A;7&#x200A;P</text>
+  </g>
+
+  <!-- ========== MODULE POSITION 3 ========== -->
+  <!-- Serial: 00234503 | Module: PICO-39582 | LED: AF3 -->
+  <g id="module-3">
+    <!-- Micro-ID at (91.0244, 34.5601) - serial 234503 -->
+    <g id="micro-id-3" transform="translate(90.5244, 34.0601)">
+      <circle cx="-0.175" cy="0.05" r="0.05" fill="#000000"/>
+      <circle cx="0.05" cy="0.05" r="0.05" fill="#000000"/>
+      <circle cx="0.95" cy="0.05" r="0.05" fill="#000000"/>
+      <circle cx="0.05" cy="0.95" r="0.05" fill="#000000"/>
+      <circle cx="0.95" cy="0.95" r="0.05" fill="#000000"/>
+      <!-- Data bits for 234503 (binary: 00111001010000000111, parity: 0) -->
+      <circle cx="0.5" cy="0.05" r="0.05" fill="#000000"/>
+      <circle cx="0.05" cy="0.275" r="0.05" fill="#000000"/>
+      <circle cx="0.275" cy="0.275" r="0.05" fill="#000000"/>
+      <circle cx="0.95" cy="0.275" r="0.05" fill="#000000"/>
+      <circle cx="0.275" cy="0.5" r="0.05" fill="#000000"/>
+      <circle cx="0.95" cy="0.725" r="0.05" fill="#000000"/>
+      <circle cx="0.275" cy="0.95" r="0.05" fill="#000000"/>
+      <circle cx="0.5" cy="0.95" r="0.05" fill="#000000"/>
+    </g>
+
+    <rect id="datamatrix-3" x="81.7124" y="15.1651" width="14" height="6.5"
+          fill="none" stroke="#000000" stroke-width="0.1" stroke-dasharray="0.5,0.5"/>
+    <text font-family="Roboto Thin, sans-serif" font-size="1.4" text-anchor="middle"
+          x="88.7124" y="18.9151" fill="#888888">DATA MATRIX</text>
+
+    <text font-family="Roboto Thin, sans-serif" font-size="1.8273" text-anchor="middle"
+          x="88.7518" y="25.5923">P&#x200A;I&#x200A;C&#x200A;O&#x200A;-&#x200A;3&#x200A;9&#x200A;5&#x200A;8&#x200A;2</text>
+
+    <text font-family="Roboto Thin, sans-serif" font-size="1.6867" text-anchor="middle"
+          x="88.7518" y="23.365">q&#x200A;u&#x200A;a&#x200A;d&#x200A;i&#x200A;.&#x200A;c&#x200A;a&#x200A;/&#x200A;0&#x200A;0&#x200A;2&#x200A;3&#x200A;4&#x200A;5&#x200A;0&#x200A;3</text>
+
+    <text font-family="Roboto Thin, sans-serif" font-size="1.6867" text-anchor="middle"
+          x="89.4392" y="28.6056">A&#x200A;F&#x200A;3</text>
+  </g>
+
+  <!-- ========== MODULE POSITION 4 ========== -->
+  <!-- Serial: 00234504 | Module: PICO-39582 | LED: AF3 -->
+  <g id="module-4">
+    <!-- Micro-ID at (120.5244, 34.5601) - serial 234504 -->
+    <g id="micro-id-4" transform="translate(120.0244, 34.0601)">
+      <circle cx="-0.175" cy="0.05" r="0.05" fill="#000000"/>
+      <circle cx="0.05" cy="0.05" r="0.05" fill="#000000"/>
+      <circle cx="0.95" cy="0.05" r="0.05" fill="#000000"/>
+      <circle cx="0.05" cy="0.95" r="0.05" fill="#000000"/>
+      <circle cx="0.95" cy="0.95" r="0.05" fill="#000000"/>
+      <!-- Data bits for 234504 (binary: 00111001010000001000, parity: 0) -->
+      <circle cx="0.5" cy="0.05" r="0.05" fill="#000000"/>
+      <circle cx="0.05" cy="0.275" r="0.05" fill="#000000"/>
+      <circle cx="0.275" cy="0.275" r="0.05" fill="#000000"/>
+      <circle cx="0.95" cy="0.275" r="0.05" fill="#000000"/>
+      <circle cx="0.275" cy="0.5" r="0.05" fill="#000000"/>
+      <circle cx="0.725" cy="0.725" r="0.05" fill="#000000"/>
+    </g>
+
+    <rect id="datamatrix-4" x="111.2124" y="15.1651" width="14" height="6.5"
+          fill="none" stroke="#000000" stroke-width="0.1" stroke-dasharray="0.5,0.5"/>
+    <text font-family="Roboto Thin, sans-serif" font-size="1.4" text-anchor="middle"
+          x="118.2124" y="18.9151" fill="#888888">DATA MATRIX</text>
+
+    <text font-family="Roboto Thin, sans-serif" font-size="1.8273" text-anchor="middle"
+          x="118.2518" y="25.5923">P&#x200A;I&#x200A;C&#x200A;O&#x200A;-&#x200A;3&#x200A;9&#x200A;5&#x200A;8&#x200A;2</text>
+
+    <text font-family="Roboto Thin, sans-serif" font-size="1.6867" text-anchor="middle"
+          x="118.2518" y="23.365">q&#x200A;u&#x200A;a&#x200A;d&#x200A;i&#x200A;.&#x200A;c&#x200A;a&#x200A;/&#x200A;0&#x200A;0&#x200A;2&#x200A;3&#x200A;4&#x200A;5&#x200A;0&#x200A;4</text>
+
+    <text font-family="Roboto Thin, sans-serif" font-size="1.6867" text-anchor="middle"
+          x="118.9392" y="28.6056">A&#x200A;F&#x200A;3</text>
+  </g>
+
+  <!-- ========== MODULE POSITION 5 ========== -->
+  <!-- Serial: 00234505 | Module: PICO-47291 | LED: 4T9 -->
+  <g id="module-5">
+    <!-- Micro-ID at (32.0125, 81.7137) - serial 234505 -->
+    <g id="micro-id-5" transform="translate(31.5125, 81.2137)">
+      <circle cx="-0.175" cy="0.05" r="0.05" fill="#000000"/>
+      <circle cx="0.05" cy="0.05" r="0.05" fill="#000000"/>
+      <circle cx="0.95" cy="0.05" r="0.05" fill="#000000"/>
+      <circle cx="0.05" cy="0.95" r="0.05" fill="#000000"/>
+      <circle cx="0.95" cy="0.95" r="0.05" fill="#000000"/>
+      <!-- Data bits for 234505 (binary: 00111001010000001001, parity: 1) -->
+      <circle cx="0.5" cy="0.05" r="0.05" fill="#000000"/>
+      <circle cx="0.05" cy="0.275" r="0.05" fill="#000000"/>
+      <circle cx="0.275" cy="0.275" r="0.05" fill="#000000"/>
+      <circle cx="0.95" cy="0.275" r="0.05" fill="#000000"/>
+      <circle cx="0.275" cy="0.5" r="0.05" fill="#000000"/>
+      <circle cx="0.725" cy="0.725" r="0.05" fill="#000000"/>
+      <circle cx="0.5" cy="0.95" r="0.05" fill="#000000"/>
+      <circle cx="0.725" cy="0.95" r="0.05" fill="#000000"/>
+    </g>
+
+    <rect id="datamatrix-5" x="22.7215" y="92.0349" width="14" height="6.5"
+          fill="none" stroke="#000000" stroke-width="0.1" stroke-dasharray="0.5,0.5"/>
+    <text font-family="Roboto Thin, sans-serif" font-size="1.4" text-anchor="middle"
+          x="29.7215" y="95.7849" fill="#888888">DATA MATRIX</text>
+
+    <text font-family="Roboto Thin, sans-serif" font-size="1.8273" text-anchor="middle"
+          x="29.7609" y="88.1077">P&#x200A;I&#x200A;C&#x200A;O&#x200A;-&#x200A;4&#x200A;7&#x200A;2&#x200A;9&#x200A;1</text>
+
+    <text font-family="Roboto Thin, sans-serif" font-size="1.6867" text-anchor="middle"
+          x="29.7609" y="90.335">q&#x200A;u&#x200A;a&#x200A;d&#x200A;i&#x200A;.&#x200A;c&#x200A;a&#x200A;/&#x200A;0&#x200A;0&#x200A;2&#x200A;3&#x200A;4&#x200A;5&#x200A;0&#x200A;5</text>
+
+    <text font-family="Roboto Thin, sans-serif" font-size="1.6867" text-anchor="middle"
+          x="30.4483" y="85.0944">4&#x200A;T&#x200A;9</text>
+  </g>
+
+  <!-- ========== MODULE POSITION 6 ========== -->
+  <!-- Serial: 00234506 | Module: PICO-47291 | LED: 4T9 -->
+  <g id="module-6">
+    <!-- Micro-ID at (61.5033, 81.7137) - serial 234506 -->
+    <g id="micro-id-6" transform="translate(61.0033, 81.2137)">
+      <circle cx="-0.175" cy="0.05" r="0.05" fill="#000000"/>
+      <circle cx="0.05" cy="0.05" r="0.05" fill="#000000"/>
+      <circle cx="0.95" cy="0.05" r="0.05" fill="#000000"/>
+      <circle cx="0.05" cy="0.95" r="0.05" fill="#000000"/>
+      <circle cx="0.95" cy="0.95" r="0.05" fill="#000000"/>
+      <!-- Data bits for 234506 (binary: 00111001010000001010, parity: 1) -->
+      <circle cx="0.5" cy="0.05" r="0.05" fill="#000000"/>
+      <circle cx="0.05" cy="0.275" r="0.05" fill="#000000"/>
+      <circle cx="0.275" cy="0.275" r="0.05" fill="#000000"/>
+      <circle cx="0.95" cy="0.275" r="0.05" fill="#000000"/>
+      <circle cx="0.275" cy="0.5" r="0.05" fill="#000000"/>
+      <circle cx="0.725" cy="0.725" r="0.05" fill="#000000"/>
+      <circle cx="0.275" cy="0.95" r="0.05" fill="#000000"/>
+      <circle cx="0.725" cy="0.95" r="0.05" fill="#000000"/>
+    </g>
+
+    <rect id="datamatrix-6" x="52.2124" y="92.0349" width="14" height="6.5"
+          fill="none" stroke="#000000" stroke-width="0.1" stroke-dasharray="0.5,0.5"/>
+    <text font-family="Roboto Thin, sans-serif" font-size="1.4" text-anchor="middle"
+          x="59.2124" y="95.7849" fill="#888888">DATA MATRIX</text>
+
+    <text font-family="Roboto Thin, sans-serif" font-size="1.8273" text-anchor="middle"
+          x="59.2518" y="88.1077">P&#x200A;I&#x200A;C&#x200A;O&#x200A;-&#x200A;4&#x200A;7&#x200A;2&#x200A;9&#x200A;1</text>
+
+    <text font-family="Roboto Thin, sans-serif" font-size="1.6867" text-anchor="middle"
+          x="59.2518" y="90.335">q&#x200A;u&#x200A;a&#x200A;d&#x200A;i&#x200A;.&#x200A;c&#x200A;a&#x200A;/&#x200A;0&#x200A;0&#x200A;2&#x200A;3&#x200A;4&#x200A;5&#x200A;0&#x200A;6</text>
+
+    <text font-family="Roboto Thin, sans-serif" font-size="1.6867" text-anchor="middle"
+          x="59.9392" y="85.0944">4&#x200A;T&#x200A;9</text>
+  </g>
+
+  <!-- ========== MODULE POSITION 7 ========== -->
+  <!-- Serial: 00234507 | Module: PICO-58364 | LED: GF4 -->
+  <g id="module-7">
+    <!-- Micro-ID at (91.0033, 81.7137) - serial 234507 -->
+    <g id="micro-id-7" transform="translate(90.5033, 81.2137)">
+      <circle cx="-0.175" cy="0.05" r="0.05" fill="#000000"/>
+      <circle cx="0.05" cy="0.05" r="0.05" fill="#000000"/>
+      <circle cx="0.95" cy="0.05" r="0.05" fill="#000000"/>
+      <circle cx="0.05" cy="0.95" r="0.05" fill="#000000"/>
+      <circle cx="0.95" cy="0.95" r="0.05" fill="#000000"/>
+      <!-- Data bits for 234507 (binary: 00111001010000001011, parity: 0) -->
+      <circle cx="0.5" cy="0.05" r="0.05" fill="#000000"/>
+      <circle cx="0.05" cy="0.275" r="0.05" fill="#000000"/>
+      <circle cx="0.275" cy="0.275" r="0.05" fill="#000000"/>
+      <circle cx="0.95" cy="0.275" r="0.05" fill="#000000"/>
+      <circle cx="0.275" cy="0.5" r="0.05" fill="#000000"/>
+      <circle cx="0.725" cy="0.725" r="0.05" fill="#000000"/>
+      <circle cx="0.275" cy="0.95" r="0.05" fill="#000000"/>
+      <circle cx="0.5" cy="0.95" r="0.05" fill="#000000"/>
+    </g>
+
+    <rect id="datamatrix-7" x="81.7124" y="92.0349" width="14" height="6.5"
+          fill="none" stroke="#000000" stroke-width="0.1" stroke-dasharray="0.5,0.5"/>
+    <text font-family="Roboto Thin, sans-serif" font-size="1.4" text-anchor="middle"
+          x="88.7124" y="95.7849" fill="#888888">DATA MATRIX</text>
+
+    <text font-family="Roboto Thin, sans-serif" font-size="1.8273" text-anchor="middle"
+          x="88.7518" y="88.1077">P&#x200A;I&#x200A;C&#x200A;O&#x200A;-&#x200A;5&#x200A;8&#x200A;3&#x200A;6&#x200A;4</text>
+
+    <text font-family="Roboto Thin, sans-serif" font-size="1.6867" text-anchor="middle"
+          x="88.7518" y="90.335">q&#x200A;u&#x200A;a&#x200A;d&#x200A;i&#x200A;.&#x200A;c&#x200A;a&#x200A;/&#x200A;0&#x200A;0&#x200A;2&#x200A;3&#x200A;4&#x200A;5&#x200A;0&#x200A;7</text>
+
+    <text font-family="Roboto Thin, sans-serif" font-size="1.6867" text-anchor="middle"
+          x="89.4392" y="85.0944">G&#x200A;F&#x200A;4</text>
+  </g>
+
+  <!-- ========== MODULE POSITION 8 ========== -->
+  <!-- Serial: 00234508 | Module: PICO-58364 | LED: GF4 -->
+  <g id="module-8">
+    <!-- Micro-ID at (120.5033, 81.7137) - serial 234508 -->
+    <g id="micro-id-8" transform="translate(120.0033, 81.2137)">
+      <circle cx="-0.175" cy="0.05" r="0.05" fill="#000000"/>
+      <circle cx="0.05" cy="0.05" r="0.05" fill="#000000"/>
+      <circle cx="0.95" cy="0.05" r="0.05" fill="#000000"/>
+      <circle cx="0.05" cy="0.95" r="0.05" fill="#000000"/>
+      <circle cx="0.95" cy="0.95" r="0.05" fill="#000000"/>
+      <!-- Data bits for 234508 (binary: 00111001010000001100, parity: 1) -->
+      <circle cx="0.5" cy="0.05" r="0.05" fill="#000000"/>
+      <circle cx="0.05" cy="0.275" r="0.05" fill="#000000"/>
+      <circle cx="0.275" cy="0.275" r="0.05" fill="#000000"/>
+      <circle cx="0.95" cy="0.275" r="0.05" fill="#000000"/>
+      <circle cx="0.275" cy="0.5" r="0.05" fill="#000000"/>
+      <circle cx="0.725" cy="0.725" r="0.05" fill="#000000"/>
+      <circle cx="0.5" cy="0.725" r="0.05" fill="#000000"/>
+      <circle cx="0.725" cy="0.95" r="0.05" fill="#000000"/>
+    </g>
+
+    <rect id="datamatrix-8" x="111.2124" y="92.0349" width="14" height="6.5"
+          fill="none" stroke="#000000" stroke-width="0.1" stroke-dasharray="0.5,0.5"/>
+    <text font-family="Roboto Thin, sans-serif" font-size="1.4" text-anchor="middle"
+          x="118.2124" y="95.7849" fill="#888888">DATA MATRIX</text>
+
+    <text font-family="Roboto Thin, sans-serif" font-size="1.8273" text-anchor="middle"
+          x="118.2518" y="88.1077">P&#x200A;I&#x200A;C&#x200A;O&#x200A;-&#x200A;5&#x200A;8&#x200A;3&#x200A;6&#x200A;4</text>
+
+    <text font-family="Roboto Thin, sans-serif" font-size="1.6867" text-anchor="middle"
+          x="118.2518" y="90.335">q&#x200A;u&#x200A;a&#x200A;d&#x200A;i&#x200A;.&#x200A;c&#x200A;a&#x200A;/&#x200A;0&#x200A;0&#x200A;2&#x200A;3&#x200A;4&#x200A;5&#x200A;0&#x200A;8</text>
+
+    <text font-family="Roboto Thin, sans-serif" font-size="1.6867" text-anchor="middle"
+          x="118.9392" y="85.0944">G&#x200A;F&#x200A;4</text>
+  </g>
+
+</svg>

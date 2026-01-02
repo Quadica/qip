@@ -289,7 +289,7 @@ oms_batch_items (modules needing build)
 
 ### Reference Files
 - `docs/sample-data/stara-qsa-sample.svg` - Expected SVG output
-- `docs/sample-data/stara-qsa-sample-svg-data.csv` - Coordinate source data
+- `docs/sample-data/qsa-sample-svg-data.csv` - Coordinate source data
 - `~/.claude/skills/lightburn-svg/references/svg-format.md` - SVG specification
 - `~/.claude/skills/lightburn-svg/references/lightburn-integration.md` - LightBurn requirements
 
@@ -578,41 +578,58 @@ Note: LightBurn integration tests require on-site testing with actual LightBurn 
 
 ---
 
-## Phase 9: QSA Configuration Data
+## Phase 9: QSA Configuration Data ✅
 
 **Goal:** Populate coordinate configuration for all QSA designs
+
+**Status:** Complete. All three QSA designs (STARa, CUBEa, PICOa) have been seeded.
 
 ### Tasks
 
 #### 9.1 STARa Configuration
-- [ ] Import coordinates from `stara-qsa-sample-svg-data.csv`
-- [ ] Verify positions match sample SVG output
-- [ ] Create seed SQL script: `02-qsa-config-seed-stara.sql`
+- [x] Import coordinates from `qsa-sample-svg-data.csv`
+- [x] Verify positions match sample SVG output
+- [x] Create seed SQL script: `02-qsa-config-seed-stara.sql`
 
 #### 9.2 CUBEa Configuration
-- [ ] Import coordinates from CUBEa coordinate data (to be provided)
-- [ ] Verify positions with test SVG output
-- [ ] Create seed SQL script: `03-qsa-config-seed-cubea.sql`
+- [x] Import coordinates from `qsa-sample-svg-data.csv`
+- [x] Verify positions with test SVG output
+- [x] Create seed SQL script: `03-qsa-config-seed-cubea.sql`
 
 #### 9.3 PICOa Configuration
-- [ ] Import coordinates from PICOa coordinate data (to be provided)
-- [ ] Verify positions with test SVG output
-- [ ] Create seed SQL script: `04-qsa-config-seed-picoa.sql`
+- [x] Import coordinates from `qsa-sample-svg-data.csv`
+- [x] Verify positions with test SVG output
+- [x] Create seed SQL script: `04-qsa-config-seed-picoa.sql`
 
 #### 9.4 Revision Support
-- [ ] Handle design revisions (e.g., "STARa" vs "STARb")
-- [ ] NULL revision = default for design
-- [ ] Specific revision overrides default
+- [x] Handle design revisions (e.g., "STARa" vs "STARb")
+- [x] NULL revision = default for design
+- [x] Specific revision overrides default
+
+### Tests - Phase 9
+
+| Test ID | Type | Description | Status |
+|---------|------|-------------|--------|
+| TC-P9-001 | Smoke | STARa configuration exists (40 entries) | ✅ PASS |
+| TC-P9-002 | Smoke | CUBEa configuration exists (64 entries) | ✅ PASS |
+| TC-P9-003 | Smoke | PICOa configuration exists (40 entries) | ✅ PASS |
+| TC-P9-004 | Smoke | get_designs() returns all seeded designs | ✅ PASS |
+| TC-P9-005 | Smoke | STARa position 1 coordinates match CSV | ✅ PASS |
+| TC-P9-006 | Smoke | CUBEa has 4 LED code positions (2x2 grid) | ✅ PASS |
+| TC-P9-007 | Smoke | Text height values match specification | ✅ PASS |
+| TC-P9-008 | Smoke | CAD to SVG coordinate transformation | ✅ PASS |
 
 ### Completion Criteria
-- [ ] STARa configuration produces correct SVG positions
-- [ ] CUBEa configuration produces correct SVG positions
-- [ ] PICOa configuration produces correct SVG positions
-- [ ] Configuration revision system tested
+- [x] STARa configuration produces correct SVG positions (verified via smoke tests)
+- [x] CUBEa configuration produces correct SVG positions (verified via smoke tests)
+- [x] PICOa configuration produces correct SVG positions (verified via smoke tests)
+- [x] Configuration revision system tested (revision 'a' lookups working)
 
 ### Reference Files
-- `docs/sample-data/stara-qsa-sample-svg-data.csv` - STARa coordinate source
+- `docs/sample-data/qsa-sample-svg-data.csv` - QSA coordinate source
 - `docs/sample-data/stara-qsa-sample.svg` - STARa verification reference
+- `docs/sample-data/cubea-qsa-sample.svg` - CUBEa verification reference
+- `docs/sample-data/picoa-qsa-sample.svg` - PICOa verification reference
 
 ---
 
@@ -624,6 +641,7 @@ Note: LightBurn integration tests require on-site testing with actual LightBurn 
 3. **Phase 4:** Smoke tests for SVG generation
 4. **Phase 5-6:** Manual UI testing + smoke tests for AJAX
 5. **Phase 7-8:** Manual acceptance testing with LightBurn hardware
+6. **Phase 9:** Smoke tests for QSA configuration data (coordinate validation)
 
 ### Test Data Requirements
 - Sample serial numbers for Micro-ID verification (see Phase 3 test cases)
@@ -650,7 +668,9 @@ wp --path=/www/luxeonstarleds_546/public eval-file tests/smoke/test-serial-numbe
 ### Database Scripts
 Run manually via phpMyAdmin (per Quadica standards):
 1. `docs/database/install/01-qsa-engraving-schema.sql` - Creates all 4 tables
-2. `docs/database/install/02-qsa-config-seed-stara.sql` - Seeds STARa coordinates
+2. `docs/database/install/02-qsa-config-seed-stara.sql` - Seeds STARa coordinates (40 rows)
+3. `docs/database/install/03-qsa-config-seed-cubea.sql` - Seeds CUBEa coordinates (64 rows)
+4. `docs/database/install/04-qsa-config-seed-picoa.sql` - Seeds PICOa coordinates (40 rows)
 
 Replace `{prefix}` placeholder:
 - luxeonstar.com: `lw_`

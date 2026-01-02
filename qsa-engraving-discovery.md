@@ -57,7 +57,7 @@ The process will only process LED modules that use the QSA.
 **Legacy OMS Table Note:** The `oms_batch_items` table is from the legacy Order Management System and intentionally does NOT use the WordPress table prefix (it's just `oms_batch_items`, not `{prefix}_oms_batch_items`). This table will eventually be deprecated but is required for the current engraving workflow integration.
 
 **Module Engraving Batch Creator Page Mockup**
-- [Functional React mockup page](https://claude.ai/public/artifacts/bc2959bd-0c6d-402b-ba37-2ada39964eda)
+- [Functional React mockup page](https://claude.ai/public/artifacts/85194353-81af-4ea0-b621-49bd6aa13bda)
 - [JSX React Source Code](docs/reference/module-engraving-batch-creator-mockup.jsx)
 
 #### Batch History Access
@@ -74,7 +74,7 @@ The Module Engraving Batch Creator screen includes a link to view previously com
 This allows QA-rejected modules to be re-engraved, or additional modules to be added to an existing order, without affecting other modules in the original batch. Original serial numbers remain in "engraved" status (not recycled).
 
 **Engraving Batch History Page Mockup**
-- [Functional React mockup page](https://claude.ai/public/artifacts/10900dfa-9d47-4a73-99fd-60960f169cb5)
+- [Functional React mockup page](https://claude.ai/public/artifacts/fbfd8d16-67d8-4bc6-a264-50af2613ef06)
 - [JSX React Source Code](docs/reference/engraving-batch-history-mockup.jsx)
 
 ### SVG Engraving
@@ -185,7 +185,7 @@ QSAs may have unused positions from previous batches. The operator can specify a
 Total: 4 + 8 + 8 + 6 = 26 modules across 4 QSAs, each with its own SVG file.
 
 **Engraving Queue Page Mockup**
-- [Functional React mockup page](https://claude.ai/public/artifacts/8319e841-26b2-4ae9-a7d6-8df243b19cf8)
+- [Functional React mockup page](https://claude.ai/public/artifacts/78f135ab-c163-4ff5-b1bb-ff083ca49a8d)
 - [JSX React Source Code](docs/reference/engraving-queue-mockup.jsx)
 
 #### Array-by-Array Workflow
@@ -454,27 +454,31 @@ A module with two LEDs might have:
 Sample files are available for development and testing:
 
 **Sample Coordinate Data:**
-- [stara-qsa-sample-svg-data.csv](docs/sample-data/stara-qsa-sample-svg-data.csv) - Complete coordinate and engraving data for a STARa QSA with 8 modules
-- Includes X/Y positions for all element types (micro_id, datamatrix, module_id, serial_url, led_code_1)
+- [qsa-sample-svg-data.csv](docs/sample-data/qsa-sample-svg-data.csv) - Complete coordinate and engraving data for STARa, CUBEa, and PICOa QSAs with 8 modules each
+- Includes X/Y positions for all element types (micro_id, datamatrix, module_id, serial_url, led_code_x)
 - Coordinates use bottom-left origin (CAD format); convert to SVG with: `svg_y = 113.7 - csv_y`
-- Contains metadata header documenting rendering parameters (text heights, font, sizes)
+- Contains metadata header documenting rendering parameters
 
 **Sample SVG Output:**
-- [stara-qsa-sample.svg](docs/sample-data/stara-qsa-sample.svg) - Generated SVG showing all 8 module positions
-- Demonstrates correct element positioning and coordinate transformation
-- Includes working Micro-ID dot patterns encoded from sample serial numbers
+- [stara-qsa-sample.svg](docs/sample-data/stara-qsa-sample.svg) - STARa QSA with 8 modules, 1 LED code each (serials 00123454-00123461)
+- [picoa-qsa-sample.svg](docs/sample-data/picoa-qsa-sample.svg) - PICOa QSA with 8 modules, 1 LED code each (serials 00234501-00234508)
+- [cubea-qsa-sample.svg](docs/sample-data/cubea-qsa-sample.svg) - CUBEa QSA with 8 modules, 4 LED codes each in 2x2 grid (serials 00345601-00345608)
+
+All sample SVGs demonstrate:
+- Correct element positioning and CAD-to-SVG coordinate transformation
+- Working Micro-ID dot patterns encoded from sample serial numbers
 - Data Matrix shown as placeholder rectangles (14mm x 6.5mm) - actual barcodes require library generation
 - Text rendered using Roboto Thin font with hair-space character spacing
 
 **Key Rendering Parameters (from sample data):**
 
-| Element | Size/Height | Notes |
-|---------|-------------|-------|
-| micro_id | 1.0mm x 1.0mm | 0.10mm dots, 0.225mm pitch |
-| datamatrix | 14mm x 6.5mm | ECC 200 rectangular format |
-| module_id | 1.5mm text height | Roboto Thin, text-anchor middle |
-| serial_url | 1.2mm text height | Roboto Thin, text-anchor middle |
-| led_code_1 | 1.0mm text height | Roboto Thin, text-anchor middle |
+| Element | Notes |
+|---------|-------|
+| micro_id | 0.10mm dots, 0.225mm pitch |
+| datamatrix | ECC 200 rectangular format |
+| module_id | Roboto Thin, text-anchor middle |
+| serial_url | Roboto Thin, text-anchor middle |
+| led_code_1 | Roboto Thin, text-anchor middle |
 
 ## 4. Out of Band Functions
 None of the the following needs to be considered as part of the plugin development as they are handled using separate business processes:
