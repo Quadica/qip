@@ -434,6 +434,7 @@ class History_Ajax_Handler {
      * Handle get batch for re-engraving request.
      *
      * Returns batch modules formatted for use in the Batch Creator.
+     * Only completed batches can be loaded for re-engraving.
      *
      * @return void
      */
@@ -457,6 +458,19 @@ class History_Ajax_Handler {
             return;
         }
 
+        // Only completed batches can be loaded for re-engraving.
+        if ( 'completed' !== $batch['status'] ) {
+            $this->send_error(
+                sprintf(
+                    /* translators: %s: batch status */
+                    __( 'Only completed batches can be loaded for re-engraving. This batch has status: %s', 'qsa-engraving' ),
+                    $batch['status']
+                ),
+                'batch_not_completed'
+            );
+            return;
+        }
+
         // Get modules grouped for re-engraving selection.
         $modules = $this->get_modules_for_reengraving( $batch_id );
 
@@ -474,6 +488,8 @@ class History_Ajax_Handler {
      * Get modules formatted for re-engraving selection.
      *
      * Groups modules by base type, order, and SKU for the Batch Creator UI.
+     * Only returns serial ranges (start-end) to avoid GROUP_CONCAT truncation
+     * issues with large batches (MySQL group_concat_max_len limit).
      *
      * @param int $batch_id The batch ID.
      * @return array Modules grouped for selection.
@@ -484,6 +500,9 @@ class History_Ajax_Handler {
         $modules_table = $this->batch_repo->get_modules_table_name();
 
         // Get modules grouped by SKU and order.
+        // Note: We intentionally avoid GROUP_CONCAT for serials to prevent
+        // truncation issues with large batches. Serial ranges are sufficient
+        // for re-engraving since new serials will be assigned anyway.
         $results = $wpdb->get_results(
             $wpdb->prepare(
                 "SELECT
@@ -492,8 +511,7 @@ class History_Ajax_Handler {
                     production_batch_id,
                     COUNT(*) as qty,
                     MIN(serial_number) as serial_start,
-                    MAX(serial_number) as serial_end,
-                    GROUP_CONCAT(serial_number ORDER BY serial_number) as serials
+                    MAX(serial_number) as serial_end
                 FROM {$modules_table}
                 WHERE engraving_batch_id = %d
                 GROUP BY module_sku, order_id, production_batch_id
@@ -531,7 +549,6 @@ class History_Ajax_Handler {
                 'sku'                 => $row['module_sku'],
                 'production_batch_id' => (int) $row['production_batch_id'],
                 'qty'                 => (int) $row['qty'],
-                'original_serials'    => explode( ',', $row['serials'] ),
                 'serial_range'        => $row['serial_start'] . ' - ' . $row['serial_end'],
                 'source_batch_id'     => $batch_id,
             );

@@ -26,6 +26,7 @@ export default function BatchHistory() {
 	const [ loading, setLoading ] = useState( true );
 	const [ detailsLoading, setDetailsLoading ] = useState( false );
 	const [ error, setError ] = useState( null );
+	const [ detailsError, setDetailsError ] = useState( null );
 	const [ pagination, setPagination ] = useState( {
 		page: 1,
 		per_page: 20,
@@ -88,10 +89,12 @@ export default function BatchHistory() {
 	const fetchBatchDetails = useCallback( async ( batchId ) => {
 		if ( ! batchId ) {
 			setSelectedBatch( null );
+			setDetailsError( null );
 			return;
 		}
 
 		setDetailsLoading( true );
+		setDetailsError( null );
 
 		try {
 			const formData = new FormData();
@@ -110,9 +113,11 @@ export default function BatchHistory() {
 				setSelectedBatch( data.data.batch );
 			} else {
 				setSelectedBatch( null );
+				setDetailsError( data.data?.message || __( 'Failed to load batch details.', 'qsa-engraving' ) );
 			}
 		} catch ( err ) {
 			setSelectedBatch( null );
+			setDetailsError( __( 'Network error loading batch details.', 'qsa-engraving' ) );
 		}
 
 		setDetailsLoading( false );
@@ -252,6 +257,7 @@ export default function BatchHistory() {
 					<BatchDetails
 						batch={ selectedBatch }
 						loading={ detailsLoading }
+						error={ detailsError }
 						onLoadForReengraving={ handleLoadForReengraving }
 					/>
 				</div>

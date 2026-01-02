@@ -337,3 +337,78 @@
     width: 16px;
     height: 16px;
 }
+
+/* =========================================
+   Module Details (QSA Positions) in Batch History
+   ========================================= */
+
+.qsa-module-details-section {
+    margin-top: 16px;
+    border-top: 1px solid #3a3a3a;
+    padding-top: 16px;
+}
+
+.qsa-module-details-expandable {
+    background: #252525;
+    border-radius: 4px;
+}
+
+.qsa-module-details-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    cursor: pointer;
+    color: #9ca3af;
+    font-size: 13px;
+}
+
+.qsa-module-details-header:hover {
+    color: #e0e0e0;
+}
+
+.qsa-module-details-header .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+}
+
+.qsa-module-details-grid {
+    padding: 0 12px 12px;
+}
+
+.qsa-details-table-header,
+.qsa-details-table-row {
+    display: grid;
+    grid-template-columns: 90px 1fr 70px 40px 40px;
+    gap: 8px;
+    padding: 6px 0;
+    font-size: 12px;
+}
+
+.qsa-details-table-header {
+    color: #9ca3af;
+    border-bottom: 1px solid #3a3a3a;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.qsa-details-table-row {
+    color: #e0e0e0;
+    border-bottom: 1px solid #2a2a2a;
+}
+
+.qsa-details-table-row:last-child {
+    border-bottom: none;
+}
+
+.qsa-col-serial.qsa-monospace {
+    font-family: monospace;
+    font-size: 11px;
+}
+
+.qsa-col-qsa,
+.qsa-col-pos {
+    text-align: center;
+}
