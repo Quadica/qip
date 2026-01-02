@@ -526,9 +526,11 @@ class History_Ajax_Handler {
         }
 
         // Group by base type.
+        // Use substr to extract first 4 characters, consistent with Module_Selector.
+        // This ensures "STARa-34924" becomes "STAR" (not "STARa" as strtok would yield).
         $grouped = array();
         foreach ( $results as $row ) {
-            $base_type = strtok( $row['module_sku'], '-' );
+            $base_type = substr( $row['module_sku'], 0, 4 );
 
             if ( ! isset( $grouped[ $base_type ] ) ) {
                 $grouped[ $base_type ] = array(
