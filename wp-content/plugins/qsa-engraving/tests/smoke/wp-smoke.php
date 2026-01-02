@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 echo "\n";
 echo "================================================================\n";
-echo "QSA Engraving Plugin - Phase 1-8 Smoke Tests\n";
+echo "QSA Engraving Plugin - Phase 1-9 Smoke Tests\n";
 echo "================================================================\n\n";
 
 $tests_passed = 0;
@@ -2650,6 +2650,161 @@ run_test(
     'Batch_Sorter handles single module correctly.'
 );
 
+run_test(
+    'TC-P5-015: Multiple modules of same SKU can be added to batch',
+    function (): bool {
+        global $wpdb;
+
+        // Get repository instance.
+        $plugin           = \Quadica\QSA_Engraving\qsa_engraving();
+        $batch_repository = $plugin->get_batch_repository();
+
+        // Test data identifiers.
+        $test_production_batch_id = 9999;
+        $test_module_sku          = 'TEST-99999';
+        $test_order_id            = 999999;
+
+        // Clean up any existing test data first.
+        $modules_table = $batch_repository->get_modules_table_name();
+        $batches_table = $batch_repository->get_batches_table_name();
+
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+        $wpdb->query(
+            $wpdb->prepare(
+                "DELETE FROM {$modules_table} WHERE production_batch_id = %d AND module_sku = %s",
+                $test_production_batch_id,
+                $test_module_sku
+            )
+        );
+
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+        $wpdb->query(
+            $wpdb->prepare(
+                "DELETE FROM {$batches_table} WHERE batch_name = %s",
+                'TC-P5-015 Test Batch'
+            )
+        );
+
+        // Create a test batch.
+        $batch_id = $batch_repository->create_batch( 'TC-P5-015 Test Batch' );
+        if ( is_wp_error( $batch_id ) ) {
+            return new WP_Error( 'batch_create_failed', 'Failed to create test batch: ' . $batch_id->get_error_message() );
+        }
+
+        echo "  Created test batch ID: {$batch_id}\n";
+
+        // Insert 5 modules with same production_batch_id, module_sku, order_id
+        // but different qsa_sequence/array_position (the new unique key).
+        $modules_inserted = 0;
+        $insert_errors    = array();
+
+        for ( $position = 1; $position <= 5; $position++ ) {
+            $module_data = array(
+                'engraving_batch_id'  => $batch_id,
+                'production_batch_id' => $test_production_batch_id,
+                'module_sku'          => $test_module_sku,
+                'order_id'            => $test_order_id,
+                'serial_number'       => null, // Not yet assigned.
+                'qsa_sequence'        => 1,    // All on same QSA.
+                'array_position'      => $position,
+            );
+
+            $result = $batch_repository->add_module( $module_data );
+
+            if ( is_wp_error( $result ) ) {
+                $insert_errors[] = "Position {$position}: " . $result->get_error_message();
+            } else {
+                $modules_inserted++;
+                echo "  Inserted module at position {$position}, ID: {$result}\n";
+            }
+        }
+
+        // Verify all 5 modules were inserted.
+        if ( $modules_inserted !== 5 ) {
+            // Clean up before failing.
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+            $wpdb->query(
+                $wpdb->prepare(
+                    "DELETE FROM {$modules_table} WHERE engraving_batch_id = %d",
+                    $batch_id
+                )
+            );
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+            $wpdb->delete( $batches_table, array( 'id' => $batch_id ), array( '%d' ) );
+
+            $error_detail = ! empty( $insert_errors ) ? implode( '; ', $insert_errors ) : 'Unknown error';
+            return new WP_Error(
+                'insert_failed',
+                "Expected 5 modules inserted, got {$modules_inserted}. Errors: {$error_detail}"
+            );
+        }
+
+        // Verify modules in database.
+        $modules = $batch_repository->get_modules_for_batch( $batch_id );
+        $module_count = count( $modules );
+
+        if ( $module_count !== 5 ) {
+            // Clean up before failing.
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+            $wpdb->query(
+                $wpdb->prepare(
+                    "DELETE FROM {$modules_table} WHERE engraving_batch_id = %d",
+                    $batch_id
+                )
+            );
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+            $wpdb->delete( $batches_table, array( 'id' => $batch_id ), array( '%d' ) );
+
+            return new WP_Error(
+                'count_mismatch',
+                "Expected 5 modules in batch, found {$module_count}."
+            );
+        }
+
+        echo "  Verified {$module_count} modules in batch.\n";
+
+        // Update batch counts and verify.
+        $batch_repository->update_batch_counts( $batch_id, 5, 1 );
+        $batch = $batch_repository->get_batch( $batch_id );
+
+        if ( (int) $batch['module_count'] !== 5 ) {
+            // Clean up before failing.
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+            $wpdb->query(
+                $wpdb->prepare(
+                    "DELETE FROM {$modules_table} WHERE engraving_batch_id = %d",
+                    $batch_id
+                )
+            );
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+            $wpdb->delete( $batches_table, array( 'id' => $batch_id ), array( '%d' ) );
+
+            return new WP_Error(
+                'count_update_failed',
+                "Expected batch module_count=5, got {$batch['module_count']}."
+            );
+        }
+
+        echo "  Batch module_count correctly updated to 5.\n";
+
+        // Clean up test data.
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+        $wpdb->query(
+            $wpdb->prepare(
+                "DELETE FROM {$modules_table} WHERE engraving_batch_id = %d",
+                $batch_id
+            )
+        );
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+        $wpdb->delete( $batches_table, array( 'id' => $batch_id ), array( '%d' ) );
+
+        echo "  Test data cleaned up successfully.\n";
+
+        return true;
+    },
+    'Verifies the unique key fix allows multiple modules with same SKU/order but different positions.'
+);
+
 // ============================================
 // PHASE 6 TESTS: Engraving Queue UI
 // ============================================
@@ -3532,6 +3687,263 @@ run_test(
         return true;
     },
     'Settings page render method exists.'
+);
+
+// ============================================
+// Phase 9: QSA Configuration Data Tests
+// ============================================
+
+run_test(
+    'TC-P9-001: STARa configuration exists',
+    function (): bool {
+        $config_repo = new \Quadica\QSA_Engraving\Database\Config_Repository();
+
+        // Get STARa configuration.
+        $config = $config_repo->get_config( 'STAR', 'a' );
+
+        if ( empty( $config ) ) {
+            return new WP_Error( 'no_config', 'No STARa configuration found in database.' );
+        }
+
+        // Should have 8 positions.
+        if ( count( $config ) !== 8 ) {
+            return new WP_Error( 'wrong_count', 'Expected 8 positions, got ' . count( $config ) );
+        }
+
+        // Each position should have 5 elements.
+        foreach ( $config as $pos => $elements ) {
+            if ( count( $elements ) !== 5 ) {
+                return new WP_Error( 'wrong_elements', "Position {$pos} should have 5 elements, got " . count( $elements ) );
+            }
+        }
+
+        echo "  STARa: 8 positions × 5 elements = 40 config entries.\n";
+        return true;
+    },
+    'STARa design has complete coordinate configuration.'
+);
+
+run_test(
+    'TC-P9-002: CUBEa configuration exists',
+    function (): bool {
+        $config_repo = new \Quadica\QSA_Engraving\Database\Config_Repository();
+
+        // Get CUBEa configuration.
+        $config = $config_repo->get_config( 'CUBE', 'a' );
+
+        if ( empty( $config ) ) {
+            return new WP_Error( 'no_config', 'No CUBEa configuration found in database.' );
+        }
+
+        // Should have 8 positions.
+        if ( count( $config ) !== 8 ) {
+            return new WP_Error( 'wrong_count', 'Expected 8 positions, got ' . count( $config ) );
+        }
+
+        // Each position should have 8 elements (4 LED codes).
+        foreach ( $config as $pos => $elements ) {
+            if ( count( $elements ) !== 8 ) {
+                return new WP_Error( 'wrong_elements', "Position {$pos} should have 8 elements, got " . count( $elements ) );
+            }
+        }
+
+        echo "  CUBEa: 8 positions × 8 elements = 64 config entries.\n";
+        return true;
+    },
+    'CUBEa design has complete coordinate configuration with 4 LED codes.'
+);
+
+run_test(
+    'TC-P9-003: PICOa configuration exists',
+    function (): bool {
+        $config_repo = new \Quadica\QSA_Engraving\Database\Config_Repository();
+
+        // Get PICOa configuration.
+        $config = $config_repo->get_config( 'PICO', 'a' );
+
+        if ( empty( $config ) ) {
+            return new WP_Error( 'no_config', 'No PICOa configuration found in database.' );
+        }
+
+        // Should have 8 positions.
+        if ( count( $config ) !== 8 ) {
+            return new WP_Error( 'wrong_count', 'Expected 8 positions, got ' . count( $config ) );
+        }
+
+        // Each position should have 5 elements.
+        foreach ( $config as $pos => $elements ) {
+            if ( count( $elements ) !== 5 ) {
+                return new WP_Error( 'wrong_elements', "Position {$pos} should have 5 elements, got " . count( $elements ) );
+            }
+        }
+
+        echo "  PICOa: 8 positions × 5 elements = 40 config entries.\n";
+        return true;
+    },
+    'PICOa design has complete coordinate configuration.'
+);
+
+run_test(
+    'TC-P9-004: Config_Repository get_designs returns seeded designs',
+    function (): bool {
+        $config_repo = new \Quadica\QSA_Engraving\Database\Config_Repository();
+
+        $designs = $config_repo->get_designs();
+
+        if ( ! in_array( 'STAR', $designs, true ) ) {
+            return new WP_Error( 'missing_star', 'STAR design not found.' );
+        }
+        if ( ! in_array( 'CUBE', $designs, true ) ) {
+            return new WP_Error( 'missing_cube', 'CUBE design not found.' );
+        }
+        if ( ! in_array( 'PICO', $designs, true ) ) {
+            return new WP_Error( 'missing_pico', 'PICO design not found.' );
+        }
+
+        echo "  Available designs: " . implode( ', ', $designs ) . "\n";
+        return true;
+    },
+    'Config repository returns all seeded QSA designs.'
+);
+
+run_test(
+    'TC-P9-005: STARa position 1 coordinates match CSV',
+    function (): bool {
+        $config_repo = new \Quadica\QSA_Engraving\Database\Config_Repository();
+
+        // Get STARa position 1 config.
+        $micro_id = $config_repo->get_element_config( 'STAR', 1, 'micro_id', 'a' );
+        $datamatrix = $config_repo->get_element_config( 'STAR', 1, 'datamatrix', 'a' );
+
+        if ( ! $micro_id || ! $datamatrix ) {
+            return new WP_Error( 'config_missing', 'Position 1 configuration not found.' );
+        }
+
+        // Verify micro_id coordinates (from CSV: 32.0125, 63.7933).
+        if ( abs( $micro_id['origin_x'] - 32.0125 ) > 0.001 ) {
+            return new WP_Error( 'wrong_x', "micro_id X expected 32.0125, got {$micro_id['origin_x']}" );
+        }
+        if ( abs( $micro_id['origin_y'] - 63.7933 ) > 0.001 ) {
+            return new WP_Error( 'wrong_y', "micro_id Y expected 63.7933, got {$micro_id['origin_y']}" );
+        }
+
+        // Verify datamatrix coordinates (from CSV: 29.7215, 95.2849).
+        if ( abs( $datamatrix['origin_x'] - 29.7215 ) > 0.001 ) {
+            return new WP_Error( 'wrong_x', "datamatrix X expected 29.7215, got {$datamatrix['origin_x']}" );
+        }
+        if ( abs( $datamatrix['origin_y'] - 95.2849 ) > 0.001 ) {
+            return new WP_Error( 'wrong_y', "datamatrix Y expected 95.2849, got {$datamatrix['origin_y']}" );
+        }
+
+        echo "  STARa position 1 micro_id: ({$micro_id['origin_x']}, {$micro_id['origin_y']})\n";
+        echo "  STARa position 1 datamatrix: ({$datamatrix['origin_x']}, {$datamatrix['origin_y']})\n";
+        return true;
+    },
+    'STARa position 1 coordinates match source CSV data.'
+);
+
+run_test(
+    'TC-P9-006: CUBEa has 4 LED code positions',
+    function (): bool {
+        $config_repo = new \Quadica\QSA_Engraving\Database\Config_Repository();
+
+        // Check position 1 has all 4 LED codes.
+        $led1 = $config_repo->get_element_config( 'CUBE', 1, 'led_code_1', 'a' );
+        $led2 = $config_repo->get_element_config( 'CUBE', 1, 'led_code_2', 'a' );
+        $led3 = $config_repo->get_element_config( 'CUBE', 1, 'led_code_3', 'a' );
+        $led4 = $config_repo->get_element_config( 'CUBE', 1, 'led_code_4', 'a' );
+
+        if ( ! $led1 || ! $led2 || ! $led3 || ! $led4 ) {
+            return new WP_Error( 'led_missing', 'Not all 4 LED code positions configured.' );
+        }
+
+        // Verify 2x2 grid layout (LED 1 & 2 are top row, 3 & 4 are bottom row).
+        // Top row Y should be same.
+        if ( abs( $led1['origin_y'] - $led2['origin_y'] ) > 0.001 ) {
+            return new WP_Error( 'grid_error', 'LED 1 and 2 should have same Y coordinate.' );
+        }
+        // Bottom row Y should be same.
+        if ( abs( $led3['origin_y'] - $led4['origin_y'] ) > 0.001 ) {
+            return new WP_Error( 'grid_error', 'LED 3 and 4 should have same Y coordinate.' );
+        }
+        // Top row should be above bottom row.
+        if ( $led1['origin_y'] <= $led3['origin_y'] ) {
+            return new WP_Error( 'grid_error', 'LED grid Y ordering incorrect.' );
+        }
+
+        echo "  CUBEa LED grid: top row Y={$led1['origin_y']}, bottom row Y={$led3['origin_y']}\n";
+        return true;
+    },
+    'CUBEa design has 4 LED code positions in 2x2 grid.'
+);
+
+run_test(
+    'TC-P9-007: Text height values are set correctly',
+    function (): bool {
+        $config_repo = new \Quadica\QSA_Engraving\Database\Config_Repository();
+
+        // Check text height values for STARa.
+        $module_id = $config_repo->get_element_config( 'STAR', 1, 'module_id', 'a' );
+        $serial_url = $config_repo->get_element_config( 'STAR', 1, 'serial_url', 'a' );
+        $led_code = $config_repo->get_element_config( 'STAR', 1, 'led_code_1', 'a' );
+        $micro_id = $config_repo->get_element_config( 'STAR', 1, 'micro_id', 'a' );
+
+        // module_id should be 1.3mm.
+        if ( abs( $module_id['text_height'] - 1.30 ) > 0.01 ) {
+            return new WP_Error( 'wrong_height', "module_id text_height expected 1.30, got {$module_id['text_height']}" );
+        }
+
+        // serial_url and led_code should be 1.2mm.
+        if ( abs( $serial_url['text_height'] - 1.20 ) > 0.01 ) {
+            return new WP_Error( 'wrong_height', "serial_url text_height expected 1.20, got {$serial_url['text_height']}" );
+        }
+        if ( abs( $led_code['text_height'] - 1.20 ) > 0.01 ) {
+            return new WP_Error( 'wrong_height', "led_code text_height expected 1.20, got {$led_code['text_height']}" );
+        }
+
+        // micro_id should have NULL text_height.
+        if ( $micro_id['text_height'] !== null ) {
+            return new WP_Error( 'wrong_height', "micro_id text_height expected null, got {$micro_id['text_height']}" );
+        }
+
+        echo "  module_id: {$module_id['text_height']}mm, serial_url: {$serial_url['text_height']}mm, led_code: {$led_code['text_height']}mm\n";
+        echo "  micro_id: null (non-text element)\n";
+        return true;
+    },
+    'Text height values match specification.'
+);
+
+run_test(
+    'TC-P9-008: CAD to SVG coordinate transformation',
+    function (): bool {
+        // Test the cad_to_svg_y transformation.
+        $canvas_height = 113.7;
+
+        // Position 1 micro_id Y = 63.7933 in CAD.
+        // SVG Y should be 113.7 - 63.7933 = 49.9067.
+        $cad_y_1 = 63.7933;
+        $expected_svg_y_1 = 49.9067;
+        $actual_svg_y_1 = \Quadica\QSA_Engraving\Database\Config_Repository::cad_to_svg_y( $cad_y_1 );
+
+        if ( abs( $actual_svg_y_1 - $expected_svg_y_1 ) > 0.001 ) {
+            return new WP_Error( 'transform_error', "Expected SVG Y {$expected_svg_y_1}, got {$actual_svg_y_1}" );
+        }
+
+        // Position 5 datamatrix Y = 18.4151 in CAD.
+        // SVG Y should be 113.7 - 18.4151 = 95.2849.
+        $cad_y_2 = 18.4151;
+        $expected_svg_y_2 = 95.2849;
+        $actual_svg_y_2 = \Quadica\QSA_Engraving\Database\Config_Repository::cad_to_svg_y( $cad_y_2 );
+
+        if ( abs( $actual_svg_y_2 - $expected_svg_y_2 ) > 0.001 ) {
+            return new WP_Error( 'transform_error', "Expected SVG Y {$expected_svg_y_2}, got {$actual_svg_y_2}" );
+        }
+
+        echo "  CAD Y {$cad_y_1} → SVG Y " . round( $actual_svg_y_1, 4 ) . " (verified)\n";
+        echo "  CAD Y {$cad_y_2} → SVG Y " . round( $actual_svg_y_2, 4 ) . " (verified)\n";
+        return true;
+    },
+    'CAD to SVG Y coordinate transformation is correct.'
 );
 
 // ============================================
