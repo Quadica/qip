@@ -201,8 +201,8 @@ CREATE TABLE IF NOT EXISTS `{prefix}quad_engraved_modules` (
     `array_position` TINYINT UNSIGNED NOT NULL
         COMMENT 'Position 1-8 on the QSA board',
 
-    `row_status` ENUM('pending', 'done') NOT NULL DEFAULT 'pending'
-        COMMENT 'Engraving status for this module row',
+    `row_status` ENUM('pending', 'in_progress', 'done') NOT NULL DEFAULT 'pending'
+        COMMENT 'Engraving status: pending -> in_progress -> done',
 
     `engraved_at` DATETIME DEFAULT NULL
         COMMENT 'When row was marked done',
