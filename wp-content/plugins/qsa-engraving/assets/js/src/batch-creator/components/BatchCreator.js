@@ -4,6 +4,10 @@
  * Displays a hierarchical list of modules awaiting engraving,
  * allows selection and quantity editing, and creates engraving batches.
  *
+ * Supports re-engraving workflow when loaded with URL parameters:
+ * - source=history: Indicates modules come from Batch History
+ * - source_batch_id: The batch ID to load for re-engraving
+ *
  * @package QSA_Engraving
  * @since 1.0.0
  */
@@ -30,6 +34,26 @@ const BASE_TYPE_NAMES = {
 };
 
 /**
+ * Parse URL parameters for re-engraving source.
+ *
+ * @return {Object|null} Source info or null if not from history.
+ */
+function getReengravingSource() {
+	const urlParams = new URLSearchParams( window.location.search );
+	const source = urlParams.get( 'source' );
+	const sourceBatchId = urlParams.get( 'source_batch_id' );
+
+	if ( source === 'history' && sourceBatchId ) {
+		return {
+			type: 'history',
+			batchId: parseInt( sourceBatchId, 10 ),
+		};
+	}
+
+	return null;
+}
+
+/**
  * BatchCreator component.
  *
  * @return {JSX.Element} The component.
@@ -46,6 +70,8 @@ export default function BatchCreator() {
 	const [ creatingBatch, setCreatingBatch ] = useState( false );
 	const [ previewData, setPreviewData ] = useState( null );
 	const [ previewing, setPreviewing ] = useState( false );
+	const [ reengravingSource, setReengravingSource ] = useState( null );
+	const [ reengravingData, setReengravingData ] = useState( null );
 
 	/**
 	 * Make an AJAX request.
@@ -96,11 +122,121 @@ export default function BatchCreator() {
 	}, [] );
 
 	/**
-	 * Load modules on mount.
+	 * Fetch re-engraving data from a previous batch.
+	 *
+	 * @param {number} batchId The source batch ID.
+	 */
+	const fetchReengravingData = useCallback( async ( batchId ) => {
+		try {
+			const response = await ajaxRequest( 'qsa_get_batch_for_reengraving', {
+				batch_id: batchId,
+			} );
+
+			if ( response.success && response.data ) {
+				setReengravingData( response.data );
+				return response.data;
+			}
+			setError( response.data?.message || __( 'Failed to load re-engraving data.', 'qsa-engraving' ) );
+			return null;
+		} catch ( err ) {
+			setError( __( 'Failed to load re-engraving data.', 'qsa-engraving' ) );
+			return null;
+		}
+	}, [] );
+
+	/**
+	 * Apply re-engraving selections to match modules from the source batch.
+	 *
+	 * @param {Object} reengraveData The re-engraving data from the API.
+	 * @param {Object} availableModules The currently available modules.
+	 */
+	const applyReengravingSelections = useCallback( ( reengraveData, availableModules ) => {
+		if ( ! reengraveData?.modules || ! availableModules ) {
+			return;
+		}
+
+		const newSelected = new Set();
+		const newQuantities = {};
+		const newExpandedBaseTypes = new Set();
+		const newExpandedOrders = new Set();
+
+		// Iterate through re-engraving data to find matching available modules.
+		reengraveData.modules.forEach( ( typeGroup ) => {
+			const baseType = typeGroup.base_type;
+
+			if ( availableModules[ baseType ] ) {
+				newExpandedBaseTypes.add( baseType );
+
+				typeGroup.orders.forEach( ( orderGroup ) => {
+					const orderId = orderGroup.order_id;
+					newExpandedOrders.add( orderId );
+
+					orderGroup.modules.forEach( ( reengravModule ) => {
+						// Find matching module in available data.
+						const matchingOrder = availableModules[ baseType ].modules.find(
+							( o ) => o.order_id === orderId
+						);
+
+						if ( matchingOrder ) {
+							const matchingItem = matchingOrder.items.find(
+								( item ) =>
+									item.module_sku === reengravModule.sku &&
+									item.production_batch_id === reengravModule.production_batch_id
+							);
+
+							if ( matchingItem ) {
+								const moduleId = `${ matchingItem.production_batch_id }-${ matchingItem.module_sku }-${ matchingItem.order_id }`;
+								newSelected.add( moduleId );
+
+								// Set quantity to match original (clamped to available).
+								const qty = Math.min( reengravModule.qty, matchingItem.qty_to_engrave );
+								if ( qty !== matchingItem.qty_to_engrave ) {
+									newQuantities[ moduleId ] = qty;
+								}
+							}
+						}
+					} );
+				} );
+			}
+		} );
+
+		if ( newSelected.size > 0 ) {
+			setSelectedModules( newSelected );
+			setEngraveQuantities( newQuantities );
+			setExpandedBaseTypes( newExpandedBaseTypes );
+			setExpandedOrders( newExpandedOrders );
+		}
+	}, [] );
+
+	/**
+	 * Load modules on mount and handle re-engraving source.
 	 */
 	useEffect( () => {
-		fetchModules();
+		const source = getReengravingSource();
+		setReengravingSource( source );
+
+		const initializeData = async () => {
+			// First fetch available modules.
+			await fetchModules();
+		};
+
+		initializeData();
 	}, [ fetchModules ] );
+
+	/**
+	 * When we have both module data and re-engraving source, fetch and apply selections.
+	 */
+	useEffect( () => {
+		if ( reengravingSource && Object.keys( moduleData ).length > 0 && ! reengravingData ) {
+			const loadReengravingData = async () => {
+				const data = await fetchReengravingData( reengravingSource.batchId );
+				if ( data ) {
+					applyReengravingSelections( data, moduleData );
+				}
+			};
+			loadReengravingData();
+		}
+	}, [ reengravingSource, moduleData, reengravingData, fetchReengravingData, applyReengravingSelections ] );
 
 	/**
 	 * Get all module identifiers from the data.
@@ -597,6 +733,42 @@ export default function BatchCreator() {
 	// Empty state.
 	const hasModules = Object.keys( moduleData ).length > 0;
 
+	/**
+	 * Render re-engraving source banner.
+	 *
+	 * @return {JSX.Element|null} Banner or null.
+	 */
+	const renderReengravingBanner = () => {
+		if ( ! reengravingSource || ! reengravingData ) {
+			return null;
+		}
+
+		return (
+			<div style={ {
+				padding: '12px 16px',
+				marginBottom: '16px',
+				backgroundColor: '#e7f3ff',
+				borderLeft: '4px solid #0073aa',
+				borderRadius: '4px',
+			} }>
+				<div style={ { display: 'flex', alignItems: 'center', gap: '10px' } }>
+					<span className="dashicons dashicons-update" style={ { color: '#0073aa' } }></span>
+					<div>
+						<strong style={ { color: '#0073aa' } }>
+							{ __( 'Re-engraving Mode', 'qsa-engraving' ) }
+						</strong>
+						<p style={ { margin: '4px 0 0 0', fontSize: '13px', color: '#444' } }>
+							{ __( 'Loaded from Batch', 'qsa-engraving' ) } #{ reengravingData.batch_id }
+							{ reengravingData.batch_name && ` — ${ reengravingData.batch_name }` }.
+							{ ' ' }
+							{ __( 'Modules matching the source batch have been pre-selected. New serial numbers will be assigned upon batch creation.', 'qsa-engraving' ) }
+						</p>
+					</div>
+				</div>
+			</div>
+		);
+	};
+
 	return (
 		<div className="qsa-batch-creator">
 			<StatsBar
@@ -605,6 +777,9 @@ export default function BatchCreator() {
 				unitCount={ totals.unitCount }
 				previewData={ previewData }
 			/>
+
+			{ /* Re-engraving source banner */ }
+			{ renderReengravingBanner() }
 
 			{ /* Error banner display */ }
 			{ renderErrorBanner() }

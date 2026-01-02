@@ -36,10 +36,11 @@ function formatDate( dateString ) {
  * @param {Object}   props                       Props.
  * @param {Object}   props.batch                 Batch data.
  * @param {boolean}  props.loading               Whether details are loading.
+ * @param {string}   props.error                 Error message if fetch failed.
  * @param {Function} props.onLoadForReengraving  Callback when load button clicked.
  * @return {JSX.Element} The component.
  */
-export default function BatchDetails( { batch, loading, onLoadForReengraving } ) {
+export default function BatchDetails( { batch, loading, error, onLoadForReengraving } ) {
 	// Loading state.
 	if ( loading ) {
 		return (
@@ -53,6 +54,24 @@ export default function BatchDetails( { batch, loading, onLoadForReengraving } )
 				<div className="qsa-details-loading">
 					<span className="spinner is-active"></span>
 					<p>{ __( 'Loading batch details...', 'qsa-engraving' ) }</p>
+				</div>
+			</div>
+		);
+	}
+
+	// Error state.
+	if ( error ) {
+		return (
+			<div className="qsa-batch-details">
+				<div className="qsa-details-header">
+					<span className="dashicons dashicons-list-view"></span>
+					<span className="qsa-details-title">
+						{ __( 'Batch Details', 'qsa-engraving' ) }
+					</span>
+				</div>
+				<div className="qsa-details-error">
+					<span className="dashicons dashicons-warning" style={ { color: '#d63638' } }></span>
+					<p style={ { color: '#d63638' } }>{ error }</p>
 				</div>
 			</div>
 		);
@@ -174,6 +193,48 @@ export default function BatchDetails( { batch, loading, onLoadForReengraving } )
 					) ) }
 				</div>
 			</div>
+
+			{ /* Individual Module Details with QSA Positions */ }
+			{ batch.module_details && batch.module_details.length > 0 && (
+				<div className="qsa-module-details-section">
+					<details className="qsa-module-details-expandable">
+						<summary className="qsa-module-details-header">
+							<span className="dashicons dashicons-editor-table"></span>
+							<span className="qsa-module-details-title">
+								{ __( 'QSA Positions & Serial Numbers', 'qsa-engraving' ) }
+							</span>
+						</summary>
+						<div className="qsa-module-details-grid">
+							<div className="qsa-details-table-header">
+								<span className="qsa-col-serial">{ __( 'Serial', 'qsa-engraving' ) }</span>
+								<span className="qsa-col-sku">{ __( 'Module', 'qsa-engraving' ) }</span>
+								<span className="qsa-col-order">{ __( 'Order', 'qsa-engraving' ) }</span>
+								<span className="qsa-col-qsa">{ __( 'QSA', 'qsa-engraving' ) }</span>
+								<span className="qsa-col-pos">{ __( 'Pos', 'qsa-engraving' ) }</span>
+							</div>
+							{ batch.module_details.map( ( detail ) => (
+								<div key={ detail.id } className="qsa-details-table-row">
+									<span className="qsa-col-serial qsa-monospace">
+										{ detail.serial_number }
+									</span>
+									<span className="qsa-col-sku">
+										{ detail.module_sku }
+									</span>
+									<span className="qsa-col-order">
+										#{ detail.order_id }
+									</span>
+									<span className="qsa-col-qsa">
+										{ detail.qsa_sequence }
+									</span>
+									<span className="qsa-col-pos">
+										{ detail.array_position }
+									</span>
+								</div>
+							) ) }
+						</div>
+					</details>
+				</div>
+			) }
 
 			{ /* Action Button */ }
 			<div className="qsa-details-actions">
