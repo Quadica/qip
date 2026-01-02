@@ -17,15 +17,16 @@ import { __ } from '@wordpress/i18n';
  * @return {JSX.Element} The component.
  */
 export default function QueueHeader( { batch } ) {
-	const batchCreatorUrl = window.location.href.replace( /-queue.*/, '-batch-creator' );
+	// Navigate back to the main QSA Engraving dashboard.
+	const dashboardUrl = window.location.href.replace( /qsa-engraving-queue.*/, 'qsa-engraving' );
 
 	return (
 		<div className="qsa-queue-header">
 			<div className="qsa-queue-header-left">
 				<a
-					href={ batchCreatorUrl }
+					href={ dashboardUrl }
 					className="qsa-back-button"
-					title={ __( 'Back to Batch Creator', 'qsa-engraving' ) }
+					title={ __( 'Back to Dashboard', 'qsa-engraving' ) }
 				>
 					<span className="dashicons dashicons-arrow-left-alt2"></span>
 				</a>
