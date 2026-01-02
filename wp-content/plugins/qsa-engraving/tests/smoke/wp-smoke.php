@@ -3170,6 +3170,57 @@ run_test(
     'update_start_position() handles missing batches gracefully.'
 );
 
+run_test(
+    'TC-EQ-011: Queue handler normalizes empty row_status values',
+    function (): bool {
+        // Use reflection to test the private normalize_row_status method.
+        $plugin        = \Quadica\QSA_Engraving\qsa_engraving();
+        $queue_handler = $plugin->get_queue_ajax_handler();
+
+        $reflection = new ReflectionClass( $queue_handler );
+        $method     = $reflection->getMethod( 'normalize_row_status' );
+        $method->setAccessible( true );
+
+        // Test empty string -> 'pending'.
+        $result = $method->invoke( $queue_handler, '' );
+        if ( $result !== 'pending' ) {
+            return new WP_Error( 'empty_string_fail', "Empty string should return 'pending', got '{$result}'." );
+        }
+        echo "  Empty string -> 'pending': PASS\n";
+
+        // Test null -> 'pending'.
+        $result = $method->invoke( $queue_handler, null );
+        if ( $result !== 'pending' ) {
+            return new WP_Error( 'null_fail', "Null should return 'pending', got '{$result}'." );
+        }
+        echo "  Null -> 'pending': PASS\n";
+
+        // Test valid 'pending' -> 'pending'.
+        $result = $method->invoke( $queue_handler, 'pending' );
+        if ( $result !== 'pending' ) {
+            return new WP_Error( 'pending_fail', "Valid 'pending' should remain 'pending', got '{$result}'." );
+        }
+        echo "  'pending' -> 'pending': PASS\n";
+
+        // Test valid 'in_progress' -> 'in_progress'.
+        $result = $method->invoke( $queue_handler, 'in_progress' );
+        if ( $result !== 'in_progress' ) {
+            return new WP_Error( 'in_progress_fail', "Valid 'in_progress' should remain 'in_progress', got '{$result}'." );
+        }
+        echo "  'in_progress' -> 'in_progress': PASS\n";
+
+        // Test valid 'done' -> 'done'.
+        $result = $method->invoke( $queue_handler, 'done' );
+        if ( $result !== 'done' ) {
+            return new WP_Error( 'done_fail', "Valid 'done' should remain 'done', got '{$result}'." );
+        }
+        echo "  'done' -> 'done': PASS\n";
+
+        return true;
+    },
+    'normalize_row_status() handles empty strings and null values correctly.'
+);
+
 // ============================================
 // Phase 7: LightBurn Integration Tests
 // ============================================

@@ -367,6 +367,9 @@ class Serial_Repository {
     /**
      * Commit reserved serials as engraved.
      *
+     * Note: Also handles empty status values (MySQL strict mode edge case)
+     * by treating empty strings as 'reserved'.
+     *
      * @param int $engraving_batch_id The engraving batch ID.
      * @param int $qsa_sequence The QSA sequence number.
      * @return int|WP_Error Number of updated rows or WP_Error on failure.
@@ -378,7 +381,7 @@ class Serial_Repository {
                 SET status = 'engraved', engraved_at = NOW()
                 WHERE engraving_batch_id = %d
                   AND qsa_sequence = %d
-                  AND status = 'reserved'",
+                  AND (status = 'reserved' OR status = '')",
                 $engraving_batch_id,
                 $qsa_sequence
             )
@@ -397,6 +400,9 @@ class Serial_Repository {
     /**
      * Void reserved serials.
      *
+     * Note: Also handles empty status values (MySQL strict mode edge case)
+     * by treating empty strings as 'reserved'.
+     *
      * @param int $engraving_batch_id The engraving batch ID.
      * @param int $qsa_sequence The QSA sequence number.
      * @return int|WP_Error Number of updated rows or WP_Error on failure.
@@ -408,7 +414,7 @@ class Serial_Repository {
                 SET status = 'voided', voided_at = NOW()
                 WHERE engraving_batch_id = %d
                   AND qsa_sequence = %d
-                  AND status = 'reserved'",
+                  AND (status = 'reserved' OR status = '')",
                 $engraving_batch_id,
                 $qsa_sequence
             )
@@ -427,6 +433,9 @@ class Serial_Repository {
     /**
      * Get serials by engraving batch ID.
      *
+     * Note: When filtering by 'reserved' status, also includes empty status values
+     * (MySQL strict mode edge case) to handle data inconsistencies gracefully.
+     *
      * @param int         $engraving_batch_id The engraving batch ID.
      * @param string|null $status Optional status filter.
      * @return array
@@ -436,8 +445,13 @@ class Serial_Repository {
         $params = array( $engraving_batch_id );
 
         if ( null !== $status ) {
-            $sql .= ' AND status = %s';
-            $params[] = $status;
+            // For 'reserved' status, also match empty strings (data inconsistency edge case).
+            if ( 'reserved' === $status ) {
+                $sql .= " AND (status = 'reserved' OR status = '')";
+            } else {
+                $sql .= ' AND status = %s';
+                $params[] = $status;
+            }
         }
 
         $sql .= ' ORDER BY serial_integer ASC';

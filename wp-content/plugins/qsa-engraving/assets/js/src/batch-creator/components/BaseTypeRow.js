@@ -55,19 +55,13 @@ export default function BaseTypeRow( {
 	const totalQty = data.total_qty;
 	const isSelected = selectionState !== 'none';
 
+	// Count total modules (SKUs) across all orders
+	const totalModules = data.modules.reduce( ( sum, order ) => sum + order.items.length, 0 );
+
 	return (
 		<div className={ `qsa-base-type ${ isSelected ? 'is-selected' : '' } ${ isLast ? 'is-last' : '' }` }>
 			{ /* Base Type Header */ }
 			<div className="qsa-base-type-row">
-				<button
-					className="qsa-expand-btn"
-					onClick={ onToggleExpand }
-					aria-expanded={ isExpanded }
-					aria-label={ isExpanded ? __( 'Collapse', 'qsa-engraving' ) : __( 'Expand', 'qsa-engraving' ) }
-				>
-					<span className={ `dashicons ${ isExpanded ? 'dashicons-arrow-down-alt2' : 'dashicons-arrow-right-alt2' }` }></span>
-				</button>
-
 				<button
 					className={ `qsa-checkbox qsa-checkbox--${ selectionState }` }
 					onClick={ onToggleSelect }
@@ -75,6 +69,15 @@ export default function BaseTypeRow( {
 					aria-label={ __( 'Select all modules in this base type', 'qsa-engraving' ) }
 				>
 					<CheckboxIcon state={ selectionState } />
+				</button>
+
+				<button
+					className="qsa-expand-btn"
+					onClick={ onToggleExpand }
+					aria-expanded={ isExpanded }
+					aria-label={ isExpanded ? __( 'Collapse', 'qsa-engraving' ) : __( 'Expand', 'qsa-engraving' ) }
+				>
+					<span className={ `dashicons ${ isExpanded ? 'dashicons-arrow-down-alt2' : 'dashicons-arrow-right-alt2' }` }></span>
 				</button>
 
 				<div className="qsa-base-type-info" onClick={ onToggleExpand }>
@@ -86,8 +89,8 @@ export default function BaseTypeRow( {
 					<span className="qsa-stat-orders">
 						{ orderCount } { orderCount === 1 ? __( 'order', 'qsa-engraving' ) : __( 'orders', 'qsa-engraving' ) }
 					</span>
-					<span className="qsa-stat-units">
-						{ totalQty } { __( 'units', 'qsa-engraving' ) }
+					<span className="qsa-stat-orders">
+						{ totalModules } { totalModules === 1 ? __( 'module', 'qsa-engraving' ) : __( 'modules', 'qsa-engraving' ) }
 					</span>
 				</div>
 			</div>

@@ -42,7 +42,7 @@ export default function ModuleRow( {
 				{ isSelected && <span className="dashicons dashicons-yes"></span> }
 			</button>
 
-			<span className="dashicons dashicons-admin-generic qsa-module-icon"></span>
+			<span className="qsa-module-icon">#</span>
 
 			<div className="qsa-module-info">
 				<span className="qsa-module-sku">{ module_sku }</span>
@@ -61,6 +61,7 @@ export default function ModuleRow( {
 					max={ qty_to_engrave }
 					value={ engraveQty }
 					onChange={ ( e ) => onUpdateQty( e.target.value ) }
+					onClick={ ( e ) => e.stopPropagation() }
 					className="qsa-qty-input"
 					aria-label={ __( 'Quantity to engrave', 'qsa-engraving' ) }
 				/>

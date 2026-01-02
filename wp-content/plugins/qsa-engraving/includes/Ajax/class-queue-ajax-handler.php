@@ -340,8 +340,11 @@ class Queue_Ajax_Handler {
 				);
 			}
 
-			// Determine row status.
-			$statuses    = array_column( $qsa_modules, 'row_status' );
+			// Determine row status - normalize empty strings to 'pending'.
+			$statuses    = array_map(
+				fn( $s ) => $this->normalize_row_status( $s ),
+				array_column( $qsa_modules, 'row_status' )
+			);
 			$all_done    = count( array_filter( $statuses, fn( $s ) => $s === 'done' ) ) === $total_count;
 			$any_in_prog = in_array( 'in_progress', $statuses, true );
 
@@ -451,6 +454,19 @@ class Queue_Ajax_Handler {
 	}
 
 	/**
+	 * Normalize row_status value, handling empty strings.
+	 *
+	 * MySQL ENUM columns can contain empty strings if strict mode is disabled.
+	 * This method ensures consistent handling of row_status values.
+	 *
+	 * @param string|null $status The raw row_status value.
+	 * @return string Normalized status ('pending' if empty/null).
+	 */
+	private function normalize_row_status( ?string $status ): string {
+		return ! empty( $status ) ? $status : 'pending';
+	}
+
+	/**
 	 * Handle start row request - reserves serials and prepares for engraving.
 	 *
 	 * Enforces row status transition: only pending rows can be started.
@@ -489,7 +505,7 @@ class Queue_Ajax_Handler {
 		}
 
 		// Check current row status - only allow starting from 'pending' state.
-		$current_status = $qsa_modules[0]['row_status'] ?? 'pending';
+		$current_status = $this->normalize_row_status( $qsa_modules[0]['row_status'] ?? null );
 		if ( 'pending' !== $current_status ) {
 			$this->send_error(
 				sprintf(
@@ -598,7 +614,7 @@ class Queue_Ajax_Handler {
 			return;
 		}
 
-		$current_status = reset( $qsa_modules )['row_status'] ?? 'pending';
+		$current_status = $this->normalize_row_status( reset( $qsa_modules )['row_status'] ?? null );
 		if ( 'in_progress' !== $current_status ) {
 			$this->send_error(
 				sprintf(
@@ -703,7 +719,7 @@ class Queue_Ajax_Handler {
 			return;
 		}
 
-		$current_status = reset( $qsa_modules )['row_status'] ?? 'pending';
+		$current_status = $this->normalize_row_status( reset( $qsa_modules )['row_status'] ?? null );
 		if ( 'in_progress' !== $current_status ) {
 			$this->send_error(
 				sprintf(
@@ -1054,7 +1070,7 @@ class Queue_Ajax_Handler {
 			return;
 		}
 
-		$current_status = reset( $qsa_modules )['row_status'] ?? 'pending';
+		$current_status = $this->normalize_row_status( reset( $qsa_modules )['row_status'] ?? null );
 		if ( 'pending' !== $current_status ) {
 			$this->send_error(
 				sprintf(

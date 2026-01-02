@@ -636,6 +636,15 @@ final class Plugin {
     public function get_module_selector(): Services\Module_Selector {
         return $this->module_selector;
     }
+
+    /**
+     * Get the Queue AJAX Handler instance.
+     *
+     * @return Ajax\Queue_Ajax_Handler|null
+     */
+    public function get_queue_ajax_handler(): ?Ajax\Queue_Ajax_Handler {
+        return $this->queue_ajax_handler;
+    }
 }
 
 /**
