@@ -502,6 +502,9 @@ export default function EngravingQueue() {
 		);
 	}
 
+	// Get dashboard URL for navigation (also used in error state).
+	const dashboardUrl = window.location.href.replace( /qsa-engraving-queue.*/, 'qsa-engraving' );
+
 	// Render error state.
 	if ( error ) {
 		return (
@@ -509,11 +512,19 @@ export default function EngravingQueue() {
 				<div className="notice notice-error">
 					<p>{ error }</p>
 				</div>
-				<p>
-					<a href={ window.location.href.replace( /&batch_id=\d+/, '' ).replace( /\?page=/, '?page=qsa-engraving-batch-creator&_from=' ) } className="button button-primary">
+				<div className="qsa-batch-selector-actions">
+					<a href={ dashboardUrl } className="button">
+						<span className="dashicons dashicons-arrow-left-alt2"></span>
+						{ __( 'Back to Dashboard', 'qsa-engraving' ) }
+					</a>
+					<a
+						href={ window.location.href.replace( /&batch_id=\d+/, '' ).replace( /\?page=/, '?page=qsa-engraving-batch-creator&_from=' ) }
+						className="button button-primary"
+					>
+						<span className="dashicons dashicons-plus-alt2"></span>
 						{ __( 'Create New Batch', 'qsa-engraving' ) }
 					</a>
-				</p>
+				</div>
 			</div>
 		);
 	}
@@ -585,6 +596,13 @@ export default function EngravingQueue() {
 				</div>
 
 				<div className="qsa-batch-selector-actions">
+					<a
+						href={ dashboardUrl }
+						className="button"
+					>
+						<span className="dashicons dashicons-arrow-left-alt2"></span>
+						{ __( 'Back to Dashboard', 'qsa-engraving' ) }
+					</a>
 					<a
 						href={ window.location.href.replace( 'qsa-engraving-queue', 'qsa-engraving-batch-creator' ) }
 						className="button button-primary"

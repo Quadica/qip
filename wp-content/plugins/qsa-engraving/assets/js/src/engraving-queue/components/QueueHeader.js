@@ -2,6 +2,7 @@
  * Queue Header Component
  *
  * Displays the header with batch information and navigation.
+ * Styled to match the Batch Creator WordPress Admin theme.
  *
  * @package QSA_Engraving
  * @since 1.0.0
@@ -36,7 +37,7 @@ export default function QueueHeader( { batch } ) {
 				<div className="qsa-queue-header-text">
 					<h1>{ __( 'Engraving Queue', 'qsa-engraving' ) }</h1>
 					<p>
-						{ batch?.batch_name || __( 'LUXEON STAR LEDs Production System', 'qsa-engraving' ) }
+						{ batch?.batch_name || __( 'Module Engraving Workflow', 'qsa-engraving' ) }
 					</p>
 				</div>
 			</div>
@@ -49,7 +50,9 @@ export default function QueueHeader( { batch } ) {
 						<span className={ `qsa-batch-status status-${ batch.status }` }>
 							{ batch.status === 'in_progress'
 								? __( 'In Progress', 'qsa-engraving' )
-								: __( 'Completed', 'qsa-engraving' ) }
+								: batch.status === 'done'
+								? __( 'Completed', 'qsa-engraving' )
+								: __( 'Pending', 'qsa-engraving' ) }
 						</span>
 					</>
 				) }
