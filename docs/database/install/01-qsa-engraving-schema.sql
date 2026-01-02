@@ -209,8 +209,8 @@ CREATE TABLE IF NOT EXISTS `{prefix}quad_engraved_modules` (
 
     PRIMARY KEY (`id`),
 
-    -- Prevent duplicate engraving: same module from same production batch
-    UNIQUE KEY `uk_production_module` (`production_batch_id`, `module_sku`, `order_id`, `serial_number`),
+    -- Ensure each position in a batch is unique
+    UNIQUE KEY `uk_batch_position` (`engraving_batch_id`, `qsa_sequence`, `array_position`),
 
     KEY `idx_engraving_batch` (`engraving_batch_id`),
     KEY `idx_production_batch` (`production_batch_id`),
