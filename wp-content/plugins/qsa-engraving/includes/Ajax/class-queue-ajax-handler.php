@@ -92,6 +92,7 @@ class Queue_Ajax_Handler {
 	 */
 	public function register(): void {
 		add_action( 'wp_ajax_qsa_get_queue', array( $this, 'handle_get_queue' ) );
+		add_action( 'wp_ajax_qsa_get_active_batches', array( $this, 'handle_get_active_batches' ) );
 		add_action( 'wp_ajax_qsa_start_row', array( $this, 'handle_start_row' ) );
 		add_action( 'wp_ajax_qsa_next_array', array( $this, 'handle_next_array' ) );
 		add_action( 'wp_ajax_qsa_complete_row', array( $this, 'handle_complete_row' ) );
@@ -201,6 +202,82 @@ class Queue_Ajax_Handler {
 				'capacity'    => $capacity,
 			)
 		);
+	}
+
+	/**
+	 * Handle get active batches request.
+	 *
+	 * Returns all batches with status 'in_progress' for batch selection.
+	 *
+	 * @return void
+	 */
+	public function handle_get_active_batches(): void {
+		$verify = $this->verify_request();
+		if ( is_wp_error( $verify ) ) {
+			$this->send_error( $verify->get_error_message(), $verify->get_error_code(), 403 );
+			return;
+		}
+
+		global $wpdb;
+
+		$batches_table = $this->batch_repository->get_batches_table_name();
+		$modules_table = $this->batch_repository->get_modules_table_name();
+
+		// Get all in_progress batches with additional info.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$batches = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT
+					b.id,
+					b.batch_name,
+					b.module_count,
+					b.qsa_count,
+					b.status,
+					b.created_at,
+					b.created_by,
+					(SELECT COUNT(*) FROM {$modules_table} m WHERE m.engraving_batch_id = b.id AND m.row_status = 'done') as completed_modules,
+					(SELECT COUNT(DISTINCT m.qsa_sequence) FROM {$modules_table} m WHERE m.engraving_batch_id = b.id AND m.row_status = 'done') as completed_rows
+				FROM {$batches_table} b
+				WHERE b.status = %s
+				ORDER BY b.created_at DESC",
+				'in_progress'
+			),
+			ARRAY_A
+		);
+
+		if ( empty( $batches ) ) {
+			$this->send_success( array( 'batches' => array() ) );
+			return;
+		}
+
+		// Enhance each batch with creator name and progress.
+		$enhanced_batches = array();
+		foreach ( $batches as $batch ) {
+			$created_by_name = '';
+			if ( ! empty( $batch['created_by'] ) ) {
+				$user = get_user_by( 'id', $batch['created_by'] );
+				if ( $user ) {
+					$created_by_name = $user->display_name;
+				}
+			}
+
+			$enhanced_batches[] = array(
+				'id'                => (int) $batch['id'],
+				'batch_name'        => $batch['batch_name'],
+				'module_count'      => (int) $batch['module_count'],
+				'qsa_count'         => (int) $batch['qsa_count'],
+				'status'            => $batch['status'],
+				'created_at'        => $batch['created_at'],
+				'created_by_name'   => $created_by_name,
+				'completed_modules' => (int) $batch['completed_modules'],
+				'completed_rows'    => (int) $batch['completed_rows'],
+				'progress_percent'  => $batch['module_count'] > 0
+					? round( ( (int) $batch['completed_modules'] / (int) $batch['module_count'] ) * 100 )
+					: 0,
+			);
+		}
+
+		$this->send_success( array( 'batches' => $enhanced_batches ) );
 	}
 
 	/**

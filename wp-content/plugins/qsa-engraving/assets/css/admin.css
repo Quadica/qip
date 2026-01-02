@@ -412,3 +412,183 @@
 .qsa-col-pos {
     text-align: center;
 }
+
+/* =========================================
+   Batch Selector (Engraving Queue)
+   ========================================= */
+
+.qsa-batch-selector {
+    background-color: #1e1e1e;
+    border-radius: 8px;
+    padding: 24px;
+    max-width: 800px;
+    margin: 20px auto;
+}
+
+.qsa-batch-selector-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.qsa-batch-selector-header .dashicons {
+    font-size: 24px;
+    width: 24px;
+    height: 24px;
+    color: #8b5cf6;
+}
+
+.qsa-batch-selector-header h2 {
+    margin: 0;
+    color: #f0f0f0;
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.qsa-batch-selector-desc {
+    color: #9ca3af;
+    margin: 0 0 20px 0;
+    font-size: 14px;
+}
+
+.qsa-batch-selector-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.qsa-batch-selector-item {
+    background-color: #2a2a2a;
+    border: 1px solid #3a3a3a;
+    border-radius: 6px;
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.qsa-batch-selector-item:hover,
+.qsa-batch-selector-item:focus {
+    background-color: #333333;
+    border-color: #8b5cf6;
+    outline: none;
+}
+
+.qsa-batch-selector-item-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.qsa-batch-id {
+    background-color: #8b5cf6;
+    color: #fff;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.qsa-batch-name {
+    color: #f0f0f0;
+    font-size: 15px;
+    font-weight: 500;
+}
+
+.qsa-batch-selector-item-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 12px;
+    font-size: 13px;
+    color: #9ca3af;
+}
+
+.qsa-batch-selector-item-meta > span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.qsa-batch-selector-item-meta .dashicons {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+}
+
+.qsa-batch-selector-item-progress {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.qsa-batch-selector-item-progress .qsa-progress-bar {
+    flex: 1;
+    height: 8px;
+    background-color: #1e1e1e;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.qsa-batch-selector-item-progress .qsa-progress-fill {
+    height: 100%;
+    background-color: #22c55e;
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+.qsa-batch-selector-item-progress .qsa-progress-text {
+    color: #9ca3af;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.qsa-batch-selector-actions {
+    display: flex;
+    justify-content: center;
+    padding-top: 16px;
+    border-top: 1px solid #3a3a3a;
+}
+
+.qsa-batch-selector-actions .button {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.qsa-batch-selector-actions .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+}
+
+/* Queue Error State */
+.qsa-queue-error {
+    background-color: #1e1e1e;
+    border-radius: 8px;
+    padding: 40px;
+    text-align: center;
+    max-width: 500px;
+    margin: 40px auto;
+}
+
+.qsa-queue-error .notice {
+    margin-bottom: 20px;
+}
+
+.qsa-queue-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+    padding: 40px;
+    color: #9ca3af;
+}
+
+.qsa-queue-loading .spinner {
+    float: none;
+    margin: 0 0 10px 0;
+}
