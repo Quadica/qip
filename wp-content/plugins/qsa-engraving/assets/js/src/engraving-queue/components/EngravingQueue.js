@@ -25,18 +25,40 @@ function getBatchIdFromUrl() {
 }
 
 /**
+ * Format date string for display.
+ *
+ * @param {string} dateString The date string to format.
+ * @return {string} Formatted date string.
+ */
+function formatDate( dateString ) {
+	if ( ! dateString ) {
+		return '';
+	}
+	const date = new Date( dateString );
+	return date.toLocaleDateString( undefined, {
+		year: 'numeric',
+		month: 'short',
+		day: 'numeric',
+		hour: '2-digit',
+		minute: '2-digit',
+	} );
+}
+
+/**
  * Engraving Queue component.
  *
  * @return {JSX.Element} The component.
  */
 export default function EngravingQueue() {
-	const [ batchId ] = useState( getBatchIdFromUrl );
+	const [ batchId, setBatchId ] = useState( getBatchIdFromUrl );
 	const [ batch, setBatch ] = useState( null );
 	const [ queueItems, setQueueItems ] = useState( [] );
 	const [ capacity, setCapacity ] = useState( null );
 	const [ loading, setLoading ] = useState( true );
 	const [ error, setError ] = useState( null );
 	const [ activeItemId, setActiveItemId ] = useState( null );
+	const [ activeBatches, setActiveBatches ] = useState( [] );
+	const [ showBatchSelector, setShowBatchSelector ] = useState( false );
 	const [ lightburnStatus, setLightburnStatus ] = useState( {
 		enabled: window.qsaEngraving?.lightburnEnabled ?? false,
 		autoLoad: window.qsaEngraving?.lightburnAutoLoad ?? true,
@@ -46,12 +68,45 @@ export default function EngravingQueue() {
 	} );
 
 	/**
+	 * Fetch active batches when no batch_id is specified.
+	 */
+	const fetchActiveBatches = useCallback( async () => {
+		try {
+			const formData = new FormData();
+			formData.append( 'action', 'qsa_get_active_batches' );
+			formData.append( 'nonce', window.qsaEngraving?.nonce || '' );
+
+			const response = await fetch( window.qsaEngraving?.ajaxUrl || '/wp-admin/admin-ajax.php', {
+				method: 'POST',
+				body: formData,
+			} );
+
+			const data = await response.json();
+
+			if ( data.success ) {
+				setActiveBatches( data.data.batches );
+				if ( data.data.batches.length === 0 ) {
+					setError( __( 'No active batches found. Create a new batch first.', 'qsa-engraving' ) );
+				} else {
+					setShowBatchSelector( true );
+				}
+			} else {
+				setError( data.message || __( 'Failed to load active batches.', 'qsa-engraving' ) );
+			}
+		} catch ( err ) {
+			setError( __( 'Network error loading active batches.', 'qsa-engraving' ) );
+		}
+
+		setLoading( false );
+	}, [] );
+
+	/**
 	 * Fetch queue data from the server.
 	 */
 	const fetchQueue = useCallback( async () => {
 		if ( ! batchId ) {
-			setError( __( 'No batch ID specified.', 'qsa-engraving' ) );
-			setLoading( false );
+			// No batch_id specified, fetch active batches for selection.
+			fetchActiveBatches();
 			return;
 		}
 
@@ -73,6 +128,7 @@ export default function EngravingQueue() {
 				setQueueItems( data.data.queue_items );
 				setCapacity( data.data.capacity );
 				setError( null );
+				setShowBatchSelector( false );
 			} else {
 				setError( data.message || __( 'Failed to load queue.', 'qsa-engraving' ) );
 			}
@@ -81,7 +137,24 @@ export default function EngravingQueue() {
 		}
 
 		setLoading( false );
-	}, [ batchId ] );
+	}, [ batchId, fetchActiveBatches ] );
+
+	/**
+	 * Handle batch selection from the selector.
+	 *
+	 * @param {number} selectedBatchId The selected batch ID.
+	 */
+	const handleSelectBatch = ( selectedBatchId ) => {
+		// Update URL with batch_id.
+		const url = new URL( window.location.href );
+		url.searchParams.set( 'batch_id', selectedBatchId );
+		window.history.pushState( {}, '', url.toString() );
+
+		// Update state and fetch queue.
+		setBatchId( selectedBatchId );
+		setShowBatchSelector( false );
+		setLoading( true );
+	};
 
 	// Initial load.
 	useEffect( () => {
@@ -437,10 +510,89 @@ export default function EngravingQueue() {
 					<p>{ error }</p>
 				</div>
 				<p>
-					<a href={ window.location.href.replace( /&batch_id=\d+/, '' ) } className="button">
-						{ __( 'Go to Batch Creator', 'qsa-engraving' ) }
+					<a href={ window.location.href.replace( /&batch_id=\d+/, '' ).replace( /\?page=/, '?page=qsa-engraving-batch-creator&_from=' ) } className="button button-primary">
+						{ __( 'Create New Batch', 'qsa-engraving' ) }
 					</a>
 				</p>
+			</div>
+		);
+	}
+
+	// Render batch selector when no batch_id is specified.
+	if ( showBatchSelector ) {
+		return (
+			<div className="qsa-batch-selector">
+				<div className="qsa-batch-selector-header">
+					<span className="dashicons dashicons-list-view"></span>
+					<h2>{ __( 'Select an Active Batch', 'qsa-engraving' ) }</h2>
+				</div>
+				<p className="qsa-batch-selector-desc">
+					{ __( 'Choose a batch to continue engraving, or create a new batch.', 'qsa-engraving' ) }
+				</p>
+
+				<div className="qsa-batch-selector-list">
+					{ activeBatches.map( ( activeBatch ) => (
+						<div
+							key={ activeBatch.id }
+							className="qsa-batch-selector-item"
+							onClick={ () => handleSelectBatch( activeBatch.id ) }
+							onKeyDown={ ( e ) => e.key === 'Enter' && handleSelectBatch( activeBatch.id ) }
+							role="button"
+							tabIndex={ 0 }
+						>
+							<div className="qsa-batch-selector-item-header">
+								<span className="qsa-batch-id">
+									{ __( 'Batch', 'qsa-engraving' ) } #{ activeBatch.id }
+								</span>
+								{ activeBatch.batch_name && (
+									<span className="qsa-batch-name">{ activeBatch.batch_name }</span>
+								) }
+							</div>
+							<div className="qsa-batch-selector-item-meta">
+								<span className="qsa-batch-modules">
+									<span className="dashicons dashicons-screenoptions"></span>
+									{ activeBatch.module_count } { __( 'modules', 'qsa-engraving' ) }
+								</span>
+								<span className="qsa-batch-rows">
+									<span className="dashicons dashicons-editor-ol"></span>
+									{ activeBatch.qsa_count } { __( 'rows', 'qsa-engraving' ) }
+								</span>
+								<span className="qsa-batch-date">
+									<span className="dashicons dashicons-calendar-alt"></span>
+									{ formatDate( activeBatch.created_at ) }
+								</span>
+								{ activeBatch.created_by_name && (
+									<span className="qsa-batch-creator">
+										<span className="dashicons dashicons-admin-users"></span>
+										{ activeBatch.created_by_name }
+									</span>
+								) }
+							</div>
+							<div className="qsa-batch-selector-item-progress">
+								<div className="qsa-progress-bar">
+									<div
+										className="qsa-progress-fill"
+										style={ { width: `${ activeBatch.progress_percent }%` } }
+									></div>
+								</div>
+								<span className="qsa-progress-text">
+									{ activeBatch.completed_modules } / { activeBatch.module_count }
+									{ ' ' }({ activeBatch.progress_percent }%)
+								</span>
+							</div>
+						</div>
+					) ) }
+				</div>
+
+				<div className="qsa-batch-selector-actions">
+					<a
+						href={ window.location.href.replace( 'qsa-engraving-queue', 'qsa-engraving-batch-creator' ) }
+						className="button button-primary"
+					>
+						<span className="dashicons dashicons-plus-alt2"></span>
+						{ __( 'Create New Batch', 'qsa-engraving' ) }
+					</a>
+				</div>
 			</div>
 		);
 	}
