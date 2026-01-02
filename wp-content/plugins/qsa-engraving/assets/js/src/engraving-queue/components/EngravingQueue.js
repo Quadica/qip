@@ -508,22 +508,24 @@ export default function EngravingQueue() {
 	// Render error state.
 	if ( error ) {
 		return (
-			<div className="qsa-queue-error">
-				<div className="notice notice-error">
-					<p>{ error }</p>
-				</div>
-				<div className="qsa-batch-selector-actions">
-					<a href={ dashboardUrl } className="button">
-						<span className="dashicons dashicons-arrow-left-alt2"></span>
-						{ __( 'Back to Dashboard', 'qsa-engraving' ) }
-					</a>
-					<a
-						href={ window.location.href.replace( /&batch_id=\d+/, '' ).replace( /\?page=/, '?page=qsa-engraving-batch-creator&_from=' ) }
-						className="button button-primary"
-					>
-						<span className="dashicons dashicons-plus-alt2"></span>
-						{ __( 'Create New Batch', 'qsa-engraving' ) }
-					</a>
+			<div className="qsa-engraving-queue">
+				<div className="qsa-queue-error">
+					<div className="notice notice-error">
+						<p>{ error }</p>
+					</div>
+					<div className="qsa-batch-selector-actions">
+						<a href={ dashboardUrl } className="button">
+							<span className="dashicons dashicons-arrow-left-alt2"></span>
+							{ __( 'Back to Dashboard', 'qsa-engraving' ) }
+						</a>
+						<a
+							href={ window.location.href.replace( /&batch_id=\d+/, '' ).replace( /\?page=/, '?page=qsa-engraving-batch-creator&_from=' ) }
+							className="button button-primary"
+						>
+							<span className="dashicons dashicons-plus-alt2"></span>
+							{ __( 'Create New Batch', 'qsa-engraving' ) }
+						</a>
+					</div>
 				</div>
 			</div>
 		);
@@ -532,7 +534,8 @@ export default function EngravingQueue() {
 	// Render batch selector when no batch_id is specified.
 	if ( showBatchSelector ) {
 		return (
-			<div className="qsa-batch-selector">
+			<div className="qsa-engraving-queue">
+				<div className="qsa-batch-selector">
 				<div className="qsa-batch-selector-header">
 					<span className="dashicons dashicons-list-view"></span>
 					<h2>{ __( 'Select an Active Batch', 'qsa-engraving' ) }</h2>
@@ -610,6 +613,7 @@ export default function EngravingQueue() {
 						<span className="dashicons dashicons-plus-alt2"></span>
 						{ __( 'Create New Batch', 'qsa-engraving' ) }
 					</a>
+				</div>
 				</div>
 			</div>
 		);
