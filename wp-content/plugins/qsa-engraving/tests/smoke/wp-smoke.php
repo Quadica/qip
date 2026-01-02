@@ -2704,7 +2704,7 @@ run_test(
                 'production_batch_id' => $test_production_batch_id,
                 'module_sku'          => $test_module_sku,
                 'order_id'            => $test_order_id,
-                'serial_number'       => null, // Not yet assigned.
+                'serial_number'       => 'TEST' . str_pad( (string) $position, 4, '0', STR_PAD_LEFT ), // e.g., TEST0001.
                 'qsa_sequence'        => 1,    // All on same QSA.
                 'array_position'      => $position,
             );
