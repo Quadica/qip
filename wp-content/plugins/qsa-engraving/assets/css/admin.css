@@ -1219,3 +1219,1010 @@
     font-size: 11px;
     color: var(--qsa-text-muted);
 }
+
+/* =========================================
+   Engraving Queue - WordPress Admin Theme
+   Matching the Batch Creator design
+   ========================================= */
+
+/* Color Variables (same as batch-creator) */
+.qsa-engraving-queue {
+    --qsa-bg-primary: #f0f0f1;
+    --qsa-bg-card: #ffffff;
+    --qsa-bg-elevated: #f6f7f7;
+    --qsa-bg-hover: #f0f6fc;
+    --qsa-wp-blue: #2271b1;
+    --qsa-wp-blue-hover: #135e96;
+    --qsa-wp-blue-light: #f0f6fc;
+    --qsa-text-primary: #1d2327;
+    --qsa-text-secondary: #50575e;
+    --qsa-text-muted: #787c82;
+    --qsa-success: #00a32a;
+    --qsa-success-light: #edfaef;
+    --qsa-warning: #dba617;
+    --qsa-warning-light: #fcf9e8;
+    --qsa-error: #d63638;
+    --qsa-error-light: #fcf0f1;
+    --qsa-border: #c3c4c7;
+    --qsa-border-light: #dcdcde;
+}
+
+/* Main Container */
+.qsa-engraving-queue {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
+}
+
+/* Queue Header */
+.qsa-queue-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    background: var(--qsa-bg-card);
+    border: 1px solid var(--qsa-border-light);
+    border-bottom: none;
+    border-radius: 4px 4px 0 0;
+}
+
+.qsa-queue-header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.qsa-back-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 4px;
+    color: var(--qsa-text-muted);
+    text-decoration: none;
+    transition: all 0.15s ease;
+}
+
+.qsa-back-button:hover {
+    background: var(--qsa-bg-elevated);
+    color: var(--qsa-wp-blue);
+}
+
+.qsa-back-button .dashicons {
+    font-size: 24px;
+    width: 24px;
+    height: 24px;
+}
+
+.qsa-queue-header-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--qsa-wp-blue);
+    border-radius: 4px;
+}
+
+.qsa-queue-header-icon .dashicons {
+    color: #fff;
+    font-size: 24px;
+    width: 24px;
+    height: 24px;
+}
+
+.qsa-queue-header-text h1 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--qsa-text-primary);
+}
+
+.qsa-queue-header-text p {
+    margin: 2px 0 0 0;
+    font-size: 13px;
+    color: var(--qsa-text-muted);
+}
+
+.qsa-queue-header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.qsa-batch-id {
+    display: inline-block;
+    padding: 4px 10px;
+    background: var(--qsa-wp-blue-light);
+    color: var(--qsa-wp-blue);
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 4px;
+}
+
+.qsa-batch-status {
+    display: inline-block;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 500;
+    border-radius: 4px;
+}
+
+.qsa-batch-status.status-in_progress {
+    background: var(--qsa-warning-light);
+    color: var(--qsa-warning);
+}
+
+.qsa-batch-status.status-completed {
+    background: var(--qsa-success-light);
+    color: var(--qsa-success);
+}
+
+/* Queue Stats Bar */
+.qsa-queue-stats {
+    background: var(--qsa-bg-card);
+    border-left: 1px solid var(--qsa-border-light);
+    border-right: 1px solid var(--qsa-border-light);
+}
+
+.qsa-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+}
+
+.qsa-stat-item {
+    padding: 16px;
+    text-align: center;
+    border-right: 1px solid var(--qsa-border-light);
+}
+
+.qsa-stat-item:last-child {
+    border-right: none;
+}
+
+.qsa-stat-label {
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--qsa-text-muted);
+    margin-bottom: 4px;
+}
+
+.qsa-stat-value {
+    display: block;
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--qsa-text-primary);
+}
+
+.qsa-stat-item:nth-child(2) .qsa-stat-value .qsa-stat-completed {
+    color: var(--qsa-success);
+}
+
+.qsa-stat-item:nth-child(3) .qsa-stat-value .qsa-stat-completed {
+    color: var(--qsa-success);
+}
+
+.qsa-stat-item:last-child .qsa-stat-value,
+.qsa-stat-progress {
+    color: var(--qsa-wp-blue);
+}
+
+.qsa-stat-separator {
+    color: var(--qsa-text-muted);
+    margin: 0 2px;
+}
+
+.qsa-stat-total {
+    color: var(--qsa-text-muted);
+}
+
+/* Progress Bar Container */
+.qsa-progress-bar-container {
+    padding: 0 16px 16px 16px;
+    background: var(--qsa-bg-card);
+    border-left: 1px solid var(--qsa-border-light);
+    border-right: 1px solid var(--qsa-border-light);
+}
+
+.qsa-progress-bar {
+    height: 8px;
+    background: var(--qsa-success);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+.qsa-progress-bar-bg {
+    height: 8px;
+    background: var(--qsa-bg-elevated);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+/* Capacity Warning */
+.qsa-capacity-warning {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    margin: 0 16px 16px 16px;
+    background: var(--qsa-warning-light);
+    border-radius: 4px;
+    font-size: 13px;
+    color: var(--qsa-warning);
+}
+
+.qsa-capacity-warning.critical {
+    background: var(--qsa-error-light);
+    color: var(--qsa-error);
+}
+
+.qsa-capacity-warning .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+}
+
+/* LightBurn Status */
+.qsa-lightburn-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: var(--qsa-bg-card);
+    border-left: 1px solid var(--qsa-border-light);
+    border-right: 1px solid var(--qsa-border-light);
+    font-size: 13px;
+    color: var(--qsa-text-secondary);
+}
+
+.qsa-lightburn-status .dashicons {
+    color: var(--qsa-text-muted);
+}
+
+.qsa-lightburn-label {
+    font-weight: 500;
+}
+
+.qsa-lightburn-state.loading {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--qsa-warning);
+}
+
+.qsa-lightburn-state.loading .spinner {
+    float: none;
+    margin: 0;
+}
+
+.qsa-lightburn-state.ready {
+    color: var(--qsa-success);
+}
+
+.qsa-lightburn-file code {
+    padding: 2px 6px;
+    background: var(--qsa-bg-elevated);
+    border-radius: 3px;
+    font-size: 12px;
+    color: var(--qsa-text-secondary);
+}
+
+/* Queue List */
+.qsa-queue-list {
+    background: var(--qsa-bg-card);
+    border: 1px solid var(--qsa-border-light);
+    border-top: none;
+    border-radius: 0 0 4px 4px;
+}
+
+.qsa-queue-list-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    background: var(--qsa-bg-elevated);
+    border-bottom: 1px solid var(--qsa-border-light);
+}
+
+.qsa-queue-list-header .dashicons {
+    color: var(--qsa-wp-blue);
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+}
+
+.qsa-queue-list-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--qsa-text-secondary);
+}
+
+/* Queue Items */
+.qsa-queue-items {
+    background: var(--qsa-bg-card);
+}
+
+.qsa-queue-item {
+    padding: 16px;
+    border-bottom: 1px solid var(--qsa-border-light);
+    transition: background 0.15s ease;
+}
+
+.qsa-queue-item:last-child,
+.qsa-queue-item.is-last {
+    border-bottom: none;
+}
+
+.qsa-queue-item.is-active {
+    background: var(--qsa-warning-light);
+}
+
+/* Queue Item Header */
+.qsa-queue-item-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.qsa-queue-item-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.qsa-status-icon {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+}
+
+.qsa-status-icon.status-pending {
+    background: var(--qsa-bg-elevated);
+    color: var(--qsa-text-muted);
+}
+
+.qsa-status-icon.status-in-progress {
+    background: var(--qsa-warning-light);
+    color: var(--qsa-warning);
+}
+
+.qsa-status-icon.status-complete {
+    background: var(--qsa-success-light);
+    color: var(--qsa-success);
+}
+
+.qsa-status-icon .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+}
+
+.qsa-status-icon .dashicons.spin {
+    animation: qsa-spin 1s linear infinite;
+}
+
+@keyframes qsa-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.qsa-module-type {
+    display: inline-block;
+    padding: 4px 12px;
+    background: var(--qsa-wp-blue-light);
+    color: var(--qsa-wp-blue);
+    font-family: 'SF Mono', 'Consolas', 'Monaco', monospace;
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: 4px;
+    border: 1px solid rgba(34, 113, 177, 0.2);
+}
+
+.qsa-group-type {
+    display: inline-block;
+    padding: 4px 8px;
+    font-size: 12px;
+    border-radius: 4px;
+}
+
+.qsa-group-type.group-same-full {
+    background: rgba(34, 113, 177, 0.1);
+    color: var(--qsa-wp-blue);
+}
+
+.qsa-group-type.group-same-partial {
+    background: rgba(10, 159, 216, 0.1);
+    color: #0a9fd8;
+}
+
+.qsa-group-type.group-mixed-full {
+    background: var(--qsa-warning-light);
+    color: var(--qsa-warning);
+}
+
+.qsa-group-type.group-mixed-partial {
+    background: rgba(114, 174, 230, 0.1);
+    color: #72aee6;
+}
+
+.qsa-status-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    font-size: 12px;
+    font-weight: 500;
+    border-radius: 4px;
+}
+
+.qsa-status-badge.status-pending {
+    background: var(--qsa-bg-elevated);
+    color: var(--qsa-text-muted);
+}
+
+.qsa-status-badge.status-in-progress {
+    background: var(--qsa-warning-light);
+    color: var(--qsa-warning);
+}
+
+.qsa-status-badge.status-complete {
+    background: var(--qsa-success-light);
+    color: var(--qsa-success);
+}
+
+/* Queue Item Actions */
+.qsa-queue-item-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.qsa-btn-start {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background: var(--qsa-wp-blue);
+    border: 1px solid var(--qsa-wp-blue);
+    border-radius: 4px;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.qsa-btn-start:hover {
+    background: var(--qsa-wp-blue-hover);
+    border-color: var(--qsa-wp-blue-hover);
+}
+
+.qsa-btn-start .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+}
+
+.qsa-action-buttons {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.qsa-btn-resend,
+.qsa-btn-retry,
+.qsa-btn-rerun {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 12px;
+    background: var(--qsa-bg-card);
+    border: 1px solid var(--qsa-border);
+    border-radius: 4px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.qsa-btn-resend {
+    color: var(--qsa-wp-blue);
+    border-color: var(--qsa-wp-blue);
+}
+
+.qsa-btn-resend:hover {
+    background: var(--qsa-wp-blue-light);
+}
+
+.qsa-btn-retry {
+    color: var(--qsa-warning);
+    border-color: var(--qsa-warning);
+}
+
+.qsa-btn-retry:hover {
+    background: var(--qsa-warning-light);
+}
+
+.qsa-btn-rerun {
+    color: var(--qsa-text-secondary);
+}
+
+.qsa-btn-rerun:hover {
+    background: var(--qsa-bg-hover);
+}
+
+.qsa-btn-resend .dashicons,
+.qsa-btn-retry .dashicons,
+.qsa-btn-rerun .dashicons {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+}
+
+.qsa-btn-complete {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 16px;
+    background: var(--qsa-success);
+    border: 1px solid var(--qsa-success);
+    border-radius: 4px;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.qsa-btn-complete:hover {
+    background: #008a20;
+    border-color: #008a20;
+}
+
+.qsa-btn-complete .dashicons {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+}
+
+.qsa-done-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: var(--qsa-success-light);
+    color: var(--qsa-success);
+    font-size: 13px;
+    font-weight: 500;
+    border-radius: 4px;
+}
+
+.qsa-done-badge .dashicons {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+}
+
+/* Queue Item Details */
+.qsa-queue-item-details {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-left: 44px;
+    font-size: 13px;
+}
+
+.qsa-detail-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.qsa-detail-group .dashicons {
+    color: var(--qsa-text-muted);
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+}
+
+.qsa-detail-label {
+    color: var(--qsa-text-muted);
+}
+
+.qsa-modules-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.qsa-module-sku {
+    display: inline-block;
+    padding: 2px 8px;
+    background: var(--qsa-bg-elevated);
+    color: var(--qsa-text-secondary);
+    font-family: 'SF Mono', 'Consolas', 'Monaco', monospace;
+    font-size: 12px;
+    border-radius: 4px;
+}
+
+/* Queue Item Stats */
+.qsa-queue-item-stats {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    margin-left: 44px;
+    margin-top: 10px;
+    font-size: 13px;
+}
+
+.qsa-stat-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.qsa-stat-label {
+    color: var(--qsa-text-muted);
+}
+
+.qsa-stat-value {
+    font-weight: 500;
+    color: var(--qsa-text-primary);
+}
+
+.qsa-start-position-input {
+    width: 48px;
+    padding: 4px 8px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 500;
+    border: 1px solid var(--qsa-border);
+    border-radius: 4px;
+    background: var(--qsa-bg-card);
+    color: var(--qsa-text-primary);
+}
+
+.qsa-start-position-input:focus {
+    border-color: var(--qsa-wp-blue);
+    box-shadow: 0 0 0 1px var(--qsa-wp-blue);
+    outline: none;
+}
+
+.qsa-start-position-input:disabled {
+    background: var(--qsa-bg-elevated);
+    color: var(--qsa-text-muted);
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.qsa-serial-range {
+    font-family: 'SF Mono', 'Consolas', 'Monaco', monospace;
+    font-size: 12px;
+    padding: 2px 8px;
+    background: var(--qsa-wp-blue-light);
+    color: var(--qsa-wp-blue);
+    border-radius: 4px;
+}
+
+/* In Progress Details */
+.qsa-in-progress-details {
+    margin-left: 44px;
+    margin-top: 12px;
+    padding: 12px 16px;
+    background: var(--qsa-warning-light);
+    border: 1px solid rgba(219, 166, 23, 0.2);
+    border-radius: 4px;
+}
+
+.qsa-progress-indicator {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.qsa-progress-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: var(--qsa-warning);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 20px;
+}
+
+.qsa-progress-badge .dashicons {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+}
+
+.qsa-progress-info {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+}
+
+.qsa-info-label {
+    color: var(--qsa-text-muted);
+}
+
+.qsa-info-value {
+    font-weight: 500;
+    color: var(--qsa-text-primary);
+    padding: 2px 8px;
+    background: var(--qsa-bg-card);
+    border-radius: 4px;
+}
+
+.qsa-serial-range-active {
+    font-family: 'SF Mono', 'Consolas', 'Monaco', monospace;
+    font-size: 12px;
+    padding: 2px 8px;
+    background: var(--qsa-bg-card);
+    color: var(--qsa-wp-blue);
+    border-radius: 4px;
+}
+
+.qsa-keyboard-hint {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(219, 166, 23, 0.15);
+    font-size: 12px;
+    color: var(--qsa-text-muted);
+}
+
+.keyboard-key {
+    display: inline-block;
+    padding: 3px 8px;
+    background: var(--qsa-bg-card);
+    border: 1px solid var(--qsa-border);
+    border-radius: 4px;
+    font-family: 'SF Mono', 'Consolas', 'Monaco', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--qsa-text-secondary);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+/* Queue Footer */
+.qsa-queue-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    margin-top: 16px;
+    font-size: 12px;
+    color: var(--qsa-text-muted);
+}
+
+.qsa-queue-legend {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.qsa-legend-title {
+    font-weight: 500;
+}
+
+.qsa-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.qsa-legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}
+
+.qsa-legend-item.same-full .qsa-legend-dot {
+    background: var(--qsa-wp-blue);
+}
+
+.qsa-legend-item.same-partial .qsa-legend-dot {
+    background: #0a9fd8;
+}
+
+.qsa-legend-item.mixed-full .qsa-legend-dot {
+    background: var(--qsa-warning);
+}
+
+.qsa-legend-item.mixed-partial .qsa-legend-dot {
+    background: #72aee6;
+}
+
+.qsa-queue-keyboard-hint {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Batch Selector - Updated to match WordPress Admin theme */
+.qsa-batch-selector {
+    background: var(--qsa-bg-card, #ffffff);
+    border: 1px solid var(--qsa-border-light, #dcdcde);
+    border-radius: 4px;
+    padding: 24px;
+    max-width: 800px;
+    margin: 20px 0;
+}
+
+.qsa-batch-selector-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.qsa-batch-selector-header .dashicons {
+    font-size: 24px;
+    width: 24px;
+    height: 24px;
+    color: var(--qsa-wp-blue, #2271b1);
+}
+
+.qsa-batch-selector-header h2 {
+    margin: 0;
+    color: var(--qsa-text-primary, #1d2327);
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.qsa-batch-selector-desc {
+    color: var(--qsa-text-muted, #787c82);
+    margin: 0 0 20px 0;
+    font-size: 14px;
+}
+
+.qsa-batch-selector-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.qsa-batch-selector-item {
+    background: var(--qsa-bg-elevated, #f6f7f7);
+    border: 1px solid var(--qsa-border-light, #dcdcde);
+    border-radius: 4px;
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.qsa-batch-selector-item:hover,
+.qsa-batch-selector-item:focus {
+    background: var(--qsa-bg-hover, #f0f6fc);
+    border-color: var(--qsa-wp-blue, #2271b1);
+    outline: none;
+}
+
+.qsa-batch-selector-item-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.qsa-batch-selector-item .qsa-batch-id {
+    background: var(--qsa-wp-blue, #2271b1);
+    color: #fff;
+}
+
+.qsa-batch-selector-item .qsa-batch-name {
+    color: var(--qsa-text-primary, #1d2327);
+    font-size: 15px;
+    font-weight: 500;
+}
+
+.qsa-batch-selector-item-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 12px;
+    font-size: 13px;
+    color: var(--qsa-text-muted, #787c82);
+}
+
+.qsa-batch-selector-item-meta > span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.qsa-batch-selector-item-meta .dashicons {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+}
+
+.qsa-batch-selector-item-progress {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.qsa-batch-selector-item-progress .qsa-progress-bar {
+    flex: 1;
+    height: 8px;
+    background: var(--qsa-bg-elevated, #f6f7f7);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.qsa-batch-selector-item-progress .qsa-progress-fill {
+    height: 100%;
+    background: var(--qsa-success, #00a32a);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+.qsa-batch-selector-item-progress .qsa-progress-text {
+    color: var(--qsa-text-muted, #787c82);
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.qsa-batch-selector-actions {
+    display: flex;
+    justify-content: flex-start;
+    gap: 12px;
+    padding-top: 16px;
+    border-top: 1px solid var(--qsa-border-light, #dcdcde);
+}
+
+.qsa-batch-selector-actions .button {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.qsa-batch-selector-actions .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+}
+
+/* Queue Error/Loading States */
+.qsa-queue-error {
+    background: var(--qsa-bg-card, #ffffff);
+    border: 1px solid var(--qsa-border-light, #dcdcde);
+    border-radius: 4px;
+    padding: 40px;
+    text-align: center;
+    max-width: 500px;
+    margin: 20px 0;
+}
+
+.qsa-queue-error .notice {
+    margin-bottom: 20px;
+}
+
+.qsa-queue-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+    padding: 40px;
+    background: var(--qsa-bg-card, #ffffff);
+    border: 1px solid var(--qsa-border-light, #dcdcde);
+    border-radius: 4px;
+    color: var(--qsa-text-muted, #787c82);
+}
+
+.qsa-queue-loading .spinner {
+    float: none;
+    margin: 0 0 10px 0;
+}

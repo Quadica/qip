@@ -1,7 +1,8 @@
 /**
  * Stats Bar Component
  *
- * Displays queue progress statistics.
+ * Displays queue progress statistics in a grid layout.
+ * Styled to match the Batch Creator WordPress Admin theme.
  *
  * @package QSA_Engraving
  * @since 1.0.0
@@ -26,12 +27,12 @@ export default function StatsBar( { stats, capacity } ) {
 		<div className="qsa-queue-stats">
 			<div className="qsa-stats-grid">
 				<div className="qsa-stat-item">
-					<div className="qsa-stat-label">{ __( 'Queue Items', 'qsa-engraving' ) }</div>
+					<div className="qsa-stat-label">{ __( 'Queue Rows', 'qsa-engraving' ) }</div>
 					<div className="qsa-stat-value">{ stats.totalItems }</div>
 				</div>
 
 				<div className="qsa-stat-item">
-					<div className="qsa-stat-label">{ __( 'Completed', 'qsa-engraving' ) }</div>
+					<div className="qsa-stat-label">{ __( 'Rows Done', 'qsa-engraving' ) }</div>
 					<div className="qsa-stat-value">
 						<span className="qsa-stat-completed">{ stats.completedItems }</span>
 						<span className="qsa-stat-separator">/</span>
@@ -55,10 +56,12 @@ export default function StatsBar( { stats, capacity } ) {
 			</div>
 
 			<div className="qsa-progress-bar-container">
-				<div
-					className="qsa-progress-bar"
-					style={ { width: `${ progressPercent }%` } }
-				></div>
+				<div className="qsa-progress-bar-bg">
+					<div
+						className="qsa-progress-bar"
+						style={ { width: `${ progressPercent }%` } }
+					></div>
+				</div>
 			</div>
 
 			{ capacity && capacity.warning && (
