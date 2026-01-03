@@ -150,16 +150,6 @@ export default function BatchDetails( { batch, loading, error, onLoadForReengrav
 							{ batch.order_ids.join( ', ' ) }
 						</span>
 					</div>
-					{ batch.created_by_name && (
-						<div className="qsa-info-row">
-							<span className="qsa-info-label">
-								{ __( 'Created by:', 'qsa-engraving' ) }
-							</span>
-							<span className="qsa-info-value">
-								{ batch.created_by_name }
-							</span>
-						</div>
-					) }
 				</div>
 			</div>
 

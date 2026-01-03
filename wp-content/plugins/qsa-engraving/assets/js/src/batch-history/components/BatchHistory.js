@@ -178,15 +178,15 @@ export default function BatchHistory() {
 	};
 
 	/**
-	 * Navigate back to Batch Creator.
+	 * Navigate back to Dashboard.
 	 */
-	const handleBackToBatchCreator = () => {
-		const batchCreatorUrl = new URL( window.location.href );
-		batchCreatorUrl.searchParams.set( 'page', 'qsa-engraving-batch-creator' );
-		batchCreatorUrl.searchParams.delete( 'source' );
-		batchCreatorUrl.searchParams.delete( 'source_batch_id' );
+	const handleBackToDashboard = () => {
+		const dashboardUrl = new URL( window.location.href );
+		dashboardUrl.searchParams.set( 'page', 'qsa-engraving' );
+		dashboardUrl.searchParams.delete( 'source' );
+		dashboardUrl.searchParams.delete( 'source_batch_id' );
 
-		window.location.href = batchCreatorUrl.toString();
+		window.location.href = dashboardUrl.toString();
 	};
 
 	// Render loading state.
@@ -218,9 +218,9 @@ export default function BatchHistory() {
 			{ /* Header with Back Button */ }
 			<div className="qsa-history-header">
 				<button
-					onClick={ handleBackToBatchCreator }
+					onClick={ handleBackToDashboard }
 					className="qsa-back-button"
-					title={ __( 'Back to Batch Creator', 'qsa-engraving' ) }
+					title={ __( 'Back to Dashboard', 'qsa-engraving' ) }
 				>
 					<span className="dashicons dashicons-arrow-left-alt"></span>
 				</button>
