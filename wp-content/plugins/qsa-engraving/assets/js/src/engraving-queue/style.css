@@ -492,6 +492,18 @@
 	gap: 8px;
 }
 
+/* Base button reset - applied to all custom buttons */
+.qsa-action-buttons button,
+.qsa-btn-start,
+.qsa-btn-resume {
+	box-sizing: border-box;
+	font-family: inherit;
+	font-weight: 500;
+	text-decoration: none;
+	white-space: nowrap;
+	outline: none;
+}
+
 .qsa-btn-start {
 	display: flex;
 	align-items: center;
