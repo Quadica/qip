@@ -553,62 +553,6 @@ export default function EngravingQueue() {
 	};
 
 	/**
-	 * Handle retry for current array.
-	 *
-	 * Voids current serials, assigns new ones, regenerates SVG, and loads in LightBurn.
-	 *
-	 * @param {number} itemId The queue item ID (first QSA sequence in group).
-	 */
-	const handleRetry = async ( itemId ) => {
-		if ( ! confirm( __( 'This will void current serials and assign new ones. Continue?', 'qsa-engraving' ) ) ) {
-			return;
-		}
-
-		const item = queueItems.find( ( i ) => i.id === itemId );
-		if ( ! item ) {
-			return;
-		}
-
-		// Get the current array's QSA sequence.
-		const current = getCurrentArray( itemId );
-		const qsaSequence = getQsaSequenceForArray( item, current );
-
-		try {
-			const data = await queueAction( 'qsa_retry_array', { qsa_sequence: qsaSequence } );
-
-			if ( data.success ) {
-				// Update serials for this item.
-				setQueueItems( ( prev ) =>
-					prev.map( ( item ) =>
-						item.id === qsaSequence ? { ...item, serials: data.data.serials } : item
-					)
-				);
-
-				// Regenerate SVG with new serials and load in LightBurn if enabled.
-				if ( lightburnStatus.enabled ) {
-					const svgResult = await generateSvg( qsaSequence, lightburnStatus.autoLoad );
-					if ( ! svgResult.success ) {
-						// SVG regeneration failed - alert operator with error details.
-						alert(
-							__( 'Serials assigned but SVG generation failed:', 'qsa-engraving' ) +
-								'\n\n' +
-								svgResult.error +
-								'\n\n' +
-								__( 'Please resolve the issue and use Resend to regenerate the SVG.', 'qsa-engraving' )
-						);
-					} else if ( svgResult.data && ! svgResult.data.lightburn_loaded && lightburnStatus.autoLoad ) {
-						console.warn( 'SVG regenerated but LightBurn load failed:', svgResult.data.lightburn_error );
-					}
-				}
-			} else {
-				alert( data.message || __( 'Failed to retry.', 'qsa-engraving' ) );
-			}
-		} catch ( err ) {
-			alert( __( 'Network error during retry.', 'qsa-engraving' ) );
-		}
-	};
-
-	/**
 	 * Handle resend SVG to LightBurn.
 	 *
 	 * @param {number} itemId The queue item ID (first QSA sequence in group).
@@ -926,7 +870,6 @@ export default function EngravingQueue() {
 							onStart={ handleStart }
 							onComplete={ handleComplete }
 							onNextArray={ handleNextArray }
-							onRetry={ handleRetry }
 							onResend={ handleResend }
 							onRerun={ handleRerun }
 							onStartPositionChange={ handleStartPositionChange }

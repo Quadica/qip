@@ -131,7 +131,6 @@ function formatSerial( serial ) {
  * @param {Function} props.onStart               Handler for start action.
  * @param {Function} props.onComplete            Handler for complete action.
  * @param {Function} props.onNextArray           Handler for next array action.
- * @param {Function} props.onRetry               Handler for retry action.
  * @param {Function} props.onResend              Handler for resend action.
  * @param {Function} props.onRerun               Handler for rerun action.
  * @param {Function} props.onStartPositionChange Handler for start position change.
@@ -146,7 +145,6 @@ export default function QueueItem( {
 	onStart,
 	onComplete,
 	onNextArray,
-	onRetry,
 	onResend,
 	onRerun,
 	onStartPositionChange,
@@ -263,16 +261,6 @@ export default function QueueItem( {
 							>
 								<span className={ `dashicons dashicons-update ${ isResending ? 'spin' : '' }` }></span>
 								{ isResending ? __( 'Sending...', 'qsa-engraving' ) : __( 'Resend', 'qsa-engraving' ) }
-							</button>
-
-							<button
-								type="button"
-								className="qsa-btn-retry"
-								onClick={ () => onRetry( item.id, currentArray ) }
-								title={ __( 'Scrap current QSA and retry with new serials', 'qsa-engraving' ) }
-							>
-								<span className="dashicons dashicons-image-rotate"></span>
-								{ __( 'Retry', 'qsa-engraving' ) }
 							</button>
 
 							{ isLastArray ? (

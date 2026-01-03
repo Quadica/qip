@@ -96,7 +96,6 @@ class Queue_Ajax_Handler {
 		add_action( 'wp_ajax_qsa_start_row', array( $this, 'handle_start_row' ) );
 		add_action( 'wp_ajax_qsa_next_array', array( $this, 'handle_next_array' ) );
 		add_action( 'wp_ajax_qsa_complete_row', array( $this, 'handle_complete_row' ) );
-		add_action( 'wp_ajax_qsa_retry_array', array( $this, 'handle_retry_array' ) );
 		add_action( 'wp_ajax_qsa_resend_svg', array( $this, 'handle_resend_svg' ) );
 		add_action( 'wp_ajax_qsa_back_array', array( $this, 'handle_back_array' ) );
 		add_action( 'wp_ajax_qsa_rerun_row', array( $this, 'handle_rerun_row' ) );
@@ -1021,77 +1020,6 @@ class Queue_Ajax_Handler {
 			$batch_complete
 				? __( 'Row completed. Batch is now complete!', 'qsa-engraving' )
 				: __( 'Row completed.', 'qsa-engraving' )
-		);
-	}
-
-	/**
-	 * Handle retry array request - voids current serials and reserves new ones.
-	 *
-	 * @return void
-	 */
-	public function handle_retry_array(): void {
-		$verify = $this->verify_request();
-		if ( is_wp_error( $verify ) ) {
-			$this->send_error( $verify->get_error_message(), $verify->get_error_code(), 403 );
-			return;
-		}
-
-		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce already verified.
-		$batch_id     = isset( $_POST['batch_id'] ) ? absint( $_POST['batch_id'] ) : 0;
-		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce already verified.
-		$qsa_sequence = isset( $_POST['qsa_sequence'] ) ? absint( $_POST['qsa_sequence'] ) : 0;
-
-		if ( $batch_id <= 0 || $qsa_sequence <= 0 ) {
-			$this->send_error( __( 'Invalid batch or QSA sequence.', 'qsa-engraving' ), 'invalid_params' );
-			return;
-		}
-
-		// Void the current reserved serials.
-		$voided = $this->serial_repository->void_serials( $batch_id, $qsa_sequence );
-
-		if ( is_wp_error( $voided ) ) {
-			$this->send_error( $voided->get_error_message(), $voided->get_error_code() );
-			return;
-		}
-
-		// Get modules for this QSA to reserve new serials.
-		$all_modules = $this->batch_repository->get_modules_for_batch( $batch_id );
-		$qsa_modules = array_filter(
-			$all_modules,
-			fn( $m ) => (int) $m['qsa_sequence'] === $qsa_sequence
-		);
-		$qsa_modules = array_values( $qsa_modules );
-
-		// Reserve new serials.
-		$modules_for_serial = array_map(
-			fn( $m ) => array(
-				'module_sku'          => $m['module_sku'],
-				'production_batch_id' => $m['production_batch_id'],
-				'order_id'            => $m['order_id'] ?? null,
-				'qsa_sequence'        => $m['qsa_sequence'],
-				'array_position'      => $m['array_position'],
-			),
-			$qsa_modules
-		);
-
-		$reserved = $this->serial_repository->reserve_serials( $batch_id, $modules_for_serial );
-
-		if ( is_wp_error( $reserved ) ) {
-			$this->send_error( $reserved->get_error_message(), $reserved->get_error_code() );
-			return;
-		}
-
-		// Link new serial numbers to engraved_modules table.
-		$this->batch_repository->link_serials_to_modules( $batch_id, $qsa_sequence, $reserved );
-
-		$this->send_success(
-			array(
-				'batch_id'       => $batch_id,
-				'qsa_sequence'   => $qsa_sequence,
-				'serials_voided' => $voided,
-				'serials'        => $reserved,
-			),
-			__( 'Previous serials voided. New serials reserved.', 'qsa-engraving' )
 		);
 	}
 

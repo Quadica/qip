@@ -602,31 +602,6 @@
 	cursor: wait;
 }
 
-.qsa-btn-retry {
-	display: flex;
-	align-items: center;
-	gap: 4px;
-	padding: 6px 12px;
-	background: var(--bg-card);
-	border: 1px solid var(--warning);
-	border-radius: 4px;
-	color: var(--warning);
-	font-size: 13px;
-	cursor: pointer;
-	transition: all 0.15s ease;
-}
-
-.qsa-btn-retry:hover {
-	background: var(--warning-light);
-}
-
-.qsa-btn-retry .dashicons {
-	font-size: 14px;
-	width: 14px;
-	height: 14px;
-	line-height: 14px;
-}
-
 .qsa-btn-next-array {
 	display: flex;
 	align-items: center;
