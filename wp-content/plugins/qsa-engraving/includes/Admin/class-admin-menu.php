@@ -108,6 +108,34 @@ class Admin_Menu {
     }
 
     /**
+     * Check if we're in a development/staging environment.
+     *
+     * Returns true if:
+     * - WP_DEBUG is enabled, OR
+     * - Host contains 'env-', 'staging', 'dev', or 'test'
+     *
+     * @return bool
+     */
+    private function is_development_environment(): bool {
+        // Check WP_DEBUG.
+        if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+            return true;
+        }
+
+        // Check for staging/dev hostnames.
+        $host = isset( $_SERVER['HTTP_HOST'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_HOST'] ) ) : '';
+        $dev_patterns = array( 'env-', 'staging', '.dev', '.test', 'localhost', '.local' );
+
+        foreach ( $dev_patterns as $pattern ) {
+            if ( stripos( $host, $pattern ) !== false ) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Render the main admin page (Dashboard).
      *
      * @return void
@@ -307,7 +335,7 @@ class Admin_Menu {
                         <?php esc_html_e( 'Batch History', 'qsa-engraving' ); ?>
                     </a>
                 </div>
-                <?php if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) : ?>
+                <?php if ( $this->is_development_environment() ) : ?>
                 <div class="action-buttons" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #ddd;">
                     <button type="button" id="qsa-clear-test-data" class="button button-secondary" style="color: #a00;">
                         <span class="dashicons dashicons-trash"></span>
