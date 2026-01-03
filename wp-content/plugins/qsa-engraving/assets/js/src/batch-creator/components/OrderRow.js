@@ -39,8 +39,8 @@ export default function OrderRow( {
 	getEngraveQty,
 	updateEngraveQty,
 } ) {
-	const skuCount = order.items.length;
-	const totalQty = order.total_qty;
+	// Count total module quantity (sum of qty_to_engrave for all items)
+	const moduleCount = order.items.reduce( ( sum, item ) => sum + item.qty_to_engrave, 0 );
 	const isSelected = selectionState !== 'none';
 
 	return (
@@ -73,7 +73,7 @@ export default function OrderRow( {
 
 				<div className="qsa-order-stats">
 					<span className="qsa-order-module-count">
-						{ skuCount } { skuCount === 1 ? __( 'module', 'qsa-engraving' ) : __( 'modules', 'qsa-engraving' ) }
+						{ moduleCount } { moduleCount === 1 ? __( 'module', 'qsa-engraving' ) : __( 'modules', 'qsa-engraving' ) }
 					</span>
 				</div>
 			</div>

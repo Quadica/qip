@@ -52,11 +52,12 @@ export default function BaseTypeRow( {
 	isLast,
 } ) {
 	const orderCount = data.order_count || data.modules.length;
-	const totalQty = data.total_qty;
 	const isSelected = selectionState !== 'none';
 
-	// Count total modules (SKUs) across all orders
-	const totalModules = data.modules.reduce( ( sum, order ) => sum + order.items.length, 0 );
+	// Count total module quantity across all orders (sum of qty_to_engrave)
+	const totalModules = data.modules.reduce( ( sum, order ) => {
+		return sum + order.items.reduce( ( itemSum, item ) => itemSum + item.qty_to_engrave, 0 );
+	}, 0 );
 
 	return (
 		<div className={ `qsa-base-type ${ isSelected ? 'is-selected' : '' } ${ isLast ? 'is-last' : '' }` }>
@@ -82,7 +83,6 @@ export default function BaseTypeRow( {
 
 				<div className="qsa-base-type-info" onClick={ onToggleExpand }>
 					<span className="qsa-base-type-code">{ baseType }</span>
-					<span className="qsa-base-type-name">{ baseTypeName }</span>
 				</div>
 
 				<div className="qsa-base-type-stats">
