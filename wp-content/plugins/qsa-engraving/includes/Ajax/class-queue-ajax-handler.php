@@ -195,11 +195,15 @@ class Queue_Ajax_Handler {
 		// Get serial capacity.
 		$capacity = $this->serial_repository->get_capacity();
 
+		// Get count of active batches (excluding current batch).
+		$active_batch_count = $this->get_active_batch_count( $batch_id );
+
 		$this->send_success(
 			array(
-				'batch'       => $batch,
-				'queue_items' => $queue_items,
-				'capacity'    => $capacity,
+				'batch'              => $batch,
+				'queue_items'        => $queue_items,
+				'capacity'           => $capacity,
+				'active_batch_count' => $active_batch_count,
 			)
 		);
 	}
@@ -278,6 +282,29 @@ class Queue_Ajax_Handler {
 		}
 
 		$this->send_success( array( 'batches' => $enhanced_batches ) );
+	}
+
+	/**
+	 * Get count of active batches (excluding a specific batch).
+	 *
+	 * @param int $exclude_batch_id Batch ID to exclude from count.
+	 * @return int Count of active batches.
+	 */
+	private function get_active_batch_count( int $exclude_batch_id = 0 ): int {
+		global $wpdb;
+
+		$batches_table = $this->batch_repository->get_batches_table_name();
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$count = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM {$batches_table} WHERE status = %s AND id != %d",
+				'in_progress',
+				$exclude_batch_id
+			)
+		);
+
+		return (int) $count;
 	}
 
 	/**
