@@ -106,6 +106,7 @@ class Config_Repository {
      *
      * Retrieves all element positions for a design, with revision-specific
      * configurations taking precedence over default (null revision) configs.
+     * Falls back to any available revision if no exact match is found.
      *
      * @param string      $qsa_design The design name (e.g., "CORE", "STAR").
      * @param string|null $revision The revision letter (e.g., "a") or null.
@@ -118,18 +119,46 @@ class Config_Repository {
             return $this->cache[ $cache_key ];
         }
 
-        // Get default config (revision = NULL) and specific revision config.
-        $sql = "SELECT position, element_type, origin_x, origin_y, rotation, text_height
-                FROM {$this->table_name}
-                WHERE qsa_design = %s
-                  AND (revision IS NULL OR revision = %s)
-                  AND is_active = 1
-                ORDER BY position, element_type, revision DESC";
+        // Try to get specific revision config, or fall back to any available revision.
+        // Priority: exact revision match > null revision > any revision (alphabetically first).
+        if ( null !== $revision && '' !== $revision ) {
+            // Specific revision requested.
+            $sql = "SELECT position, element_type, origin_x, origin_y, rotation, text_height
+                    FROM {$this->table_name}
+                    WHERE qsa_design = %s
+                      AND revision = %s
+                      AND is_active = 1
+                    ORDER BY position, element_type";
+            $results = $this->wpdb->get_results(
+                $this->wpdb->prepare( $sql, $qsa_design, $revision ),
+                ARRAY_A
+            ) ?: array();
+        } else {
+            // No specific revision - try NULL first, then fall back to first available.
+            $sql = "SELECT position, element_type, origin_x, origin_y, rotation, text_height
+                    FROM {$this->table_name}
+                    WHERE qsa_design = %s
+                      AND revision IS NULL
+                      AND is_active = 1
+                    ORDER BY position, element_type";
+            $results = $this->wpdb->get_results(
+                $this->wpdb->prepare( $sql, $qsa_design ),
+                ARRAY_A
+            ) ?: array();
 
-        $results = $this->wpdb->get_results(
-            $this->wpdb->prepare( $sql, $qsa_design, $revision ?? '' ),
-            ARRAY_A
-        ) ?: array();
+            // Fall back to first available revision if no NULL revision config.
+            if ( empty( $results ) ) {
+                $sql = "SELECT position, element_type, origin_x, origin_y, rotation, text_height
+                        FROM {$this->table_name}
+                        WHERE qsa_design = %s
+                          AND is_active = 1
+                        ORDER BY revision, position, element_type";
+                $results = $this->wpdb->get_results(
+                    $this->wpdb->prepare( $sql, $qsa_design ),
+                    ARRAY_A
+                ) ?: array();
+            }
+        }
 
         // Organize by position and element type.
         // Revision-specific configs override defaults due to ORDER BY revision DESC.
