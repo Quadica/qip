@@ -59,6 +59,7 @@ export default function EngravingQueue() {
 	const [ activeItemId, setActiveItemId ] = useState( null );
 	const [ activeBatches, setActiveBatches ] = useState( [] );
 	const [ showBatchSelector, setShowBatchSelector ] = useState( false );
+	const [ currentArrays, setCurrentArrays ] = useState( {} ); // Track current array per item
 	const [ lightburnStatus, setLightburnStatus ] = useState( {
 		enabled: window.qsaEngraving?.lightburnEnabled ?? false,
 		autoLoad: window.qsaEngraving?.lightburnAutoLoad ?? true,
@@ -66,6 +67,40 @@ export default function EngravingQueue() {
 		loading: false,
 		lastFile: null,
 	} );
+
+	/**
+	 * Calculate total arrays for an item based on module count and start position.
+	 *
+	 * @param {number} totalModules Total modules in the row.
+	 * @param {number} startOffset  Starting position (1-8).
+	 * @return {number} Total number of physical arrays needed.
+	 */
+	const calculateTotalArrays = ( totalModules, startOffset ) => {
+		let remaining = totalModules;
+		let arrayCount = 0;
+
+		if ( startOffset > 1 ) {
+			const firstArrayModules = Math.min( remaining, 9 - startOffset );
+			arrayCount++;
+			remaining -= firstArrayModules;
+		}
+
+		if ( remaining > 0 ) {
+			arrayCount += Math.ceil( remaining / 8 );
+		}
+
+		return arrayCount;
+	};
+
+	/**
+	 * Get current array number for an item.
+	 *
+	 * @param {number} itemId The item ID.
+	 * @return {number} Current array number (1-based).
+	 */
+	const getCurrentArray = ( itemId ) => {
+		return currentArrays[ itemId ] || 1;
+	};
 
 	/**
 	 * Fetch active batches when no batch_id is specified.
@@ -191,21 +226,30 @@ export default function EngravingQueue() {
 				return;
 			}
 
-			// Spacebar advances to next array (when in progress).
+			// Spacebar advances to next array or completes (when in progress).
 			if ( e.code === 'Space' && activeItemId !== null ) {
 				e.preventDefault();
 
 				const activeItem = queueItems.find( ( item ) => item.id === activeItemId );
 				if ( activeItem && activeItem.status === 'in_progress' ) {
-					// Trigger complete for this row.
-					handleComplete( activeItemId );
+					const currentArray = getCurrentArray( activeItemId );
+					const totalArrays = calculateTotalArrays( activeItem.totalModules, activeItem.startPosition || 1 );
+					const isLastArray = currentArray >= totalArrays;
+
+					if ( isLastArray ) {
+						// On last array, complete the row.
+						handleComplete( activeItemId );
+					} else {
+						// Advance to next array.
+						handleNextArray( activeItemId, currentArray );
+					}
 				}
 			}
 		};
 
 		window.addEventListener( 'keydown', handleKeyDown );
 		return () => window.removeEventListener( 'keydown', handleKeyDown );
-	}, [ activeItemId, queueItems ] );
+	}, [ activeItemId, queueItems, currentArrays ] );
 
 	/**
 	 * Make AJAX request for queue operations.
@@ -276,6 +320,8 @@ export default function EngravingQueue() {
 
 			if ( data.success ) {
 				setActiveItemId( qsaSequence );
+				// Initialize current array to 1.
+				setCurrentArrays( ( prev ) => ( { ...prev, [ qsaSequence ]: 1 } ) );
 				// Update the queue item status.
 				setQueueItems( ( prev ) =>
 					prev.map( ( item ) =>
@@ -321,6 +367,8 @@ export default function EngravingQueue() {
 
 			if ( data.success ) {
 				setActiveItemId( null );
+				// Reset current array state for this item.
+				setCurrentArrays( ( prev ) => ( { ...prev, [ qsaSequence ]: 0 } ) );
 				// Update the queue item status.
 				setQueueItems( ( prev ) =>
 					prev.map( ( item ) =>
@@ -337,6 +385,49 @@ export default function EngravingQueue() {
 			}
 		} catch ( err ) {
 			alert( __( 'Network error completing row.', 'qsa-engraving' ) );
+		}
+	};
+
+	/**
+	 * Handle advancing to next array within a row.
+	 *
+	 * Advances the current array counter and generates SVG for the next array.
+	 *
+	 * @param {number} qsaSequence  The QSA sequence number.
+	 * @param {number} currentArray The current array number.
+	 */
+	const handleNextArray = async ( qsaSequence, currentArray ) => {
+		const item = queueItems.find( ( i ) => i.id === qsaSequence );
+		if ( ! item ) {
+			return;
+		}
+
+		const totalArrays = calculateTotalArrays( item.totalModules, item.startPosition || 1 );
+		const nextArray = currentArray + 1;
+
+		if ( nextArray > totalArrays ) {
+			// Should not happen, but handle gracefully by completing
+			handleComplete( qsaSequence );
+			return;
+		}
+
+		// Advance the current array counter
+		setCurrentArrays( ( prev ) => ( { ...prev, [ qsaSequence ]: nextArray } ) );
+
+		// Generate SVG for the next array and load in LightBurn if enabled
+		if ( lightburnStatus.enabled ) {
+			const svgResult = await generateSvg( qsaSequence, lightburnStatus.autoLoad );
+			if ( ! svgResult.success ) {
+				alert(
+					__( 'Failed to generate SVG for next array:', 'qsa-engraving' ) +
+						'\n\n' +
+						svgResult.error +
+						'\n\n' +
+						__( 'Use Resend to try again.', 'qsa-engraving' )
+				);
+			} else if ( svgResult.data && ! svgResult.data.lightburn_loaded && lightburnStatus.autoLoad ) {
+				console.warn( 'SVG generated but LightBurn load failed:', svgResult.data.lightburn_error );
+			}
 		}
 	};
 
@@ -442,6 +533,8 @@ export default function EngravingQueue() {
 			const data = await queueAction( 'qsa_rerun_row', { qsa_sequence: qsaSequence } );
 
 			if ( data.success ) {
+				// Reset current array state for this item.
+				setCurrentArrays( ( prev ) => ( { ...prev, [ qsaSequence ]: 0 } ) );
 				setQueueItems( ( prev ) =>
 					prev.map( ( item ) =>
 						item.id === qsaSequence ? { ...item, status: 'pending', serials: [] } : item
@@ -666,8 +759,10 @@ export default function EngravingQueue() {
 							item={ item }
 							isLast={ index === queueItems.length - 1 }
 							isActive={ activeItemId === item.id }
+							currentArray={ getCurrentArray( item.id ) }
 							onStart={ handleStart }
 							onComplete={ handleComplete }
+							onNextArray={ handleNextArray }
 							onRetry={ handleRetry }
 							onResend={ handleResend }
 							onRerun={ handleRerun }
