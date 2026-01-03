@@ -68,15 +68,23 @@ function calculateArrayBreakdown( totalModules, startOffset, serials = [] ) {
 /**
  * Get status badge styling.
  *
- * @param {string} status The item status.
+ * @param {string} status          The item status.
+ * @param {number} completedArrays Number of completed arrays (for partial status).
  * @return {Object} Styling info.
  */
-function getStatusStyle( status ) {
+function getStatusStyle( status, completedArrays = 0 ) {
 	switch ( status ) {
 		case 'complete':
 			return { className: 'status-complete', text: __( 'Complete', 'qsa-engraving' ) };
 		case 'in_progress':
 			return { className: 'status-in-progress', text: __( 'In Progress', 'qsa-engraving' ) };
+		case 'partial':
+			return {
+				className: 'status-partial',
+				text: completedArrays > 0
+					? `${ completedArrays } ${ __( 'array(s) done', 'qsa-engraving' ) }`
+					: __( 'Partial', 'qsa-engraving' ),
+			};
 		default:
 			return { className: 'status-pending', text: __( 'Pending', 'qsa-engraving' ) };
 	}
@@ -142,7 +150,8 @@ export default function QueueItem( {
 	onStartPositionChange,
 } ) {
 	const [ startPos, setStartPos ] = useState( item.startPosition || 1 );
-	const statusStyle = getStatusStyle( item.status );
+	const completedArrays = item.completedArrays || 0;
+	const statusStyle = getStatusStyle( item.status, completedArrays );
 	const groupTypeClass = getGroupTypeClass( item.groupType );
 
 	// Track qsa_sequences for backend operations.
@@ -196,6 +205,9 @@ export default function QueueItem( {
 						{ item.status === 'in_progress' && (
 							<span className="dashicons dashicons-update spin"></span>
 						) }
+						{ item.status === 'partial' && (
+							<span className="dashicons dashicons-marker"></span>
+						) }
 						{ item.status === 'pending' && (
 							<span className="dashicons dashicons-clock"></span>
 						) }
@@ -223,6 +235,18 @@ export default function QueueItem( {
 						>
 							<span className="dashicons dashicons-controls-play"></span>
 							{ __( 'Engrave', 'qsa-engraving' ) }
+						</button>
+					) }
+
+					{ item.status === 'partial' && (
+						<button
+							type="button"
+							className="button button-primary qsa-btn-resume"
+							onClick={ () => onStart( item.id ) }
+							title={ __( 'Resume engraving from where you left off', 'qsa-engraving' ) }
+						>
+							<span className="dashicons dashicons-controls-play"></span>
+							{ __( 'Resume', 'qsa-engraving' ) }
 						</button>
 					) }
 

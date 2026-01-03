@@ -338,16 +338,19 @@ export default function EngravingQueue() {
 			return;
 		}
 
-		// For multi-QSA groups, start with the first QSA sequence.
-		const qsaSequence = getQsaSequenceForArray( item, 1 );
+		// For partial batches, resume from the next incomplete array.
+		// For pending batches, start from array 1.
+		const completedArrays = item.completedArrays || 0;
+		const startingArray = completedArrays + 1;
+		const qsaSequence = getQsaSequenceForArray( item, startingArray );
 
 		try {
 			const data = await queueAction( 'qsa_start_row', { qsa_sequence: qsaSequence } );
 
 			if ( data.success ) {
 				setActiveItemId( itemId );
-				// Initialize current array to 1.
-				setCurrentArrays( ( prev ) => ( { ...prev, [ itemId ]: 1 } ) );
+				// Initialize current array to the starting array (1 for pending, completedArrays+1 for partial).
+				setCurrentArrays( ( prev ) => ( { ...prev, [ itemId ]: startingArray } ) );
 				// Update the queue item status.
 				setQueueItems( ( prev ) =>
 					prev.map( ( i ) =>
@@ -801,10 +804,6 @@ export default function EngravingQueue() {
 									<span className="dashicons dashicons-screenoptions"></span>
 									{ activeBatch.module_count } { __( 'modules', 'qsa-engraving' ) }
 								</span>
-								<span className="qsa-batch-arrays">
-									<span className="dashicons dashicons-editor-ol"></span>
-									{ activeBatch.array_count } { __( 'arrays', 'qsa-engraving' ) }
-								</span>
 								<span className="qsa-batch-date">
 									<span className="dashicons dashicons-calendar-alt"></span>
 									{ formatDate( activeBatch.created_at ) }
@@ -823,10 +822,6 @@ export default function EngravingQueue() {
 										style={ { width: `${ activeBatch.progress_percent }%` } }
 									></div>
 								</div>
-								<span className="qsa-progress-text">
-									{ activeBatch.completed_modules } / { activeBatch.module_count }
-									{ ' ' }({ activeBatch.progress_percent }%)
-								</span>
 							</div>
 						</div>
 					) ) }
