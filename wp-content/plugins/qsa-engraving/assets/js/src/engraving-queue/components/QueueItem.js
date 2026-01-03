@@ -145,14 +145,15 @@ export default function QueueItem( {
 	const statusStyle = getStatusStyle( item.status );
 	const groupTypeClass = getGroupTypeClass( item.groupType );
 
-	// Calculate array breakdown for this row
-	// Note: Multi-array support is not yet implemented in the backend.
-	// Each row is treated as a single array unit per the design decision.
+	// Calculate array breakdown for this row based on total modules and start position.
+	// When start position > 1 and modules don't all fit in positions start to 8,
+	// additional arrays are created. E.g., 8 modules starting at position 2:
+	//   Array 1: positions 2-8 (7 modules)
+	//   Array 2: position 1 (1 module)
 	const arrays = calculateArrayBreakdown( item.totalModules, startPos, item.serials || [] );
-	// Force single-array behavior until backend support is added
-	const totalArrays = 1;
-	const isLastArray = true; // Always true - single array per row
-	const currentArrayDetails = arrays[ 0 ] || null; // Always show first array details
+	const totalArrays = arrays.length;
+	const isLastArray = currentArray >= totalArrays;
+	const currentArrayDetails = arrays[ currentArray - 1 ] || null;
 
 	/**
 	 * Handle start position input change.
@@ -307,6 +308,11 @@ export default function QueueItem( {
 			{ /* Stats Row */ }
 			<div className="qsa-queue-item-stats">
 				<div className="qsa-stat-group">
+					<span className="qsa-stat-label">{ __( 'Arrays:', 'qsa-engraving' ) }</span>
+					<span className="qsa-stat-value">{ totalArrays }</span>
+				</div>
+
+				<div className="qsa-stat-group">
 					<span className="qsa-stat-label">{ __( 'Total Modules:', 'qsa-engraving' ) }</span>
 					<span className="qsa-stat-value">{ item.totalModules }</span>
 				</div>
@@ -390,7 +396,10 @@ export default function QueueItem( {
 					<div className="qsa-keyboard-hint">
 						<span className="keyboard-key">SPACEBAR</span>
 						<span>
-							{ __( 'Press spacebar or click Complete to finish', 'qsa-engraving' ) }
+							{ isLastArray
+								? __( 'Press spacebar or click Complete to finish', 'qsa-engraving' )
+								: __( 'Press spacebar or click Next Array to advance', 'qsa-engraving' )
+							}
 						</span>
 					</div>
 				</div>

@@ -482,8 +482,17 @@ class Batch_Repository {
     /**
      * Update start position for all modules in a QSA.
      *
-     * Validates that all modules fit within positions 1-8 from the start position.
-     * Does NOT wrap positions - returns an error if modules would exceed position 8.
+     * Stores the starting position (1-8). When the total modules exceed what fits
+     * in a single array from the start position, the frontend dynamically calculates
+     * how many physical QSA arrays are needed and displays "Arrays: X".
+     *
+     * The position calculation for multi-array support:
+     * - First array: positions from start_position to min(8, start_position + modules - 1)
+     * - Subsequent arrays: positions 1-8 (full arrays) or partial
+     *
+     * Note: Positions wrap around when exceeding 8. The `array_position` stores the
+     * logical position (1-8) within the current physical array. The frontend calculates
+     * which physical array each module belongs to based on start position and index.
      *
      * @param int $batch_id       The batch ID.
      * @param int $qsa_sequence   The QSA sequence number.
@@ -491,12 +500,12 @@ class Batch_Repository {
      * @return int|WP_Error Number of updated rows or WP_Error on failure.
      */
     public function update_start_position( int $batch_id, int $qsa_sequence, int $start_position ): int|WP_Error {
-        // Get all modules in this QSA.
+        // Get all modules in this QSA ordered by ID to preserve insertion order.
         $modules = $this->wpdb->get_results(
             $this->wpdb->prepare(
-                "SELECT id, array_position FROM {$this->modules_table}
+                "SELECT id FROM {$this->modules_table}
                 WHERE engraving_batch_id = %d AND qsa_sequence = %d
-                ORDER BY array_position ASC",
+                ORDER BY id ASC",
                 $batch_id,
                 $qsa_sequence
             ),
@@ -507,32 +516,15 @@ class Batch_Repository {
             return new WP_Error( 'no_modules', __( 'No modules found for this QSA.', 'qsa-engraving' ) );
         }
 
-        $module_count = count( $modules );
-
-        // Validate that modules will fit within positions 1-8 without wrapping.
-        // The last module position would be: start_position + module_count - 1.
-        $last_position = $start_position + $module_count - 1;
-        if ( $last_position > 8 ) {
-            return new WP_Error(
-                'position_overflow',
-                sprintf(
-                    /* translators: 1: Module count, 2: Start position, 3: Last position */
-                    __( 'Cannot place %1$d modules starting at position %2$d. Last position would be %3$d, but maximum is 8.', 'qsa-engraving' ),
-                    $module_count,
-                    $start_position,
-                    $last_position
-                )
-            );
-        }
-
-        // Update positions starting from the new start position.
+        // Update positions with array-aware assignment.
+        // Positions wrap: first array uses start_position to 8, then 1-8 for subsequent arrays.
         $updated = 0;
-        foreach ( $modules as $index => $module ) {
-            $new_position = $start_position + $index;
+        $current_position = $start_position;
 
+        foreach ( $modules as $module ) {
             $result = $this->wpdb->update(
                 $this->modules_table,
-                array( 'array_position' => $new_position ),
+                array( 'array_position' => $current_position ),
                 array( 'id' => $module['id'] ),
                 array( '%d' ),
                 array( '%d' )
@@ -540,6 +532,12 @@ class Batch_Repository {
 
             if ( false !== $result ) {
                 $updated++;
+            }
+
+            // Advance position, wrapping from 8 back to 1.
+            $current_position++;
+            if ( $current_position > 8 ) {
+                $current_position = 1;
             }
         }
 
