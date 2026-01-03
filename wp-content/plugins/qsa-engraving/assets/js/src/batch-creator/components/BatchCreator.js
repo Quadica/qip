@@ -461,17 +461,17 @@ export default function BatchCreator() {
 
 	/**
 	 * Update engrave quantity for a module.
-	 * Enforces 1 <= qty <= maxQty as per specification.
+	 * Enforces minimum of 1. No maximum - operators may need to engrave
+	 * more modules than originally required for an order.
 	 *
 	 * @param {string} moduleId The module ID.
 	 * @param {number} value    The new quantity.
-	 * @param {number} maxQty   The maximum allowed quantity.
 	 */
 	const updateEngraveQty = useCallback(
-		( moduleId, value, maxQty ) => {
+		( moduleId, value ) => {
 			const numValue = parseInt( value, 10 ) || 1;
-			// Enforce minimum of 1, maximum of available quantity.
-			const clampedValue = Math.max( 1, Math.min( numValue, maxQty ) );
+			// Enforce minimum of 1, no maximum restriction.
+			const clampedValue = Math.max( 1, numValue );
 
 			setEngraveQuantities( ( prev ) => ( {
 				...prev,

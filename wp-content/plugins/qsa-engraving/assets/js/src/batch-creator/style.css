@@ -594,8 +594,8 @@
 }
 
 .qsa-qty-input {
-	width: 56px;
-	padding: 4px 8px;
+	width: 64px;
+	padding: 4px 4px 4px 8px;
 	text-align: center;
 	font-size: 13px;
 	font-weight: 500;
@@ -605,10 +605,23 @@
 	color: var(--qsa-text-primary);
 }
 
+/* Show spinner controls */
+.qsa-qty-input::-webkit-outer-spin-button,
+.qsa-qty-input::-webkit-inner-spin-button {
+	-webkit-appearance: inner-spin-button;
+	opacity: 1;
+	height: 24px;
+	cursor: pointer;
+}
+
 .qsa-qty-input:focus {
 	border-color: var(--qsa-wp-blue);
 	box-shadow: 0 0 0 1px var(--qsa-wp-blue);
 	outline: none;
+}
+
+.qsa-qty-input:hover {
+	border-color: var(--qsa-wp-blue);
 }
 
 .qsa-qty-max {
