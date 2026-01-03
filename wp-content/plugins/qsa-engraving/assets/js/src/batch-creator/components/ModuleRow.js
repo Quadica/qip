@@ -58,7 +58,6 @@ export default function ModuleRow( {
 				<input
 					type="number"
 					min="1"
-					max={ qty_to_engrave }
 					value={ engraveQty }
 					onChange={ ( e ) => onUpdateQty( e.target.value ) }
 					onClick={ ( e ) => e.stopPropagation() }

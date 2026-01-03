@@ -91,7 +91,7 @@ export default function OrderRow( {
 								isSelected={ selectedModules.has( moduleId ) }
 								engraveQty={ getEngraveQty( moduleId, module.qty_to_engrave ) }
 								onToggleSelect={ () => onToggleModuleSelect( moduleId ) }
-								onUpdateQty={ ( value ) => updateEngraveQty( moduleId, value, module.qty_to_engrave ) }
+								onUpdateQty={ ( value ) => updateEngraveQty( moduleId, value ) }
 							/>
 						);
 					} ) }
