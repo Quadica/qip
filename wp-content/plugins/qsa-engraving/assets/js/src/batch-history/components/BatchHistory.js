@@ -223,11 +223,17 @@ export default function BatchHistory() {
 					title={ __( 'Back to Batch Creator', 'qsa-engraving' ) }
 				>
 					<span className="dashicons dashicons-arrow-left-alt"></span>
-					{ __( 'Batch Creator', 'qsa-engraving' ) }
 				</button>
 				<div className="qsa-history-title">
-					<span className="dashicons dashicons-backup"></span>
-					<h2>{ __( 'Engraving Batch History', 'qsa-engraving' ) }</h2>
+					<div className="qsa-history-title-icon">
+						<span className="dashicons dashicons-backup"></span>
+					</div>
+					<div>
+						<h2>{ __( 'Engraving Batch History', 'qsa-engraving' ) }</h2>
+						<p className="qsa-history-subtitle">
+							{ __( 'View and reload previous batches for re-engraving', 'qsa-engraving' ) }
+						</p>
+					</div>
 				</div>
 			</div>
 
