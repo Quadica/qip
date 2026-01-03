@@ -594,4 +594,49 @@ class Batch_Repository {
 
         return $stats;
     }
+
+    /**
+     * Update serial numbers for modules in a QSA after serial reservation.
+     *
+     * Links the reserved serial numbers to their corresponding engraved_modules records.
+     *
+     * @param int   $batch_id     The batch ID.
+     * @param int   $qsa_sequence The QSA sequence number.
+     * @param array $serials      Array of reserved serial data with 'serial_number' and 'array_position'.
+     * @return int|WP_Error Number of updated rows or WP_Error on failure.
+     */
+    public function link_serials_to_modules( int $batch_id, int $qsa_sequence, array $serials ): int|WP_Error {
+        if ( empty( $serials ) ) {
+            return 0;
+        }
+
+        $updated = 0;
+
+        foreach ( $serials as $serial ) {
+            $serial_number  = $serial['serial_number'] ?? '';
+            $array_position = $serial['array_position'] ?? 0;
+
+            if ( empty( $serial_number ) || $array_position <= 0 ) {
+                continue;
+            }
+
+            $result = $this->wpdb->update(
+                $this->modules_table,
+                array( 'serial_number' => $serial_number ),
+                array(
+                    'engraving_batch_id' => $batch_id,
+                    'qsa_sequence'       => $qsa_sequence,
+                    'array_position'     => $array_position,
+                ),
+                array( '%s' ),
+                array( '%d', '%d', '%d' )
+            );
+
+            if ( false !== $result ) {
+                $updated += (int) $result;
+            }
+        }
+
+        return $updated;
+    }
 }
