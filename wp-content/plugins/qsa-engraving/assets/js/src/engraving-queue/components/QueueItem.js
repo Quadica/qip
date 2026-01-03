@@ -127,6 +127,7 @@ function formatSerial( serial ) {
  * @param {boolean}  props.isLast                Whether this is the last item.
  * @param {boolean}  props.isActive              Whether this item is currently active.
  * @param {number}   props.currentArray          Current array number (1-based) for this item.
+ * @param {boolean}  props.isResending           Whether a resend operation is in progress.
  * @param {Function} props.onStart               Handler for start action.
  * @param {Function} props.onComplete            Handler for complete action.
  * @param {Function} props.onNextArray           Handler for next array action.
@@ -141,6 +142,7 @@ export default function QueueItem( {
 	isLast,
 	isActive,
 	currentArray = 1,
+	isResending = false,
 	onStart,
 	onComplete,
 	onNextArray,
@@ -254,12 +256,13 @@ export default function QueueItem( {
 						<div className="qsa-action-buttons">
 							<button
 								type="button"
-								className="button qsa-btn-resend"
+								className={ `button qsa-btn-resend ${ isResending ? 'is-loading' : '' }` }
 								onClick={ () => onResend( item.id, currentArray ) }
+								disabled={ isResending }
 								title={ __( 'Resend current SVG to laser (same serials)', 'qsa-engraving' ) }
 							>
-								<span className="dashicons dashicons-update"></span>
-								{ __( 'Resend', 'qsa-engraving' ) }
+								<span className={ `dashicons dashicons-update ${ isResending ? 'spin' : '' }` }></span>
+								{ isResending ? __( 'Sending...', 'qsa-engraving' ) : __( 'Resend', 'qsa-engraving' ) }
 							</button>
 
 							<button

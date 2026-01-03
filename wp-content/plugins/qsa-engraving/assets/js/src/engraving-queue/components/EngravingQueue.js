@@ -916,6 +916,7 @@ export default function EngravingQueue() {
 							isLast={ index === queueItems.length - 1 }
 							isActive={ activeItemId === item.id }
 							currentArray={ getCurrentArray( item.id ) }
+							isResending={ lightburnStatus.loading && activeItemId === item.id }
 							onStart={ handleStart }
 							onComplete={ handleComplete }
 							onNextArray={ handleNextArray }
