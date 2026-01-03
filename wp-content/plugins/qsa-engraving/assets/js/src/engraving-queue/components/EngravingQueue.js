@@ -58,6 +58,7 @@ export default function EngravingQueue() {
 	const [ error, setError ] = useState( null );
 	const [ activeItemId, setActiveItemId ] = useState( null );
 	const [ activeBatches, setActiveBatches ] = useState( [] );
+	const [ activeBatchCount, setActiveBatchCount ] = useState( 0 ); // Count of other active batches
 	const [ showBatchSelector, setShowBatchSelector ] = useState( false );
 	const [ currentArrays, setCurrentArrays ] = useState( {} ); // Track current array per item
 	const [ lightburnStatus, setLightburnStatus ] = useState( {
@@ -162,6 +163,7 @@ export default function EngravingQueue() {
 				setBatch( data.data.batch );
 				setQueueItems( data.data.queue_items );
 				setCapacity( data.data.capacity );
+				setActiveBatchCount( data.data.active_batch_count || 0 );
 				setError( null );
 				setShowBatchSelector( false );
 			} else {
@@ -853,7 +855,7 @@ export default function EngravingQueue() {
 
 	return (
 		<div className="qsa-engraving-queue">
-			<QueueHeader batch={ batch } />
+			<QueueHeader batch={ batch } activeBatchCount={ activeBatchCount } />
 
 			<StatsBar
 				stats={ stats }

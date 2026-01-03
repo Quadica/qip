@@ -13,21 +13,29 @@ import { __ } from '@wordpress/i18n';
 /**
  * Queue Header component.
  *
- * @param {Object} props       Component props.
- * @param {Object} props.batch The batch data.
+ * @param {Object} props                  Component props.
+ * @param {Object} props.batch            The batch data.
+ * @param {number} props.activeBatchCount Count of other active batches.
  * @return {JSX.Element} The component.
  */
-export default function QueueHeader( { batch } ) {
-	// Navigate back to the main QSA Engraving dashboard.
+export default function QueueHeader( { batch, activeBatchCount = 0 } ) {
+	// Navigate back based on whether there are other active batches.
+	// If there are active batches, go to batch selector (queue page without batch_id).
+	// If no active batches, go to dashboard.
+	const queueUrl = window.location.href.replace( /&batch_id=\d+/, '' ).replace( /\?batch_id=\d+&/, '?' ).replace( /\?batch_id=\d+$/, '' );
 	const dashboardUrl = window.location.href.replace( /qsa-engraving-queue.*/, 'qsa-engraving' );
+	const backUrl = activeBatchCount > 0 ? queueUrl : dashboardUrl;
+	const backTitle = activeBatchCount > 0
+		? __( 'Back to Batch Selector', 'qsa-engraving' )
+		: __( 'Back to Dashboard', 'qsa-engraving' );
 
 	return (
 		<div className="qsa-queue-header">
 			<div className="qsa-queue-header-left">
 				<a
-					href={ dashboardUrl }
+					href={ backUrl }
 					className="qsa-back-button"
-					title={ __( 'Back to Dashboard', 'qsa-engraving' ) }
+					title={ backTitle }
 				>
 					<span className="dashicons dashicons-arrow-left-alt2"></span>
 				</a>
