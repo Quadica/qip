@@ -256,7 +256,7 @@ export default function QueueItem( {
 						<div className="qsa-action-buttons">
 							<button
 								type="button"
-								className={ `button qsa-btn-resend ${ isResending ? 'is-loading' : '' }` }
+								className={ `qsa-btn-resend ${ isResending ? 'is-loading' : '' }` }
 								onClick={ () => onResend( item.id, currentArray ) }
 								disabled={ isResending }
 								title={ __( 'Resend current SVG to laser (same serials)', 'qsa-engraving' ) }
@@ -267,7 +267,7 @@ export default function QueueItem( {
 
 							<button
 								type="button"
-								className="button qsa-btn-retry"
+								className="qsa-btn-retry"
 								onClick={ () => onRetry( item.id, currentArray ) }
 								title={ __( 'Scrap current QSA and retry with new serials', 'qsa-engraving' ) }
 							>
@@ -278,7 +278,7 @@ export default function QueueItem( {
 							{ isLastArray ? (
 								<button
 									type="button"
-									className="button button-primary qsa-btn-complete"
+									className="qsa-btn-complete"
 									onClick={ () => onComplete( item.id ) }
 								>
 									<span className="dashicons dashicons-yes"></span>
@@ -287,7 +287,7 @@ export default function QueueItem( {
 							) : (
 								<button
 									type="button"
-									className="button qsa-btn-next-array"
+									className="qsa-btn-next-array"
 									onClick={ () => onNextArray( item.id, currentArray ) }
 									title={ __( 'Press SPACEBAR or click', 'qsa-engraving' ) }
 								>
@@ -302,7 +302,7 @@ export default function QueueItem( {
 						<div className="qsa-action-buttons">
 							<button
 								type="button"
-								className="button qsa-btn-rerun"
+								className="qsa-btn-rerun"
 								onClick={ () => onRerun( item.id ) }
 								title={ __( 'Rerun engraving from beginning', 'qsa-engraving' ) }
 							>
