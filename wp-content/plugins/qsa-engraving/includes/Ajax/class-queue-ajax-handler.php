@@ -228,6 +228,7 @@ class Queue_Ajax_Handler {
 		$modules_table = $this->batch_repository->get_modules_table_name();
 
 		// Get all in_progress batches with additional info.
+		// Note: start_position is the array_position of the first module (lowest qsa_sequence, lowest id).
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$batches = $wpdb->get_results(
 			$wpdb->prepare(
@@ -240,7 +241,11 @@ class Queue_Ajax_Handler {
 					b.created_at,
 					b.created_by,
 					(SELECT COUNT(*) FROM {$modules_table} m WHERE m.engraving_batch_id = b.id AND m.row_status = 'done') as completed_modules,
-					(SELECT COUNT(DISTINCT m.qsa_sequence) FROM {$modules_table} m WHERE m.engraving_batch_id = b.id AND m.row_status = 'done') as completed_rows
+					(SELECT COUNT(DISTINCT m.qsa_sequence) FROM {$modules_table} m WHERE m.engraving_batch_id = b.id AND m.row_status = 'done') as completed_qsa_sequences,
+					(SELECT m.array_position FROM {$modules_table} m
+					 WHERE m.engraving_batch_id = b.id
+					 ORDER BY m.qsa_sequence ASC, m.id ASC
+					 LIMIT 1) as start_position
 				FROM {$batches_table} b
 				WHERE b.status = %s
 				ORDER BY b.created_at DESC",
@@ -265,23 +270,65 @@ class Queue_Ajax_Handler {
 				}
 			}
 
+			// Calculate array count based on module count and start position.
+			$module_count   = (int) $batch['module_count'];
+			$start_position = (int) ( $batch['start_position'] ?? 1 );
+			$start_position = max( 1, min( 8, $start_position ) ); // Clamp to 1-8.
+			$array_count    = $this->calculate_array_count( $module_count, $start_position );
+
+			// Calculate completed arrays based on completed QSA sequences and start position.
+			$completed_qsa = (int) $batch['completed_qsa_sequences'];
+			$completed_arrays = $completed_qsa; // Each completed QSA sequence = 1 completed array.
+
 			$enhanced_batches[] = array(
 				'id'                => (int) $batch['id'],
 				'batch_name'        => $batch['batch_name'],
-				'module_count'      => (int) $batch['module_count'],
-				'qsa_count'         => (int) $batch['qsa_count'],
+				'module_count'      => $module_count,
+				'array_count'       => $array_count,
+				'start_position'    => $start_position,
 				'status'            => $batch['status'],
 				'created_at'        => $batch['created_at'],
 				'created_by_name'   => $created_by_name,
 				'completed_modules' => (int) $batch['completed_modules'],
-				'completed_rows'    => (int) $batch['completed_rows'],
-				'progress_percent'  => $batch['module_count'] > 0
-					? round( ( (int) $batch['completed_modules'] / (int) $batch['module_count'] ) * 100 )
+				'completed_arrays'  => $completed_arrays,
+				'progress_percent'  => $module_count > 0
+					? round( ( (int) $batch['completed_modules'] / $module_count ) * 100 )
 					: 0,
 			);
 		}
 
 		$this->send_success( array( 'batches' => $enhanced_batches ) );
+	}
+
+	/**
+	 * Calculate the number of physical arrays needed for a batch.
+	 *
+	 * @param int $module_count   Total number of modules.
+	 * @param int $start_position Starting position (1-8).
+	 * @return int Number of arrays needed.
+	 */
+	private function calculate_array_count( int $module_count, int $start_position ): int {
+		if ( $module_count <= 0 ) {
+			return 0;
+		}
+
+		$remaining   = $module_count;
+		$array_count = 0;
+
+		// First array may be partial if start_position > 1.
+		if ( $start_position > 1 ) {
+			$first_array_capacity = 9 - $start_position; // e.g., position 7 = 2 slots (7,8).
+			$first_array_modules  = min( $remaining, $first_array_capacity );
+			$array_count++;
+			$remaining -= $first_array_modules;
+		}
+
+		// Remaining modules fill full arrays of 8.
+		if ( $remaining > 0 ) {
+			$array_count += (int) ceil( $remaining / 8 );
+		}
+
+		return $array_count;
 	}
 
 	/**
