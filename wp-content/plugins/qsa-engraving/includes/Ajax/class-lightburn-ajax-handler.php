@@ -131,6 +131,7 @@ class LightBurn_Ajax_Handler {
 		add_action( 'wp_ajax_qsa_resend_svg', array( $this, 'handle_resend_svg' ) );
 		add_action( 'wp_ajax_qsa_get_lightburn_status', array( $this, 'handle_get_status' ) );
 		add_action( 'wp_ajax_qsa_save_lightburn_settings', array( $this, 'handle_save_settings' ) );
+		add_action( 'wp_ajax_qsa_clear_test_data', array( $this, 'handle_clear_test_data' ) );
 	}
 
 	/**
@@ -718,6 +719,51 @@ class LightBurn_Ajax_Handler {
 		$this->send_success(
 			$settings,
 			__( 'Settings saved successfully.', 'qsa-engraving' )
+		);
+	}
+
+	/**
+	 * Handle clear test data request.
+	 *
+	 * Clears all data from serial_numbers, engraving_batches, and engraved_modules tables.
+	 * Only available when WP_DEBUG is enabled.
+	 *
+	 * @return void
+	 */
+	public function handle_clear_test_data(): void {
+		$verify = $this->verify_request();
+		if ( is_wp_error( $verify ) ) {
+			$this->send_error( $verify->get_error_message(), $verify->get_error_code(), 403 );
+			return;
+		}
+
+		// Only allow when WP_DEBUG is enabled.
+		if ( ! defined( 'WP_DEBUG' ) || ! WP_DEBUG ) {
+			$this->send_error( __( 'This action is only available in debug mode.', 'qsa-engraving' ), 'not_debug_mode', 403 );
+			return;
+		}
+
+		global $wpdb;
+
+		// Get table names.
+		$serials_table = $wpdb->prefix . 'quad_serial_numbers';
+		$batches_table = $wpdb->prefix . 'quad_engraving_batches';
+		$modules_table = $wpdb->prefix . 'quad_engraved_modules';
+
+		// Truncate tables in correct order (modules first due to foreign key constraints).
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$wpdb->query( "TRUNCATE TABLE {$modules_table}" );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$wpdb->query( "TRUNCATE TABLE {$serials_table}" );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$wpdb->query( "TRUNCATE TABLE {$batches_table}" );
+
+		// Clean up any SVG files.
+		$this->svg_file_manager->cleanup_all_files();
+
+		$this->send_success(
+			null,
+			__( 'All test data cleared successfully.', 'qsa-engraving' )
 		);
 	}
 }

@@ -307,6 +307,43 @@ class Admin_Menu {
                         <?php esc_html_e( 'Batch History', 'qsa-engraving' ); ?>
                     </a>
                 </div>
+                <?php if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) : ?>
+                <div class="action-buttons" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #ddd;">
+                    <button type="button" id="qsa-clear-test-data" class="button button-secondary" style="color: #a00;">
+                        <span class="dashicons dashicons-trash"></span>
+                        <?php esc_html_e( 'Clear All Test Data', 'qsa-engraving' ); ?>
+                    </button>
+                    <span id="qsa-clear-result" style="margin-left: 10px;"></span>
+                </div>
+                <script type="text/javascript">
+                jQuery(document).ready(function($) {
+                    $('#qsa-clear-test-data').on('click', function() {
+                        if (!confirm('<?php echo esc_js( __( 'This will DELETE all engraving batches, modules, and serial numbers. This cannot be undone!\n\nAre you sure?', 'qsa-engraving' ) ); ?>')) {
+                            return;
+                        }
+                        var $btn = $(this);
+                        var $result = $('#qsa-clear-result');
+                        $btn.prop('disabled', true);
+                        $result.text('<?php echo esc_js( __( 'Clearing...', 'qsa-engraving' ) ); ?>');
+                        $.post('<?php echo esc_js( admin_url( 'admin-ajax.php' ) ); ?>', {
+                            action: 'qsa_clear_test_data',
+                            nonce: '<?php echo esc_js( wp_create_nonce( 'qsa_engraving_nonce' ) ); ?>'
+                        }, function(response) {
+                            $btn.prop('disabled', false);
+                            if (response.success) {
+                                $result.css('color', 'green').text(response.message || '<?php echo esc_js( __( 'Cleared!', 'qsa-engraving' ) ); ?>');
+                                setTimeout(function() { location.reload(); }, 1000);
+                            } else {
+                                $result.css('color', 'red').text(response.message || '<?php echo esc_js( __( 'Failed', 'qsa-engraving' ) ); ?>');
+                            }
+                        }).fail(function() {
+                            $btn.prop('disabled', false);
+                            $result.css('color', 'red').text('<?php echo esc_js( __( 'Request failed', 'qsa-engraving' ) ); ?>');
+                        });
+                    });
+                });
+                </script>
+                <?php endif; ?>
             </div>
 
             <!-- System Status -->

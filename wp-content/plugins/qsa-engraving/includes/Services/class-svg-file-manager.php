@@ -412,4 +412,26 @@ class SVG_File_Manager {
 
 		return $deleted;
 	}
+
+	/**
+	 * Clean up all SVG files in the output directory.
+	 *
+	 * Used when clearing all test data.
+	 *
+	 * @return int Number of files deleted.
+	 */
+	public function cleanup_all_files(): int {
+		$files   = glob( $this->output_dir . DIRECTORY_SEPARATOR . '*.svg' );
+		$deleted = 0;
+
+		if ( ! empty( $files ) ) {
+			foreach ( $files as $file ) {
+				if ( unlink( $file ) ) {
+					$deleted++;
+				}
+			}
+		}
+
+		return $deleted;
+	}
 }
