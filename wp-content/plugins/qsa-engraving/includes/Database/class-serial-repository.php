@@ -322,8 +322,8 @@ class Serial_Repository {
                 $order_id = $module['order_id'] ?? null;
                 if ( null !== $order_id ) {
                     $insert_data['order_id'] = $order_id;
-                    // Insert format at position 5 (after production_batch_id).
-                    array_splice( $insert_format, 5, 0, '%d' );
+                    // Append format at end since order_id is added at end of array.
+                    $insert_format[] = '%d';
                 }
                 // If order_id is NULL, omit from insert - database column default handles it.
 

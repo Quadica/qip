@@ -786,6 +786,9 @@ class Queue_Ajax_Handler {
 			return;
 		}
 
+		// Link reserved serial numbers to engraved_modules table.
+		$this->batch_repository->link_serials_to_modules( $batch_id, $qsa_sequence, $reserved );
+
 		// Update module row status to in_progress.
 		$status_result = $this->batch_repository->update_row_status( $batch_id, $qsa_sequence, 'in_progress' );
 		if ( is_wp_error( $status_result ) ) {
@@ -1078,6 +1081,9 @@ class Queue_Ajax_Handler {
 			return;
 		}
 
+		// Link new serial numbers to engraved_modules table.
+		$this->batch_repository->link_serials_to_modules( $batch_id, $qsa_sequence, $reserved );
+
 		$this->send_success(
 			array(
 				'batch_id'       => $batch_id,
@@ -1204,6 +1210,9 @@ class Queue_Ajax_Handler {
 			$this->send_error( $reserved->get_error_message(), $reserved->get_error_code() );
 			return;
 		}
+
+		// Link new serial numbers to engraved_modules table.
+		$this->batch_repository->link_serials_to_modules( $batch_id, $qsa_sequence, $reserved );
 
 		$this->send_success(
 			array(
