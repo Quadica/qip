@@ -42,7 +42,7 @@ export default function ModuleRow( {
 				{ isSelected && <span className="dashicons dashicons-yes"></span> }
 			</button>
 
-			<span className="qsa-module-icon">#</span>
+			<span className="qsa-module-icon"></span>
 
 			<div className="qsa-module-info">
 				<span className="qsa-module-sku">{ module_sku }</span>

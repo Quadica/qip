@@ -127,6 +127,40 @@
 	height: 16px;
 }
 
+/* Header buttons container */
+.qsa-batch-creator-header-buttons {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.qsa-btn-back {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 8px 12px;
+	background: var(--qsa-bg-elevated);
+	border: 1px solid var(--qsa-border);
+	border-radius: 4px;
+	color: var(--qsa-text-secondary);
+	font-size: 13px;
+	cursor: pointer;
+	transition: all 0.15s ease;
+	text-decoration: none;
+}
+
+.qsa-btn-back:hover {
+	background: var(--qsa-bg-hover);
+	border-color: var(--qsa-border);
+	color: var(--qsa-text-primary);
+}
+
+.qsa-btn-back .dashicons {
+	font-size: 16px;
+	width: 16px;
+	height: 16px;
+}
+
 /* Empty state */
 .qsa-empty-state {
 	padding: 60px 20px;

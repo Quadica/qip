@@ -68,7 +68,7 @@ export default function OrderRow( {
 				<span className="dashicons dashicons-portfolio qsa-order-icon"></span>
 
 				<div className="qsa-order-info" onClick={ onToggleExpand }>
-					<span className="qsa-order-id">#{ order.order_id }</span>
+					<span className="qsa-order-id">{ order.order_id }</span>
 				</div>
 
 				<div className="qsa-order-stats">
