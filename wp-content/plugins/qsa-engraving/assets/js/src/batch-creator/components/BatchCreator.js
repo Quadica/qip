@@ -185,8 +185,9 @@ export default function BatchCreator() {
 								const moduleId = `${ matchingItem.production_batch_id }-${ matchingItem.module_sku }-${ matchingItem.order_id }`;
 								newSelected.add( moduleId );
 
-								// Set quantity to match original (clamped to available).
-								const qty = Math.min( reengravModule.qty, matchingItem.qty_to_engrave );
+								// Set quantity to match original batch (no maximum restriction).
+								// Operators may have engraved more than the order required.
+								const qty = reengravModule.qty;
 								if ( qty !== matchingItem.qty_to_engrave ) {
 									newQuantities[ moduleId ] = qty;
 								}

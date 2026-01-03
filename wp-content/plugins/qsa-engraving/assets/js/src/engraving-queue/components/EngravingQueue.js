@@ -226,30 +226,21 @@ export default function EngravingQueue() {
 				return;
 			}
 
-			// Spacebar advances to next array or completes (when in progress).
+			// Spacebar completes the current row (when in progress).
+			// Note: Multi-array support is not yet implemented - each row is treated as a single array.
 			if ( e.code === 'Space' && activeItemId !== null ) {
 				e.preventDefault();
 
 				const activeItem = queueItems.find( ( item ) => item.id === activeItemId );
 				if ( activeItem && activeItem.status === 'in_progress' ) {
-					const currentArray = getCurrentArray( activeItemId );
-					const totalArrays = calculateTotalArrays( activeItem.totalModules, activeItem.startPosition || 1 );
-					const isLastArray = currentArray >= totalArrays;
-
-					if ( isLastArray ) {
-						// On last array, complete the row.
-						handleComplete( activeItemId );
-					} else {
-						// Advance to next array.
-						handleNextArray( activeItemId, currentArray );
-					}
+					handleComplete( activeItemId );
 				}
 			}
 		};
 
 		window.addEventListener( 'keydown', handleKeyDown );
 		return () => window.removeEventListener( 'keydown', handleKeyDown );
-	}, [ activeItemId, queueItems, currentArrays ] );
+	}, [ activeItemId, queueItems ] );
 
 	/**
 	 * Make AJAX request for queue operations.
@@ -588,9 +579,11 @@ export default function EngravingQueue() {
 	// Render loading state.
 	if ( loading ) {
 		return (
-			<div className="qsa-queue-loading">
-				<span className="spinner is-active"></span>
-				<p>{ __( 'Loading engraving queue...', 'qsa-engraving' ) }</p>
+			<div className="qsa-engraving-queue">
+				<div className="qsa-queue-loading">
+					<span className="spinner is-active"></span>
+					<p>{ __( 'Loading engraving queue...', 'qsa-engraving' ) }</p>
+				</div>
 			</div>
 		);
 	}

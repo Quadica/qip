@@ -50,7 +50,7 @@ export default function QueueHeader( { batch } ) {
 						<span className={ `qsa-batch-status status-${ batch.status }` }>
 							{ batch.status === 'in_progress'
 								? __( 'In Progress', 'qsa-engraving' )
-								: batch.status === 'done'
+								: batch.status === 'complete' || batch.status === 'completed'
 								? __( 'Completed', 'qsa-engraving' )
 								: __( 'Pending', 'qsa-engraving' ) }
 						</span>

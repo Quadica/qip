@@ -146,11 +146,13 @@ export default function QueueItem( {
 	const groupTypeClass = getGroupTypeClass( item.groupType );
 
 	// Calculate array breakdown for this row
+	// Note: Multi-array support is not yet implemented in the backend.
+	// Each row is treated as a single array unit per the design decision.
 	const arrays = calculateArrayBreakdown( item.totalModules, startPos, item.serials || [] );
-	const totalArrays = arrays.length;
-	const isFirstArray = currentArray <= 1;
-	const isLastArray = currentArray >= totalArrays;
-	const currentArrayDetails = arrays[ currentArray - 1 ] || null;
+	// Force single-array behavior until backend support is added
+	const totalArrays = 1;
+	const isLastArray = true; // Always true - single array per row
+	const currentArrayDetails = arrays[ 0 ] || null; // Always show first array details
 
 	/**
 	 * Handle start position input change.
@@ -388,10 +390,7 @@ export default function QueueItem( {
 					<div className="qsa-keyboard-hint">
 						<span className="keyboard-key">SPACEBAR</span>
 						<span>
-							{ isLastArray
-								? __( 'Press spacebar or click Complete to finish', 'qsa-engraving' )
-								: __( 'Press spacebar or click Next Array to advance', 'qsa-engraving' )
-							}
+							{ __( 'Press spacebar or click Complete to finish', 'qsa-engraving' ) }
 						</span>
 					</div>
 				</div>
