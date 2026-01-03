@@ -512,10 +512,18 @@
 	border-color: var(--wp-blue-hover);
 }
 
-.qsa-btn-start .dashicons {
+.qsa-btn-start .dashicons,
+.qsa-btn-resume .dashicons {
 	font-size: 16px;
 	width: 16px;
 	height: 16px;
+	line-height: 16px;
+}
+
+.qsa-btn-resume {
+	display: flex;
+	align-items: center;
+	gap: 6px;
 }
 
 .qsa-btn-back {
@@ -541,6 +549,7 @@
 	font-size: 14px;
 	width: 14px;
 	height: 14px;
+	line-height: 14px;
 }
 
 .qsa-btn-resend {
@@ -565,6 +574,20 @@
 	font-size: 14px;
 	width: 14px;
 	height: 14px;
+	line-height: 14px;
+}
+
+.qsa-btn-resend .dashicons.spin {
+	animation: qsa-spin 1s linear infinite;
+}
+
+.qsa-btn-resend.is-loading {
+	opacity: 0.8;
+	cursor: wait;
+}
+
+.qsa-btn-resend:disabled {
+	cursor: wait;
 }
 
 .qsa-btn-retry {
@@ -589,6 +612,7 @@
 	font-size: 14px;
 	width: 14px;
 	height: 14px;
+	line-height: 14px;
 }
 
 .qsa-btn-next-array {
@@ -615,6 +639,7 @@
 	font-size: 14px;
 	width: 14px;
 	height: 14px;
+	line-height: 14px;
 }
 
 .qsa-btn-complete {
@@ -641,6 +666,7 @@
 	font-size: 14px;
 	width: 14px;
 	height: 14px;
+	line-height: 14px;
 }
 
 .qsa-btn-rerun {
@@ -665,6 +691,7 @@
 	font-size: 14px;
 	width: 14px;
 	height: 14px;
+	line-height: 14px;
 }
 
 .qsa-done-badge {
@@ -683,6 +710,7 @@
 	font-size: 14px;
 	width: 14px;
 	height: 14px;
+	line-height: 14px;
 }
 
 /* ============================================
