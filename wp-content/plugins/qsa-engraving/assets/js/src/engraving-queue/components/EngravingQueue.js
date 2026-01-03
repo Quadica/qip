@@ -166,6 +166,26 @@ export default function EngravingQueue() {
 				setActiveBatchCount( data.data.active_batch_count || 0 );
 				setError( null );
 				setShowBatchSelector( false );
+
+				// Initialize currentArrays from backend data for in_progress items.
+				// This ensures resuming a batch shows the correct array position.
+				const initialArrays = {};
+				let activeItem = null;
+				data.data.queue_items.forEach( ( item ) => {
+					if ( item.status === 'in_progress' && item.currentArray > 0 ) {
+						initialArrays[ item.id ] = item.currentArray;
+						activeItem = item.id;
+					} else if ( item.status === 'partial' && item.completedArrays > 0 ) {
+						// For partial items, set to next array after completed ones.
+						initialArrays[ item.id ] = item.completedArrays + 1;
+					}
+				} );
+				if ( Object.keys( initialArrays ).length > 0 ) {
+					setCurrentArrays( initialArrays );
+				}
+				if ( activeItem ) {
+					setActiveItemId( activeItem );
+				}
 			} else {
 				setError( data.message || __( 'Failed to load queue.', 'qsa-engraving' ) );
 			}
