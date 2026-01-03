@@ -801,9 +801,9 @@ export default function EngravingQueue() {
 									<span className="dashicons dashicons-screenoptions"></span>
 									{ activeBatch.module_count } { __( 'modules', 'qsa-engraving' ) }
 								</span>
-								<span className="qsa-batch-rows">
+								<span className="qsa-batch-arrays">
 									<span className="dashicons dashicons-editor-ol"></span>
-									{ activeBatch.qsa_count } { __( 'rows', 'qsa-engraving' ) }
+									{ activeBatch.array_count } { __( 'arrays', 'qsa-engraving' ) }
 								</span>
 								<span className="qsa-batch-date">
 									<span className="dashicons dashicons-calendar-alt"></span>
