@@ -232,7 +232,7 @@ export default function QueueItem( {
 					{ item.status === 'pending' && (
 						<button
 							type="button"
-							className="button button-primary qsa-btn-start"
+							className="qsa-btn-start"
 							onClick={ () => onStart( item.id ) }
 						>
 							<span className="dashicons dashicons-controls-play"></span>
@@ -243,7 +243,7 @@ export default function QueueItem( {
 					{ item.status === 'partial' && (
 						<button
 							type="button"
-							className="button button-primary qsa-btn-resume"
+							className="qsa-btn-resume"
 							onClick={ () => onStart( item.id ) }
 							title={ __( 'Resume engraving from where you left off', 'qsa-engraving' ) }
 						>

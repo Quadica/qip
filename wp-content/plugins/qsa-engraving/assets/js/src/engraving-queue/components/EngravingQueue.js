@@ -61,6 +61,7 @@ export default function EngravingQueue() {
 	const [ activeBatchCount, setActiveBatchCount ] = useState( 0 ); // Count of other active batches
 	const [ showBatchSelector, setShowBatchSelector ] = useState( false );
 	const [ currentArrays, setCurrentArrays ] = useState( {} ); // Track current array per item
+	const [ resendingItemId, setResendingItemId ] = useState( null ); // Track which item is being resent
 	const [ lightburnStatus, setLightburnStatus ] = useState( {
 		enabled: window.qsaEngraving?.lightburnEnabled ?? false,
 		autoLoad: window.qsaEngraving?.lightburnAutoLoad ?? true,
@@ -623,6 +624,8 @@ export default function EngravingQueue() {
 		const qsaSequence = getQsaSequenceForArray( item, current );
 
 		try {
+			// Track which specific item is being resent.
+			setResendingItemId( itemId );
 			setLightburnStatus( ( prev ) => ( { ...prev, loading: true } ) );
 
 			// Try to load existing SVG in LightBurn.
@@ -654,6 +657,9 @@ export default function EngravingQueue() {
 		} catch ( err ) {
 			setLightburnStatus( ( prev ) => ( { ...prev, loading: false } ) );
 			alert( __( 'Network error during resend.', 'qsa-engraving' ) );
+		} finally {
+			// Clear the resending state.
+			setResendingItemId( null );
 		}
 	};
 
@@ -916,7 +922,7 @@ export default function EngravingQueue() {
 							isLast={ index === queueItems.length - 1 }
 							isActive={ activeItemId === item.id }
 							currentArray={ getCurrentArray( item.id ) }
-							isResending={ lightburnStatus.loading && activeItemId === item.id }
+							isResending={ resendingItemId === item.id }
 							onStart={ handleStart }
 							onComplete={ handleComplete }
 							onNextArray={ handleNextArray }
