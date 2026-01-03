@@ -1,8 +1,7 @@
 /**
  * ActionBar - Action Buttons Bar
  *
- * Displays action buttons when modules are selected including
- * Preview (to see LED transitions) and Create Batch.
+ * Displays action buttons when modules are selected.
  * Matches the mockup design with appropriate icons.
  *
  * @package QSA_Engraving
@@ -19,10 +18,8 @@ import { __ } from '@wordpress/i18n';
  * @param {number}   props.moduleCount   Number of selected modules.
  * @param {number}   props.unitCount     Total units selected.
  * @param {Function} props.onClear       Clear selection callback.
- * @param {Function} props.onPreview     Preview batch callback.
  * @param {Function} props.onCreateBatch Create batch callback.
  * @param {boolean}  props.creating      Whether batch is being created.
- * @param {boolean}  props.previewing    Whether preview is loading.
  * @param {Function} props.onRefresh     Refresh callback.
  * @return {JSX.Element} The component.
  */
@@ -31,10 +28,8 @@ export default function ActionBar( {
 	moduleCount,
 	unitCount,
 	onClear,
-	onPreview,
 	onCreateBatch,
 	creating,
-	previewing,
 	onRefresh,
 } ) {
 	if ( hasSelection ) {
@@ -53,32 +48,14 @@ export default function ActionBar( {
 					<button
 						className="qsa-btn-clear"
 						onClick={ onClear }
-						disabled={ creating || previewing }
+						disabled={ creating }
 					>
 						{ __( 'Clear Selection', 'qsa-engraving' ) }
 					</button>
 					<button
-						className="qsa-btn-preview"
-						onClick={ onPreview }
-						disabled={ creating || previewing }
-						title={ __( 'Preview LED transitions and array breakdown', 'qsa-engraving' ) }
-					>
-						{ previewing ? (
-							<>
-								<span className="spinner is-active"></span>
-								{ __( 'Previewing...', 'qsa-engraving' ) }
-							</>
-						) : (
-							<>
-								<span className="dashicons dashicons-visibility"></span>
-								{ __( 'Preview', 'qsa-engraving' ) }
-							</>
-						) }
-					</button>
-					<button
 						className="qsa-btn-create"
 						onClick={ onCreateBatch }
-						disabled={ creating || previewing }
+						disabled={ creating }
 					>
 						{ creating ? (
 							<>

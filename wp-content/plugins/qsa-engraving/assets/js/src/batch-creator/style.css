@@ -185,10 +185,6 @@
 	border-right: 1px solid var(--qsa-border-light);
 }
 
-.qsa-stats-bar.has-preview {
-	grid-template-columns: repeat(6, 1fr);
-}
-
 .qsa-stat {
 	padding: 16px;
 	text-align: center;
@@ -221,10 +217,6 @@
 
 .qsa-stat:nth-child(3) .qsa-stat-value {
 	color: var(--qsa-success);
-}
-
-.qsa-stat-preview .qsa-stat-value {
-	color: var(--qsa-wp-blue);
 }
 
 /* Action bar */
@@ -287,31 +279,6 @@
 .qsa-btn-clear:hover {
 	border-color: var(--qsa-error);
 	color: var(--qsa-error);
-}
-
-.qsa-btn-preview {
-	display: flex;
-	align-items: center;
-	gap: 6px;
-	padding: 6px 12px;
-	background: var(--qsa-bg-card);
-	border: 1px solid var(--qsa-border);
-	border-radius: 4px;
-	color: var(--qsa-text-secondary);
-	font-size: 13px;
-	cursor: pointer;
-	transition: all 0.15s ease;
-}
-
-.qsa-btn-preview:hover {
-	border-color: var(--qsa-wp-blue);
-	color: var(--qsa-wp-blue);
-}
-
-.qsa-btn-preview .dashicons {
-	font-size: 16px;
-	width: 16px;
-	height: 16px;
 }
 
 .qsa-btn-create {
