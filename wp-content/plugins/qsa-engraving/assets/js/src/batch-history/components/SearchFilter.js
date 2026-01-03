@@ -76,7 +76,6 @@ export default function SearchFilter( { filters, onFilterChange, loading } ) {
 			{ /* Search Bar */ }
 			<div className="qsa-search-bar">
 				<div className="qsa-search-input-wrapper">
-					<span className="dashicons dashicons-search"></span>
 					<input
 						type="text"
 						placeholder={ __( 'Search by batch ID, order ID, or module SKU...', 'qsa-engraving' ) }
@@ -85,7 +84,7 @@ export default function SearchFilter( { filters, onFilterChange, loading } ) {
 						className="qsa-search-input"
 						disabled={ loading }
 					/>
-					{ searchInput && (
+					{ searchInput ? (
 						<button
 							onClick={ handleClearSearch }
 							className="qsa-search-clear"
@@ -93,6 +92,8 @@ export default function SearchFilter( { filters, onFilterChange, loading } ) {
 						>
 							<span className="dashicons dashicons-no-alt"></span>
 						</button>
+					) : (
+						<span className="dashicons dashicons-search qsa-search-icon"></span>
 					) }
 				</div>
 

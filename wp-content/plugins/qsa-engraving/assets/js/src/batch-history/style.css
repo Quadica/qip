@@ -131,25 +131,25 @@
 	flex: 1;
 }
 
-.qsa-search-input-wrapper > .dashicons {
+.qsa-search-input {
+	width: 100%;
+	padding: 10px 36px 10px 12px;
+	background-color: var(--qsa-bg-card);
+	border: 1px solid var(--qsa-border);
+	border-radius: 4px;
+	color: var(--qsa-text-primary);
+	font-size: 14px;
+}
+
+.qsa-search-icon {
 	position: absolute;
-	left: 12px;
+	right: 12px;
 	top: 50%;
 	transform: translateY(-50%);
 	color: var(--qsa-text-muted);
 	font-size: 16px;
 	width: 16px;
 	height: 16px;
-}
-
-.qsa-search-input {
-	width: 100%;
-	padding: 10px 36px 10px 36px;
-	background-color: var(--qsa-bg-card);
-	border: 1px solid var(--qsa-border);
-	border-radius: 4px;
-	color: var(--qsa-text-primary);
-	font-size: 14px;
 }
 
 .qsa-search-input:focus {
