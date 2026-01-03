@@ -390,6 +390,11 @@
 	color: var(--text-muted);
 }
 
+.qsa-status-icon.status-partial {
+	background: rgba(10, 159, 216, 0.1);
+	color: #0a9fd8;
+}
+
 .qsa-status-icon .dashicons {
 	font-size: 16px;
 	width: 16px;
@@ -465,6 +470,11 @@
 .qsa-status-badge.status-pending {
 	background: var(--bg-elevated);
 	color: var(--text-muted);
+}
+
+.qsa-status-badge.status-partial {
+	background: rgba(10, 159, 216, 0.1);
+	color: #0a9fd8;
 }
 
 /* ============================================

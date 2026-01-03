@@ -453,8 +453,22 @@ class Queue_Ajax_Handler {
 				$status = 'complete';
 			} elseif ( $in_prog ) {
 				$status = 'in_progress';
+			} elseif ( $done_count > 0 ) {
+				$status = 'partial'; // Some QSA sequences completed, others pending.
 			} else {
 				$status = 'pending';
+			}
+
+			// Count completed QSA sequences for partial progress tracking.
+			$completed_qsa_count = 0;
+			foreach ( $qsa_data as $qsa_seq => $qsa_modules ) {
+				$qsa_statuses = array_map(
+					fn( $s ) => $this->normalize_row_status( $s ),
+					array_column( $qsa_modules, 'row_status' )
+				);
+				if ( count( array_filter( $qsa_statuses, fn( $s ) => $s === 'done' ) ) === count( $qsa_modules ) ) {
+					$completed_qsa_count++;
+				}
 			}
 
 			// Get start position from first module of first QSA.
@@ -468,17 +482,18 @@ class Queue_Ajax_Handler {
 			$row_serials = $this->get_serials_for_group( $qsa_sequences, $all_serials, $status );
 
 			$queue_items[] = array(
-				'id'             => $first_qsa, // Primary identifier is first QSA sequence.
-				'qsa_sequences'  => $qsa_sequences, // All QSA sequences in this group.
-				'groupType'      => $group_type,
-				'moduleType'     => $module_type,
-				'modules'        => $module_list,
-				'totalModules'   => $total_count,
-				'arrayCount'     => $array_count,
-				'status'         => $status,
-				'startPosition'  => $start_position,
-				'currentArray'   => $current_array,
-				'serials'        => $row_serials,
+				'id'               => $first_qsa, // Primary identifier is first QSA sequence.
+				'qsa_sequences'    => $qsa_sequences, // All QSA sequences in this group.
+				'groupType'        => $group_type,
+				'moduleType'       => $module_type,
+				'modules'          => $module_list,
+				'totalModules'     => $total_count,
+				'arrayCount'       => $array_count,
+				'status'           => $status,
+				'startPosition'    => $start_position,
+				'currentArray'     => $current_array,
+				'completedArrays'  => $completed_qsa_count, // How many QSA sequences are fully done.
+				'serials'          => $row_serials,
 			);
 		}
 
@@ -538,17 +553,18 @@ class Queue_Ajax_Handler {
 			$row_serials = $this->get_serials_for_group( array( $qsa_seq ), $all_serials, $status );
 
 			$queue_items[] = array(
-				'id'             => $qsa_seq,
-				'qsa_sequences'  => array( $qsa_seq ),
-				'groupType'      => $group_type,
-				'moduleType'     => $module_type,
-				'modules'        => $module_list,
-				'totalModules'   => $total_count,
-				'arrayCount'     => 1,
-				'status'         => $status,
-				'startPosition'  => $start_position,
-				'currentArray'   => $current_array,
-				'serials'        => $row_serials,
+				'id'               => $qsa_seq,
+				'qsa_sequences'    => array( $qsa_seq ),
+				'groupType'        => $group_type,
+				'moduleType'       => $module_type,
+				'modules'          => $module_list,
+				'totalModules'     => $total_count,
+				'arrayCount'       => 1,
+				'status'           => $status,
+				'startPosition'    => $start_position,
+				'currentArray'     => $current_array,
+				'completedArrays'  => ( 'complete' === $status ) ? 1 : 0,
+				'serials'          => $row_serials,
 			);
 		}
 
