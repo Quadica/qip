@@ -226,21 +226,29 @@ export default function EngravingQueue() {
 				return;
 			}
 
-			// Spacebar completes the current row (when in progress).
-			// Note: Multi-array support is not yet implemented - each row is treated as a single array.
+			// Spacebar advances to next array or completes the current row (when in progress).
 			if ( e.code === 'Space' && activeItemId !== null ) {
 				e.preventDefault();
 
 				const activeItem = queueItems.find( ( item ) => item.id === activeItemId );
 				if ( activeItem && activeItem.status === 'in_progress' ) {
-					handleComplete( activeItemId );
+					const startPos = activeItem.startPosition || 1;
+					const totalArrays = calculateTotalArrays( activeItem.totalModules, startPos );
+					const current = getCurrentArray( activeItemId );
+					const isLastArray = current >= totalArrays;
+
+					if ( isLastArray ) {
+						handleComplete( activeItemId );
+					} else {
+						handleNextArray( activeItemId, current );
+					}
 				}
 			}
 		};
 
 		window.addEventListener( 'keydown', handleKeyDown );
 		return () => window.removeEventListener( 'keydown', handleKeyDown );
-	}, [ activeItemId, queueItems ] );
+	}, [ activeItemId, queueItems, currentArrays ] );
 
 	/**
 	 * Make AJAX request for queue operations.
