@@ -68,8 +68,6 @@ export default function BatchCreator() {
 	const [ expandedBaseTypes, setExpandedBaseTypes ] = useState( new Set() );
 	const [ expandedOrders, setExpandedOrders ] = useState( new Set() );
 	const [ creatingBatch, setCreatingBatch ] = useState( false );
-	const [ previewData, setPreviewData ] = useState( null );
-	const [ previewing, setPreviewing ] = useState( false );
 	const [ reengravingSource, setReengravingSource ] = useState( null );
 	const [ reengravingData, setReengravingData ] = useState( null );
 
@@ -104,7 +102,6 @@ export default function BatchCreator() {
 	const fetchModules = useCallback( async () => {
 		setLoading( true );
 		setError( null );
-		setPreviewData( null );
 
 		try {
 			const response = await ajaxRequest( 'qsa_get_modules_awaiting' );
@@ -404,7 +401,6 @@ export default function BatchCreator() {
 			}
 
 			setSelectedModules( newSelected );
-			setPreviewData( null ); // Clear preview when selection changes.
 		},
 		[ getBaseTypeModuleIds, getBaseTypeSelectionState, moduleData, selectedModules ]
 	);
@@ -428,7 +424,6 @@ export default function BatchCreator() {
 			}
 
 			setSelectedModules( newSelected );
-			setPreviewData( null ); // Clear preview when selection changes.
 		},
 		[ getOrderModuleIds, getOrderSelectionState, selectedModules ]
 	);
@@ -448,7 +443,6 @@ export default function BatchCreator() {
 			}
 			return newSet;
 		} );
-		setPreviewData( null ); // Clear preview when selection changes.
 	}, [] );
 
 	/**
@@ -488,8 +482,6 @@ export default function BatchCreator() {
 			if ( ! selectedModules.has( moduleId ) ) {
 				setSelectedModules( ( prev ) => new Set( [ ...prev, moduleId ] ) );
 			}
-
-			setPreviewData( null ); // Clear preview when quantity changes.
 		},
 		[ selectedModules ]
 	);
@@ -500,7 +492,6 @@ export default function BatchCreator() {
 	const clearSelections = useCallback( () => {
 		setSelectedModules( new Set() );
 		setEngraveQuantities( {} );
-		setPreviewData( null );
 	}, [] );
 
 	/**
@@ -539,42 +530,6 @@ export default function BatchCreator() {
 
 		return { moduleCount, unitCount };
 	}, [ getAllModuleIds, selectedModules, getEngraveQty ] );
-
-	/**
-	 * Preview the batch to see LED transitions and array breakdown.
-	 */
-	const previewBatch = useCallback( async () => {
-		if ( totals.moduleCount === 0 ) {
-			return;
-		}
-
-		setPreviewing( true );
-		setError( null );
-
-		try {
-			const response = await ajaxRequest( 'qsa_preview_batch', {
-				selections: buildSelections(),
-				start_position: 1,
-			} );
-
-			// eslint-disable-next-line no-console
-			console.log( 'Preview response:', response );
-
-			if ( response.success && response.data ) {
-				setPreviewData( response.data );
-			} else {
-				// Extract error message from response.
-				const errorMsg = response.message || response.data?.message || __( 'Failed to preview batch.', 'qsa-engraving' );
-				setError( errorMsg );
-			}
-		} catch ( err ) {
-			// eslint-disable-next-line no-console
-			console.error( 'Preview error:', err );
-			setError( __( 'Failed to preview batch.', 'qsa-engraving' ) + ' ' + ( err.message || '' ) );
-		} finally {
-			setPreviewing( false );
-		}
-	}, [ totals, buildSelections ] );
 
 	/**
 	 * Create the engraving batch.
@@ -830,7 +785,6 @@ export default function BatchCreator() {
 				baseTypeCount={ Object.keys( moduleData ).length }
 				selectedCount={ totals.moduleCount }
 				unitCount={ totals.unitCount }
-				previewData={ previewData }
 			/>
 
 			{ /* Re-engraving source banner */ }
@@ -844,10 +798,8 @@ export default function BatchCreator() {
 				moduleCount={ totals.moduleCount }
 				unitCount={ totals.unitCount }
 				onClear={ clearSelections }
-				onPreview={ previewBatch }
 				onCreateBatch={ createBatch }
 				creating={ creatingBatch }
-				previewing={ previewing }
 				onRefresh={ fetchModules }
 			/>
 

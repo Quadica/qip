@@ -1,8 +1,7 @@
 /**
  * StatsBar - Statistics Display Bar
  *
- * Displays summary statistics for the batch creator including
- * LED transitions and QSA array breakdown from preview data.
+ * Displays summary statistics for the batch creator.
  * Matches the mockup design with centered text and uppercase labels.
  *
  * @package QSA_Engraving
@@ -14,18 +13,15 @@ import { __ } from '@wordpress/i18n';
 /**
  * StatsBar component.
  *
- * @param {Object}      props               Component props.
- * @param {number}      props.baseTypeCount Number of base types.
- * @param {number}      props.selectedCount Number of selected modules.
- * @param {number}      props.unitCount     Total units selected.
- * @param {Object|null} props.previewData   Preview data from server (null if not previewed).
+ * @param {Object} props               Component props.
+ * @param {number} props.baseTypeCount Number of base types.
+ * @param {number} props.selectedCount Number of selected modules.
+ * @param {number} props.unitCount     Total units selected.
  * @return {JSX.Element} The component.
  */
-export default function StatsBar( { baseTypeCount, selectedCount, unitCount, previewData } ) {
-	const hasPreview = previewData !== null;
-
+export default function StatsBar( { baseTypeCount, selectedCount, unitCount } ) {
 	return (
-		<div className={ `qsa-stats-bar${ hasPreview ? ' has-preview' : '' }` }>
+		<div className="qsa-stats-bar">
 			<div className="qsa-stat">
 				<span className="qsa-stat-label">{ __( 'Base Types', 'qsa-engraving' ) }</span>
 				<span className="qsa-stat-value">{ baseTypeCount }</span>
@@ -38,24 +34,6 @@ export default function StatsBar( { baseTypeCount, selectedCount, unitCount, pre
 				<span className="qsa-stat-label">{ __( 'Total Units', 'qsa-engraving' ) }</span>
 				<span className="qsa-stat-value">{ unitCount }</span>
 			</div>
-
-			{ /* Show preview stats when available */ }
-			{ hasPreview && (
-				<>
-					<div className="qsa-stat qsa-stat-preview">
-						<span className="qsa-stat-label">{ __( 'QSA Arrays', 'qsa-engraving' ) }</span>
-						<span className="qsa-stat-value">{ previewData.array_count || 0 }</span>
-					</div>
-					<div className="qsa-stat qsa-stat-preview">
-						<span className="qsa-stat-label">{ __( 'LED Transitions', 'qsa-engraving' ) }</span>
-						<span className="qsa-stat-value">{ previewData.led_transitions || 0 }</span>
-					</div>
-					<div className="qsa-stat qsa-stat-preview">
-						<span className="qsa-stat-label">{ __( 'Distinct LEDs', 'qsa-engraving' ) }</span>
-						<span className="qsa-stat-value">{ previewData.distinct_leds?.length || 0 }</span>
-					</div>
-				</>
-			) }
 		</div>
 	);
 }
