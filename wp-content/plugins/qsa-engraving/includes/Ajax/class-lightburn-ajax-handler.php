@@ -191,6 +191,28 @@ class LightBurn_Ajax_Handler {
 	}
 
 	/**
+	 * Check if we're in a development/staging environment.
+	 *
+	 * @return bool
+	 */
+	private function is_development_environment(): bool {
+		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+			return true;
+		}
+
+		$host = isset( $_SERVER['HTTP_HOST'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_HOST'] ) ) : '';
+		$dev_patterns = array( 'env-', 'staging', '.dev', '.test', 'localhost', '.local' );
+
+		foreach ( $dev_patterns as $pattern ) {
+			if ( stripos( $host, $pattern ) !== false ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
 	 * Handle test LightBurn connection request.
 	 *
 	 * @return void
@@ -737,9 +759,9 @@ class LightBurn_Ajax_Handler {
 			return;
 		}
 
-		// Only allow when WP_DEBUG is enabled.
-		if ( ! defined( 'WP_DEBUG' ) || ! WP_DEBUG ) {
-			$this->send_error( __( 'This action is only available in debug mode.', 'qsa-engraving' ), 'not_debug_mode', 403 );
+		// Only allow in development/staging environments.
+		if ( ! $this->is_development_environment() ) {
+			$this->send_error( __( 'This action is only available in development environments.', 'qsa-engraving' ), 'not_dev_environment', 403 );
 			return;
 		}
 
