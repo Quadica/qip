@@ -770,6 +770,16 @@ export default function BatchCreator() {
 	};
 
 	/**
+	 * Get the dashboard URL.
+	 *
+	 * @return {string} The main QSA Engraving dashboard URL.
+	 */
+	const getDashboardUrl = () => {
+		const baseUrl = window.qsaEngraving?.adminUrl || '/wp-admin/';
+		return `${ baseUrl }admin.php?page=qsa-engraving`;
+	};
+
+	/**
 	 * Get the batch history URL.
 	 *
 	 * @return {string} The batch history page URL.
@@ -796,14 +806,24 @@ export default function BatchCreator() {
 						</p>
 					</div>
 				</div>
-				<a
-					href={ getBatchHistoryUrl() }
-					className="qsa-btn-history"
-					title={ __( 'View previously completed batches for re-engraving', 'qsa-engraving' ) }
-				>
-					<span className="dashicons dashicons-backup"></span>
-					{ __( 'View Batch History', 'qsa-engraving' ) }
-				</a>
+				<div className="qsa-batch-creator-header-buttons">
+					<a
+						href={ getDashboardUrl() }
+						className="qsa-btn-back"
+						title={ __( 'Return to QSA Engraving dashboard', 'qsa-engraving' ) }
+					>
+						<span className="dashicons dashicons-arrow-left-alt"></span>
+						{ __( 'Back to Dashboard', 'qsa-engraving' ) }
+					</a>
+					<a
+						href={ getBatchHistoryUrl() }
+						className="qsa-btn-history"
+						title={ __( 'View previously completed batches for re-engraving', 'qsa-engraving' ) }
+					>
+						<span className="dashicons dashicons-backup"></span>
+						{ __( 'View Batch History', 'qsa-engraving' ) }
+					</a>
+				</div>
 			</div>
 
 			<StatsBar
