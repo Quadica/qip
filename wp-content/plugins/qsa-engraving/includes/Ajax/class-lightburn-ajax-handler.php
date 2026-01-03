@@ -781,7 +781,7 @@ class LightBurn_Ajax_Handler {
 		$wpdb->query( "TRUNCATE TABLE {$batches_table}" );
 
 		// Clean up any SVG files.
-		$this->svg_file_manager->cleanup_all_files();
+		$this->file_manager->cleanup_all_files();
 
 		$this->send_success(
 			null,
