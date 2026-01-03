@@ -232,13 +232,8 @@ export default function EngravingQueue() {
 
 				const activeItem = queueItems.find( ( item ) => item.id === activeItemId );
 				if ( activeItem && activeItem.status === 'in_progress' ) {
-					// For multi-QSA groups, use the number of sequences.
-					// For single-QSA, calculate based on start position.
-					const sequences = activeItem.qsa_sequences || [ activeItem.id ];
-					const isMultiQsa = sequences.length > 1;
-					const totalArrays = isMultiQsa
-						? sequences.length
-						: calculateTotalArrays( activeItem.totalModules, activeItem.startPosition || 1 );
+					// Always calculate array count dynamically based on totalModules and startPosition.
+					const totalArrays = calculateTotalArrays( activeItem.totalModules, activeItem.startPosition || 1 );
 					const current = getCurrentArray( activeItemId );
 					const isLastArray = current >= totalArrays;
 
@@ -432,7 +427,8 @@ export default function EngravingQueue() {
 	/**
 	 * Handle advancing to next array within a row.
 	 *
-	 * For multi-QSA groups: completes current QSA sequence, starts next QSA sequence.
+	 * For multi-QSA groups: completes current QSA sequence, starts next QSA sequence
+	 * (if a corresponding qsa_sequence exists).
 	 * For single-QSA with start position offset: advances array counter within same QSA.
 	 *
 	 * @param {number} itemId       The queue item ID (first QSA sequence in group).
@@ -445,8 +441,8 @@ export default function EngravingQueue() {
 		}
 
 		const sequences = item.qsa_sequences || [ item.id ];
-		const isMultiQsa = sequences.length > 1;
-		const totalArrays = isMultiQsa ? sequences.length : calculateTotalArrays( item.totalModules, item.startPosition || 1 );
+		// Always calculate array count dynamically based on totalModules and startPosition.
+		const totalArrays = calculateTotalArrays( item.totalModules, item.startPosition || 1 );
 		const nextArray = currentArray + 1;
 
 		if ( nextArray > totalArrays ) {
@@ -455,8 +451,13 @@ export default function EngravingQueue() {
 			return;
 		}
 
-		if ( isMultiQsa ) {
-			// Multi-QSA group: complete current QSA sequence, start next one.
+		// Check if we have a qsa_sequence for the next array.
+		// For multi-QSA groups, each array maps to a qsa_sequence.
+		// For single-QSA with multiple calculated arrays, all use the same qsa_sequence.
+		const hasNextQsaSequence = nextArray <= sequences.length;
+
+		if ( hasNextQsaSequence && sequences.length > 1 ) {
+			// Multi-QSA group with available next qsa_sequence: complete current, start next.
 			const currentQsaSequence = getQsaSequenceForArray( item, currentArray );
 			const nextQsaSequence = getQsaSequenceForArray( item, nextArray );
 
@@ -505,7 +506,7 @@ export default function EngravingQueue() {
 				alert( __( 'Network error advancing to next array.', 'qsa-engraving' ) );
 			}
 		} else {
-			// Single-QSA with start position offset: just advance counter.
+			// Single-QSA or calculated arrays beyond available qsa_sequences: just advance counter.
 			setCurrentArrays( ( prev ) => ( { ...prev, [ itemId ]: nextArray } ) );
 
 			// Generate SVG for the next array (same QSA sequence).
@@ -676,8 +677,8 @@ export default function EngravingQueue() {
 	/**
 	 * Handle start position change.
 	 *
-	 * Only applies to single-QSA items. For multi-QSA groups, start position
-	 * change is not supported (each QSA is a separate physical array).
+	 * Updates the start position which affects the calculated array count.
+	 * For multi-QSA groups, this updates the first QSA sequence's positions.
 	 *
 	 * @param {number} itemId        The queue item ID (first QSA sequence in group).
 	 * @param {number} startPosition The new start position (1-8).
@@ -689,12 +690,6 @@ export default function EngravingQueue() {
 		}
 
 		const sequences = item.qsa_sequences || [ item.id ];
-
-		// For multi-QSA groups, start position change doesn't apply.
-		if ( sequences.length > 1 ) {
-			return;
-		}
-
 		const qsaSequence = sequences[ 0 ];
 
 		try {

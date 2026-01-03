@@ -145,34 +145,15 @@ export default function QueueItem( {
 	const statusStyle = getStatusStyle( item.status );
 	const groupTypeClass = getGroupTypeClass( item.groupType );
 
-	// Use arrayCount from backend for multi-QSA groups (Same ID modules spanning multiple arrays).
-	// For single-QSA items, calculate breakdown based on start position.
-	const backendArrayCount = item.arrayCount || 1;
+	// Track qsa_sequences for backend operations.
 	const qsaSequences = item.qsa_sequences || [ item.id ];
 
-	// Calculate array breakdown for display purposes.
-	// For multi-QSA groups, each QSA is one physical array.
-	// For single-QSA with start position offset, calculate overflow arrays.
-	let totalArrays;
-	let arrays;
-
-	if ( qsaSequences.length > 1 ) {
-		// Multi-QSA group: each QSA sequence is one array.
-		totalArrays = backendArrayCount;
-		// Build simple array info for each QSA.
-		arrays = qsaSequences.map( ( qsaSeq, idx ) => ( {
-			arrayNum: idx + 1,
-			qsaSequence: qsaSeq,
-			startPos: idx === 0 ? startPos : 1,
-			endPos: 8,
-			moduleCount: 8,
-			description: idx === 0 && startPos > 1 ? `${ startPos }-8` : '1-8',
-		} ) );
-	} else {
-		// Single QSA: calculate breakdown based on start position.
-		arrays = calculateArrayBreakdown( item.totalModules, startPos, item.serials || [] );
-		totalArrays = arrays.length;
-	}
+	// Always calculate array breakdown dynamically based on totalModules and startPosition.
+	// This ensures the "Arrays:" count updates when start position changes.
+	// For 35 modules at start position 7: first array fits 2 (positions 7-8),
+	// remaining 33 need ceil(33/8)=5 more arrays, total = 6.
+	const arrays = calculateArrayBreakdown( item.totalModules, startPos, item.serials || [] );
+	const totalArrays = arrays.length;
 
 	const isLastArray = currentArray >= totalArrays;
 	const currentArrayDetails = arrays[ currentArray - 1 ] || null;
