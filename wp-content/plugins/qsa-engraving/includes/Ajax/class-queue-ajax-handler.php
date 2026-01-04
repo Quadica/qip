@@ -357,14 +357,18 @@ class Queue_Ajax_Handler {
 	 * Build queue items from modules.
 	 *
 	 * Groups modules intelligently:
-	 * - "Same ID" groups: All modules with the same single SKU are merged into one row,
-	 *   even if they span multiple QSA sequences (physical arrays).
+	 * - "Same ID" groups: All modules with the same single SKU AND same workflow status
+	 *   are merged into one row, even if they span multiple QSA sequences (physical arrays).
 	 * - "Mixed ID" groups: Modules with different SKUs within the same QSA sequence
 	 *   stay as separate rows.
 	 *
+	 * Status-based grouping prevents sequences from different workflow states being
+	 * mixed together (e.g., pending sequences shouldn't be grouped with in_progress
+	 * sequences that came from a different row's redistribution).
+	 *
 	 * @param array $modules    Array of module records.
 	 * @param int   $batch_id   The batch ID.
-	 * @return array Queue items grouped by SKU composition.
+	 * @return array Queue items grouped by SKU composition and workflow status.
 	 */
 	private function build_queue_items( array $modules, int $batch_id ): array {
 		if ( empty( $modules ) ) {
@@ -381,21 +385,30 @@ class Queue_Ajax_Handler {
 			$by_qsa[ $qsa_seq ][] = $module;
 		}
 
-		// Second pass: Identify "Same ID" QSAs (single SKU) and group them.
+		// Second pass: Identify "Same ID" QSAs (single SKU) and group them by SKU + status.
 		// "Mixed ID" QSAs stay separate.
-		$same_id_groups = array(); // SKU => array of qsa_sequences.
+		$same_id_groups = array(); // "SKU|status" => array of qsa_sequences.
 		$mixed_id_qsas  = array(); // qsa_sequence => modules.
 
 		foreach ( $by_qsa as $qsa_seq => $qsa_modules ) {
 			$unique_skus = array_unique( array_column( $qsa_modules, 'module_sku' ) );
 
 			if ( count( $unique_skus ) === 1 ) {
-				// Same ID - group by SKU.
-				$sku = $unique_skus[0];
-				if ( ! isset( $same_id_groups[ $sku ] ) ) {
-					$same_id_groups[ $sku ] = array();
+				// Same ID - group by SKU AND status.
+				// This prevents mixing pending sequences with in_progress sequences
+				// that came from a different row's redistribution.
+				$sku        = $unique_skus[0];
+				$qsa_status = $this->normalize_row_status( $qsa_modules[0]['row_status'] ?? null );
+				$group_key  = $sku . '|' . $qsa_status;
+
+				if ( ! isset( $same_id_groups[ $group_key ] ) ) {
+					$same_id_groups[ $group_key ] = array(
+						'sku'    => $sku,
+						'status' => $qsa_status,
+						'qsas'   => array(),
+					);
 				}
-				$same_id_groups[ $sku ][ $qsa_seq ] = $qsa_modules;
+				$same_id_groups[ $group_key ]['qsas'][ $qsa_seq ] = $qsa_modules;
 			} else {
 				// Mixed ID - keep separate.
 				$mixed_id_qsas[ $qsa_seq ] = $qsa_modules;
@@ -405,10 +418,13 @@ class Queue_Ajax_Handler {
 		// Get all serials for the batch once.
 		$all_serials = $this->serial_repository->get_by_batch( $batch_id );
 
-		// Build queue items from Same ID groups (merged across QSA sequences).
+		// Build queue items from Same ID groups (merged across QSA sequences with same status).
 		$queue_items = array();
 
-		foreach ( $same_id_groups as $sku => $qsa_data ) {
+		foreach ( $same_id_groups as $group_key => $group_data ) {
+			$sku      = $group_data['sku'];
+			$qsa_data = $group_data['qsas'];
+
 			// Sort QSA sequences.
 			ksort( $qsa_data );
 			$qsa_sequences = array_keys( $qsa_data );
@@ -441,6 +457,7 @@ class Queue_Ajax_Handler {
 			);
 
 			// Determine status from all modules.
+			// Since we group by status, all modules should have the same normalized status.
 			$statuses    = array_map(
 				fn( $s ) => $this->normalize_row_status( $s ),
 				array_column( $all_group_modules, 'row_status' )
@@ -1327,9 +1344,12 @@ class Queue_Ajax_Handler {
 	/**
 	 * Get all QSA sequences that belong to the same "row" as the given sequence.
 	 *
-	 * A row is defined by modules with the same SKU composition:
+	 * A row is defined by modules with the same SKU composition AND workflow status:
 	 * - Same ID: All QSA sequences containing modules with the same single SKU
 	 * - Mixed ID: Just the single QSA sequence (different SKUs in same sequence)
+	 * - Status Match: Only sequences with the same normalized status are grouped together.
+	 *   This prevents in_progress sequences from one row being mixed with pending
+	 *   sequences from another row (which can happen after redistribution).
 	 *
 	 * @param array $all_modules  All modules in the batch.
 	 * @param int   $qsa_sequence The QSA sequence to find the row for.
@@ -1359,7 +1379,10 @@ class Queue_Ajax_Handler {
 			return array( $qsa_sequence );
 		}
 
-		// Same ID: find all QSA sequences with the same single SKU.
+		// Get the target QSA's status (use first module's status as representative).
+		$target_status = $this->normalize_row_status( $by_qsa[ $qsa_sequence ][0]['row_status'] ?? null );
+
+		// Same ID: find all QSA sequences with the same single SKU AND same status.
 		$target_sku = $target_skus[0];
 		$row_sequences = array();
 
@@ -1368,7 +1391,11 @@ class Queue_Ajax_Handler {
 
 			// Only include if it's Same ID (single SKU) AND matches our target SKU.
 			if ( count( $skus ) === 1 && $skus[0] === $target_sku ) {
-				$row_sequences[] = $qsa;
+				// Also check status - don't mix sequences with different workflow states.
+				$qsa_status = $this->normalize_row_status( $modules[0]['row_status'] ?? null );
+				if ( $qsa_status === $target_status ) {
+					$row_sequences[] = $qsa;
+				}
 			}
 		}
 
