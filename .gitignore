@@ -81,3 +81,6 @@ CONFIG.md
 
 # Claude Code configuration
 .claude/
+
+# Playwright authentication state (contains session cookies)
+.playwright-auth.json

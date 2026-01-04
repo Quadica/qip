@@ -108,6 +108,9 @@ class Config_Repository {
      * configurations taking precedence over default (null revision) configs.
      * Falls back to any available revision if no exact match is found.
      *
+     * WARNING: If fallback is used, a warning is logged via error_log() to
+     * alert administrators that the requested configuration was not found.
+     *
      * @param string      $qsa_design The design name (e.g., "CORE", "STAR").
      * @param string|null $revision The revision letter (e.g., "a") or null.
      * @return array Configuration data indexed by position and element type.
@@ -118,6 +121,9 @@ class Config_Repository {
         if ( isset( $this->cache[ $cache_key ] ) ) {
             return $this->cache[ $cache_key ];
         }
+
+        $used_fallback    = false;
+        $fallback_revision = null;
 
         // Try to get specific revision config, or fall back to any available revision.
         // Priority: exact revision match > null revision > any revision (alphabetically first).
@@ -133,6 +139,24 @@ class Config_Repository {
                 $this->wpdb->prepare( $sql, $qsa_design, $revision ),
                 ARRAY_A
             ) ?: array();
+
+            // If specific revision not found, fall back to any available revision.
+            if ( empty( $results ) ) {
+                $sql = "SELECT position, element_type, origin_x, origin_y, rotation, text_height, revision
+                        FROM {$this->table_name}
+                        WHERE qsa_design = %s
+                          AND is_active = 1
+                        ORDER BY revision, position, element_type";
+                $results = $this->wpdb->get_results(
+                    $this->wpdb->prepare( $sql, $qsa_design ),
+                    ARRAY_A
+                ) ?: array();
+
+                if ( ! empty( $results ) ) {
+                    $used_fallback     = true;
+                    $fallback_revision = $results[0]['revision'] ?? 'unknown';
+                }
+            }
         } else {
             // No specific revision - try NULL first, then fall back to first available.
             $sql = "SELECT position, element_type, origin_x, origin_y, rotation, text_height
@@ -148,7 +172,7 @@ class Config_Repository {
 
             // Fall back to first available revision if no NULL revision config.
             if ( empty( $results ) ) {
-                $sql = "SELECT position, element_type, origin_x, origin_y, rotation, text_height
+                $sql = "SELECT position, element_type, origin_x, origin_y, rotation, text_height, revision
                         FROM {$this->table_name}
                         WHERE qsa_design = %s
                           AND is_active = 1
@@ -157,7 +181,24 @@ class Config_Repository {
                     $this->wpdb->prepare( $sql, $qsa_design ),
                     ARRAY_A
                 ) ?: array();
+
+                if ( ! empty( $results ) ) {
+                    $used_fallback     = true;
+                    $fallback_revision = $results[0]['revision'] ?? 'unknown';
+                }
             }
+        }
+
+        // Log warning if fallback was used.
+        if ( $used_fallback ) {
+            error_log(
+                sprintf(
+                    'QSA Engraving: Config revision fallback - requested %s revision %s, using revision %s instead. Verify QSA coordinates are correct.',
+                    $qsa_design,
+                    $revision ?? 'NULL',
+                    $fallback_revision
+                )
+            );
         }
 
         // Organize by position and element type.
