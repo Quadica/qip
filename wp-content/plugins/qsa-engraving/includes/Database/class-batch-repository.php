@@ -579,7 +579,21 @@ class Batch_Repository {
         // Validate start position.
         $start_position = max( 1, min( 8, $start_position ) );
 
+        // Start transaction FIRST to ensure we read consistent data.
+        // This prevents race conditions where another admin modifies the row
+        // between our read and updates.
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        $transaction_result = $this->wpdb->query( 'START TRANSACTION' );
+        if ( false === $transaction_result ) {
+            error_log( 'QSA Engraving: Failed to start transaction in redistribute_row_modules' );
+            return new WP_Error(
+                'transaction_failed',
+                __( 'Failed to start database transaction. Please try again.', 'qsa-engraving' )
+            );
+        }
+
         // Get all modules in the given QSA sequences, ordered to preserve original order.
+        // Use FOR UPDATE to lock rows and prevent concurrent modifications.
         $placeholders = implode( ',', array_fill( 0, count( $qsa_sequences ), '%d' ) );
         $query_params = array_merge( array( $batch_id ), $qsa_sequences );
 
@@ -589,13 +603,16 @@ class Batch_Repository {
                 "SELECT id, module_sku, qsa_sequence, array_position
                 FROM {$this->modules_table}
                 WHERE engraving_batch_id = %d AND qsa_sequence IN ({$placeholders})
-                ORDER BY qsa_sequence ASC, array_position ASC, id ASC",
+                ORDER BY qsa_sequence ASC, array_position ASC, id ASC
+                FOR UPDATE",
                 ...$query_params
             ),
             ARRAY_A
         );
 
         if ( empty( $modules ) ) {
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+            $this->wpdb->query( 'ROLLBACK' );
             return new WP_Error( 'no_modules', __( 'No modules found for these QSA sequences.', 'qsa-engraving' ) );
         }
 
@@ -613,11 +630,6 @@ class Batch_Repository {
         // conflicts with other rows in the same batch.
         $available_sequences = $qsa_sequences;
         sort( $available_sequences );
-
-        // Always use a transaction to ensure atomicity of the two-pass update.
-        // This prevents partial updates if any query fails.
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-        $this->wpdb->query( 'START TRANSACTION' );
 
         if ( $needed_qsa_count > count( $available_sequences ) ) {
             // Get the max qsa_sequence for the entire batch with row-level lock.
@@ -689,8 +701,11 @@ class Batch_Repository {
             // Rollback if update fails to maintain atomicity.
             if ( false === $result ) {
                 // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-                $this->wpdb->query( 'ROLLBACK' );
-                error_log( sprintf( 'QSA Engraving: Failed to move module %d to temp position in redistribute_row_modules', (int) $module['id'] ) );
+                $rollback_result = $this->wpdb->query( 'ROLLBACK' );
+                if ( false === $rollback_result ) {
+                    error_log( sprintf( 'QSA Engraving: CRITICAL - ROLLBACK failed after temp position update failure for module %d. Database may be in inconsistent state.', (int) $module['id'] ) );
+                }
+                error_log( sprintf( 'QSA Engraving: Failed to move module %d to temp position in redistribute_row_modules. Rolled back.', (int) $module['id'] ) );
                 return new WP_Error(
                     'update_failed',
                     __( 'Failed to update module positions. Please try again.', 'qsa-engraving' )
@@ -715,8 +730,11 @@ class Batch_Repository {
             // Rollback if update fails to maintain atomicity.
             if ( false === $result ) {
                 // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-                $this->wpdb->query( 'ROLLBACK' );
-                error_log( sprintf( 'QSA Engraving: Failed to move module %d to final position in redistribute_row_modules', $assignment['id'] ) );
+                $rollback_result = $this->wpdb->query( 'ROLLBACK' );
+                if ( false === $rollback_result ) {
+                    error_log( sprintf( 'QSA Engraving: CRITICAL - ROLLBACK failed after final position update failure for module %d. Database may be in inconsistent state.', $assignment['id'] ) );
+                }
+                error_log( sprintf( 'QSA Engraving: Failed to move module %d to final position in redistribute_row_modules. Rolled back.', $assignment['id'] ) );
                 return new WP_Error(
                     'update_failed',
                     __( 'Failed to update module positions. Please try again.', 'qsa-engraving' )
@@ -756,7 +774,17 @@ class Batch_Repository {
 
         // Commit the transaction - all module updates succeeded.
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-        $this->wpdb->query( 'COMMIT' );
+        $commit_result = $this->wpdb->query( 'COMMIT' );
+        if ( false === $commit_result ) {
+            // Commit failed - issue explicit rollback to release locks.
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+            $this->wpdb->query( 'ROLLBACK' );
+            error_log( 'QSA Engraving: COMMIT failed in redistribute_row_modules. Explicit ROLLBACK issued.' );
+            return new WP_Error(
+                'commit_failed',
+                __( 'Failed to save module position changes. Please try again.', 'qsa-engraving' )
+            );
+        }
 
         return array(
             'updated'        => $updated,
