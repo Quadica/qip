@@ -901,24 +901,49 @@ class Queue_Ajax_Handler {
 
 		// CRITICAL: Verify serials were actually committed.
 		// This prevents marking rows complete when no engraving occurred.
+		$expected_module_count = count( $qsa_modules );
+
 		if ( 0 === $committed ) {
 			// Race condition check: Another admin may have completed this row
-			// between our count check and commit call. If serials are already
-			// engraved, proceed to mark the row done instead of showing an error.
+			// between our count check and commit call. Validate that ALL expected
+			// serials are engraved (not just some) to prevent partial commits.
 			$already_engraved = $this->serial_repository->count_engraved_serials( $batch_id, $qsa_sequence );
 
-			if ( $already_engraved > 0 ) {
-				// Race condition detected: serials were committed by another request.
+			if ( $already_engraved === $expected_module_count ) {
+				// Race condition detected: all serials were committed by another request.
 				// Log and proceed to mark the row as done.
 				error_log(
 					sprintf(
-						'QSA Engraving: Race condition detected - %d serials already engraved for batch %d, QSA %d. Proceeding to mark row done.',
+						'QSA Engraving: Race condition in complete_row - all %d serials already engraved for batch %d, QSA %d. Proceeding to mark row done.',
 						$already_engraved,
 						$batch_id,
 						$qsa_sequence
 					)
 				);
+				// Update committed count for accurate response data.
+				$committed = $already_engraved;
 				// Fall through to mark_qsa_done below.
+			} elseif ( $already_engraved > 0 ) {
+				// Partial commit detected - data integrity issue.
+				error_log(
+					sprintf(
+						'QSA Engraving: PARTIAL COMMIT detected - %d of %d serials engraved for batch %d, QSA %d. Possible data corruption.',
+						$already_engraved,
+						$expected_module_count,
+						$batch_id,
+						$qsa_sequence
+					)
+				);
+				$this->send_error(
+					sprintf(
+						/* translators: 1: engraved count, 2: expected count */
+						__( 'Data integrity issue: Only %1$d of %2$d serials are engraved. Please contact support.', 'qsa-engraving' ),
+						$already_engraved,
+						$expected_module_count
+					),
+					'partial_commit'
+				);
+				return;
 			} else {
 				// No engraved serials found - this is a genuine error (serials voided or missing).
 				$this->send_error(
@@ -1032,24 +1057,49 @@ class Queue_Ajax_Handler {
 
 		// CRITICAL: Verify serials were actually committed.
 		// This prevents marking rows complete when no engraving occurred.
+		$expected_module_count = count( $qsa_modules );
+
 		if ( 0 === $committed ) {
 			// Race condition check: Another admin may have completed this row
-			// between our count check and commit call. If serials are already
-			// engraved, proceed to mark the row done instead of showing an error.
+			// between our count check and commit call. Validate that ALL expected
+			// serials are engraved (not just some) to prevent partial commits.
 			$already_engraved = $this->serial_repository->count_engraved_serials( $batch_id, $qsa_sequence );
 
-			if ( $already_engraved > 0 ) {
-				// Race condition detected: serials were committed by another request.
+			if ( $already_engraved === $expected_module_count ) {
+				// Race condition detected: all serials were committed by another request.
 				// Log and proceed to mark the row as done.
 				error_log(
 					sprintf(
-						'QSA Engraving: Race condition detected in next_array - %d serials already engraved for batch %d, QSA %d. Proceeding to mark row done.',
+						'QSA Engraving: Race condition in handle_next_array - all %d serials already engraved for batch %d, QSA %d. Proceeding to mark row done.',
 						$already_engraved,
 						$batch_id,
 						$qsa_sequence
 					)
 				);
+				// Update committed count for accurate response data.
+				$committed = $already_engraved;
 				// Fall through to mark_qsa_done below.
+			} elseif ( $already_engraved > 0 ) {
+				// Partial commit detected - data integrity issue.
+				error_log(
+					sprintf(
+						'QSA Engraving: PARTIAL COMMIT detected in handle_next_array - %d of %d serials engraved for batch %d, QSA %d. Possible data corruption.',
+						$already_engraved,
+						$expected_module_count,
+						$batch_id,
+						$qsa_sequence
+					)
+				);
+				$this->send_error(
+					sprintf(
+						/* translators: 1: engraved count, 2: expected count */
+						__( 'Data integrity issue: Only %1$d of %2$d serials are engraved. Please contact support.', 'qsa-engraving' ),
+						$already_engraved,
+						$expected_module_count
+					),
+					'partial_commit'
+				);
+				return;
 			} else {
 				// No engraved serials found - this is a genuine error (serials voided or missing).
 				$this->send_error(
