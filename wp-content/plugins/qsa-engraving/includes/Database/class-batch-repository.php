@@ -600,6 +600,25 @@ class Batch_Repository {
         }
 
         // Update all modules with their new positions.
+        // IMPORTANT: Due to the UNIQUE constraint on (engraving_batch_id, qsa_sequence, array_position),
+        // we must use a two-pass approach to avoid conflicts:
+        // Pass 1: Move all to temporary high qsa_sequence values (original + 1000)
+        // Pass 2: Move to actual target positions
+        $temp_offset = 1000;
+
+        // Pass 1: Move to temporary positions.
+        foreach ( $modules as $module ) {
+            $temp_seq = (int) $module['qsa_sequence'] + $temp_offset;
+            $this->wpdb->update(
+                $this->modules_table,
+                array( 'qsa_sequence' => $temp_seq ),
+                array( 'id' => (int) $module['id'] ),
+                array( '%d' ),
+                array( '%d' )
+            );
+        }
+
+        // Pass 2: Move to final positions.
         $updated = 0;
         foreach ( $new_assignments as $assignment ) {
             $result = $this->wpdb->update(
