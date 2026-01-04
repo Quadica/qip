@@ -70,6 +70,8 @@ wp-config.php
 
 # Composer dependencies
 vendor/
+# Exception: qsa-engraving vendor directory must be committed (Composer not available on production)
+!/wp-content/plugins/qsa-engraving/vendor/
 
 # Node.js dependencies
 node_modules/
