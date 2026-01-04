@@ -149,6 +149,9 @@ class Batch_Sorter {
 			return $keys;
 		}
 
+		// Ensure all keys are strings (PHP converts numeric string array keys to integers).
+		$keys = array_map( 'strval', $keys );
+
 		// Start with the group that has the most LED codes (larger groups tend to overlap more).
 		$remaining = array_flip( $keys );
 		$ordered   = array();
@@ -157,7 +160,7 @@ class Batch_Sorter {
 		$start_key   = null;
 		$max_codes   = -1;
 		foreach ( $keys as $key ) {
-			$code_count = empty( $key ) ? 0 : count( explode( '|', $key ) );
+			$code_count = empty( $key ) ? 0 : count( explode( '|', (string) $key ) );
 			if ( $code_count > $max_codes ) {
 				$max_codes = $code_count;
 				$start_key = $key;
