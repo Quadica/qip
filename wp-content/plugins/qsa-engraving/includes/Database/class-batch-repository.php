@@ -586,6 +586,19 @@ class Batch_Repository {
         // Adjust new_qsa_count if last array wasn't fully filled.
         // (It's already counted, so this is correct.)
 
+        // Debug: Log the assignment summary.
+        if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+            $assignment_summary = array();
+            foreach ( $new_assignments as $a ) {
+                $seq = $a['qsa_sequence'];
+                if ( ! isset( $assignment_summary[ $seq ] ) ) {
+                    $assignment_summary[ $seq ] = 0;
+                }
+                $assignment_summary[ $seq ]++;
+            }
+            error_log( 'QSA Redistribute: Assignment summary - ' . wp_json_encode( $assignment_summary ) );
+        }
+
         // Update all modules with their new positions.
         $updated = 0;
         foreach ( $new_assignments as $assignment ) {

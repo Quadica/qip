@@ -3213,6 +3213,18 @@ run_test(
 
         // Test redistribute with start_position=6.
         // Should redistribute to 4 arrays: (3+8+8+5).
+        // First, check the modules before redistribution.
+        $before_modules = $batch_repo->get_modules_for_batch( $batch_id );
+        $before_counts = array();
+        foreach ( $before_modules as $m ) {
+            $seq = (int) $m['qsa_sequence'];
+            if ( ! isset( $before_counts[ $seq ] ) ) {
+                $before_counts[ $seq ] = 0;
+            }
+            $before_counts[ $seq ]++;
+        }
+        echo "  Before redistribution: " . json_encode( $before_counts ) . "\n";
+
         $result = $batch_repo->redistribute_row_modules( $batch_id, array( 1, 2, 3 ), 6 );
 
         if ( is_wp_error( $result ) ) {
@@ -3222,6 +3234,8 @@ run_test(
                 "redistribute_row_modules failed: {$result->get_error_message()}"
             );
         }
+
+        echo "  Redistribution updated {$result['updated']} modules.\n";
 
         // Verify redistribution results.
         if ( $result['module_count'] !== 24 ) {
