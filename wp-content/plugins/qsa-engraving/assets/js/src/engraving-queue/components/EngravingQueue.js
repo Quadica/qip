@@ -438,9 +438,9 @@ export default function EngravingQueue() {
 					)
 				);
 
-				// If batch is complete, show notification.
+				// If batch is complete, update batch status.
 				if ( data.data.batch_complete ) {
-					alert( __( 'Batch complete! All modules have been engraved.', 'qsa-engraving' ) );
+					setBatch( ( prev ) => ( { ...prev, status: 'completed' } ) );
 				}
 			} else {
 				alert( data.message || __( 'Failed to complete row.', 'qsa-engraving' ) );

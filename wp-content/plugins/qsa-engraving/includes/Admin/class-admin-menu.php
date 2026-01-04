@@ -182,7 +182,10 @@ class Admin_Menu {
             wp_die( esc_html__( 'You do not have permission to access this page.', 'qsa-engraving' ) );
         }
 
-        $this->render_page_header( __( 'Engraving Queue', 'qsa-engraving' ) );
+        // Queue page has its own header in the React component, skip WordPress header.
+        ?>
+        <div class="wrap qsa-engraving-wrap">
+        <?php
         $this->render_react_container( 'engraving-queue' );
         $this->render_page_footer();
     }
