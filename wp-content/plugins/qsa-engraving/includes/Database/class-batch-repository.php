@@ -319,11 +319,24 @@ class Batch_Repository {
     /**
      * Add a module to an engraving batch.
      *
-     * @param array $module_data The module data.
+     * @param array $module_data The module data. Must include:
+     *                           - engraving_batch_id
+     *                           - production_batch_id
+     *                           - module_sku
+     *                           - order_id
+     *                           - serial_number
+     *                           - qsa_sequence
+     *                           - array_position
+     *                           Optional:
+     *                           - original_qsa_sequence (defaults to qsa_sequence if not provided)
      * @return int|WP_Error The module record ID or WP_Error on failure.
      */
     public function add_module( array $module_data ): int|WP_Error {
         $qsa_sequence = $module_data['qsa_sequence'];
+
+        // Use provided original_qsa_sequence, or default to qsa_sequence.
+        // original_qsa_sequence groups modules into logical rows for UI display.
+        $original_qsa_sequence = $module_data['original_qsa_sequence'] ?? $qsa_sequence;
 
         $result = $this->wpdb->insert(
             $this->modules_table,
@@ -334,7 +347,7 @@ class Batch_Repository {
                 'order_id'              => $module_data['order_id'],
                 'serial_number'         => $module_data['serial_number'],
                 'qsa_sequence'          => $qsa_sequence,
-                'original_qsa_sequence' => $qsa_sequence, // Preserve original for row grouping.
+                'original_qsa_sequence' => $original_qsa_sequence,
                 'array_position'        => $module_data['array_position'],
                 'row_status'            => 'pending',
             ),
