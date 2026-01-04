@@ -1399,6 +1399,14 @@ class Queue_Ajax_Handler {
 			}
 		}
 
+		// DEBUG: Log input parameters and identified row sequences.
+		error_log( sprintf(
+			'QSA Engraving DEBUG: handle_update_start_position - input qsa_sequence=%d, identified row_qsa_sequences=[%s], start_position=%d',
+			$qsa_sequence,
+			implode( ',', $row_qsa_sequences ),
+			$start_position
+		) );
+
 		// Redistribute modules across arrays with the new start position.
 		$result = $this->batch_repository->redistribute_row_modules( $batch_id, $row_qsa_sequences, $start_position );
 
