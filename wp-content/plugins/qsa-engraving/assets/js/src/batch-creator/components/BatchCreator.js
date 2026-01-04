@@ -725,7 +725,7 @@ export default function BatchCreator() {
 	 */
 	const getBatchHistoryUrl = () => {
 		const baseUrl = window.qsaEngraving?.adminUrl || '/wp-admin/';
-		return `${ baseUrl }admin.php?page=qsa-engraving-batch-history`;
+		return `${ baseUrl }admin.php?page=qsa-engraving-history`;
 	};
 
 	return (
