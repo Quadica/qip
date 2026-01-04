@@ -123,17 +123,18 @@ function formatSerial( serial ) {
  * Queue Item component.
  *
  * @param {Object}   props                       Component props.
- * @param {Object}   props.item                  The queue item data.
- * @param {boolean}  props.isLast                Whether this is the last item.
- * @param {boolean}  props.isActive              Whether this item is currently active.
- * @param {number}   props.currentArray          Current array number (1-based) for this item.
- * @param {boolean}  props.isResending           Whether a resend operation is in progress.
- * @param {Function} props.onStart               Handler for start action.
- * @param {Function} props.onComplete            Handler for complete action.
- * @param {Function} props.onNextArray           Handler for next array action.
- * @param {Function} props.onResend              Handler for resend action.
- * @param {Function} props.onRerun               Handler for rerun action.
- * @param {Function} props.onStartPositionChange Handler for start position change.
+ * @param {Object}   props.item                     The queue item data.
+ * @param {boolean}  props.isLast                   Whether this is the last item.
+ * @param {boolean}  props.isActive                 Whether this item is currently active.
+ * @param {number}   props.currentArray             Current array number (1-based) for this item.
+ * @param {boolean}  props.isResending              Whether a resend operation is in progress.
+ * @param {boolean}  props.isUpdatingStartPosition  Whether start position is being updated (AJAX in flight).
+ * @param {Function} props.onStart                  Handler for start action.
+ * @param {Function} props.onComplete               Handler for complete action.
+ * @param {Function} props.onNextArray              Handler for next array action.
+ * @param {Function} props.onResend                 Handler for resend action.
+ * @param {Function} props.onRerun                  Handler for rerun action.
+ * @param {Function} props.onStartPositionChange    Handler for start position change.
  * @return {JSX.Element} The component.
  */
 export default function QueueItem( {
@@ -142,6 +143,7 @@ export default function QueueItem( {
 	isActive,
 	currentArray = 1,
 	isResending = false,
+	isUpdatingStartPosition = false,
 	onStart,
 	onComplete,
 	onNextArray,
@@ -232,11 +234,16 @@ export default function QueueItem( {
 					{ item.status === 'pending' && (
 						<button
 							type="button"
-							className="qsa-btn-start"
+							className={ `qsa-btn-start ${ isUpdatingStartPosition ? 'is-loading' : '' }` }
 							onClick={ () => onStart( item.id ) }
+							disabled={ isUpdatingStartPosition }
+							title={ isUpdatingStartPosition
+								? __( 'Please wait while start position is being updated...', 'qsa-engraving' )
+								: __( 'Start engraving this row', 'qsa-engraving' )
+							}
 						>
-							<span className="dashicons dashicons-controls-play"></span>
-							{ __( 'Engrave', 'qsa-engraving' ) }
+							<span className={ `dashicons ${ isUpdatingStartPosition ? 'dashicons-update spin' : 'dashicons-controls-play' }` }></span>
+							{ isUpdatingStartPosition ? __( 'Updating...', 'qsa-engraving' ) : __( 'Engrave', 'qsa-engraving' ) }
 						</button>
 					) }
 
@@ -353,9 +360,12 @@ export default function QueueItem( {
 						max="8"
 						value={ startPos }
 						onChange={ handleStartPosChange }
-						disabled={ item.status !== 'pending' }
-						className="qsa-start-position-input"
-						title={ __( 'Starting position on array (1-8)', 'qsa-engraving' ) }
+						disabled={ item.status !== 'pending' || isUpdatingStartPosition }
+						className={ `qsa-start-position-input ${ isUpdatingStartPosition ? 'is-loading' : '' }` }
+						title={ isUpdatingStartPosition
+							? __( 'Updating start position...', 'qsa-engraving' )
+							: __( 'Starting position on array (1-8)', 'qsa-engraving' )
+						}
 					/>
 				</div>
 
