@@ -71,30 +71,6 @@ export default function EngravingQueue() {
 	} );
 
 	/**
-	 * Calculate total arrays for an item based on module count and start position.
-	 *
-	 * @param {number} totalModules Total modules in the row.
-	 * @param {number} startOffset  Starting position (1-8).
-	 * @return {number} Total number of physical arrays needed.
-	 */
-	const calculateTotalArrays = ( totalModules, startOffset ) => {
-		let remaining = totalModules;
-		let arrayCount = 0;
-
-		if ( startOffset > 1 ) {
-			const firstArrayModules = Math.min( remaining, 9 - startOffset );
-			arrayCount++;
-			remaining -= firstArrayModules;
-		}
-
-		if ( remaining > 0 ) {
-			arrayCount += Math.ceil( remaining / 8 );
-		}
-
-		return arrayCount;
-	};
-
-	/**
 	 * Get current array number for an item.
 	 *
 	 * @param {number} itemId The item ID.
@@ -255,8 +231,9 @@ export default function EngravingQueue() {
 
 				const activeItem = queueItems.find( ( item ) => item.id === activeItemId );
 				if ( activeItem && activeItem.status === 'in_progress' ) {
-					// Always calculate array count dynamically based on totalModules and startPosition.
-					const totalArrays = calculateTotalArrays( activeItem.totalModules, activeItem.startPosition || 1 );
+					// Use qsa_sequences.length as the authoritative array count.
+					const sequences = activeItem.qsa_sequences || [ activeItem.id ];
+					const totalArrays = sequences.length;
 					const current = getCurrentArray( activeItemId );
 					const isLastArray = current >= totalArrays;
 
@@ -336,16 +313,17 @@ export default function EngravingQueue() {
 	 *
 	 * @param {Object} item         The queue item.
 	 * @param {number} arrayIndex   The array index (1-based).
-	 * @return {number} The QSA sequence number.
+	 * @return {number|null} The QSA sequence number, or null if invalid.
 	 */
 	const getQsaSequenceForArray = ( item, arrayIndex ) => {
 		const sequences = item.qsa_sequences || [ item.id ];
-		// For multi-QSA groups, each array corresponds to a QSA sequence.
-		// For single-QSA with multiple arrays (start position offset), all arrays use the same QSA.
-		if ( sequences.length > 1 ) {
-			return sequences[ arrayIndex - 1 ] || sequences[ 0 ];
+		// Each array corresponds to exactly one QSA sequence.
+		// Return null if arrayIndex is out of bounds (prevents silent fallback to wrong sequence).
+		if ( arrayIndex < 1 || arrayIndex > sequences.length ) {
+			console.error( `Invalid array index ${ arrayIndex } for item with ${ sequences.length } sequences` );
+			return null;
 		}
-		return sequences[ 0 ];
+		return sequences[ arrayIndex - 1 ];
 	};
 
 	/**
@@ -424,6 +402,16 @@ export default function EngravingQueue() {
 		const current = getCurrentArray( itemId );
 		const qsaSequence = getQsaSequenceForArray( item, current );
 
+		// Validate the QSA sequence - prevents operating on wrong sequence.
+		if ( qsaSequence === null ) {
+			alert(
+				__( 'Invalid array state. The current array index is out of sync.', 'qsa-engraving' ) +
+					'\n\n' +
+					__( 'Please refresh the page and try again.', 'qsa-engraving' )
+			);
+			return;
+		}
+
 		try {
 			const data = await queueAction( 'qsa_complete_row', { qsa_sequence: qsaSequence } );
 
@@ -453,9 +441,8 @@ export default function EngravingQueue() {
 	/**
 	 * Handle advancing to next array within a row.
 	 *
-	 * For multi-QSA groups: completes current QSA sequence, starts next QSA sequence
-	 * (if a corresponding qsa_sequence exists).
-	 * For single-QSA with start position offset: advances array counter within same QSA.
+	 * For multi-QSA groups: completes current QSA sequence, starts next QSA sequence.
+	 * Each array corresponds to exactly one QSA sequence.
 	 *
 	 * @param {number} itemId       The queue item ID (first QSA sequence in group).
 	 * @param {number} currentArray The current array number.
@@ -467,88 +454,74 @@ export default function EngravingQueue() {
 		}
 
 		const sequences = item.qsa_sequences || [ item.id ];
-		// Always calculate array count dynamically based on totalModules and startPosition.
-		const totalArrays = calculateTotalArrays( item.totalModules, item.startPosition || 1 );
+		// Use qsa_sequences.length as the authoritative array count.
+		// Each QSA sequence IS one physical array.
+		const totalArrays = sequences.length;
 		const nextArray = currentArray + 1;
 
 		if ( nextArray > totalArrays ) {
-			// Should not happen, but handle gracefully by completing
+			// No more arrays - complete the row.
 			handleComplete( itemId );
 			return;
 		}
 
-		// Check if we have a qsa_sequence for the next array.
-		// For multi-QSA groups, each array maps to a qsa_sequence.
-		// For single-QSA with multiple calculated arrays, all use the same qsa_sequence.
-		const hasNextQsaSequence = nextArray <= sequences.length;
+		// Get QSA sequences for current and next arrays.
+		const currentQsaSequence = getQsaSequenceForArray( item, currentArray );
+		const nextQsaSequence = getQsaSequenceForArray( item, nextArray );
 
-		if ( hasNextQsaSequence && sequences.length > 1 ) {
-			// Multi-QSA group with available next qsa_sequence: complete current, start next.
-			const currentQsaSequence = getQsaSequenceForArray( item, currentArray );
-			const nextQsaSequence = getQsaSequenceForArray( item, nextArray );
+		// Validate both sequences exist.
+		if ( currentQsaSequence === null || nextQsaSequence === null ) {
+			alert(
+				__( 'Invalid array state. The current array index is out of sync.', 'qsa-engraving' ) +
+					'\n\n' +
+					__( 'Please refresh the page and try again.', 'qsa-engraving' )
+			);
+			return;
+		}
 
-			try {
-				// Complete the current QSA sequence.
-				const completeData = await queueAction( 'qsa_complete_row', { qsa_sequence: currentQsaSequence } );
+		try {
+			// Complete the current QSA sequence.
+			const completeData = await queueAction( 'qsa_complete_row', { qsa_sequence: currentQsaSequence } );
 
-				if ( ! completeData.success ) {
-					alert( completeData.message || __( 'Failed to complete current array.', 'qsa-engraving' ) );
-					return;
-				}
+			if ( ! completeData.success ) {
+				alert( completeData.message || __( 'Failed to complete current array.', 'qsa-engraving' ) );
+				return;
+			}
 
-				// Start the next QSA sequence.
-				const startData = await queueAction( 'qsa_start_row', { qsa_sequence: nextQsaSequence } );
+			// Start the next QSA sequence.
+			const startData = await queueAction( 'qsa_start_row', { qsa_sequence: nextQsaSequence } );
 
-				if ( startData.success ) {
-					// Advance the current array counter.
-					setCurrentArrays( ( prev ) => ( { ...prev, [ itemId ]: nextArray } ) );
+			if ( startData.success ) {
+				// Advance the current array counter.
+				setCurrentArrays( ( prev ) => ( { ...prev, [ itemId ]: nextArray } ) );
 
-					// Update serials with new ones from next QSA.
-					setQueueItems( ( prev ) =>
-						prev.map( ( i ) =>
-							i.id === itemId
-								? { ...i, serials: startData.data.serials }
-								: i
-						)
-					);
+				// Update serials with new ones from next QSA.
+				setQueueItems( ( prev ) =>
+					prev.map( ( i ) =>
+						i.id === itemId
+							? { ...i, serials: startData.data.serials }
+							: i
+					)
+				);
 
-					// Generate SVG for the next QSA and load in LightBurn if enabled.
-					if ( lightburnStatus.enabled ) {
-						const svgResult = await generateSvg( nextQsaSequence, lightburnStatus.autoLoad );
-						if ( ! svgResult.success ) {
-							alert(
-								__( 'Array started but SVG generation failed:', 'qsa-engraving' ) +
-									'\n\n' +
-									svgResult.error +
-									'\n\n' +
-									__( 'Use Resend to try again.', 'qsa-engraving' )
-							);
-						}
+				// Generate SVG for the next QSA and load in LightBurn if enabled.
+				if ( lightburnStatus.enabled ) {
+					const svgResult = await generateSvg( nextQsaSequence, lightburnStatus.autoLoad );
+					if ( ! svgResult.success ) {
+						alert(
+							__( 'Array started but SVG generation failed:', 'qsa-engraving' ) +
+								'\n\n' +
+								svgResult.error +
+								'\n\n' +
+								__( 'Use Resend to try again.', 'qsa-engraving' )
+						);
 					}
-				} else {
-					alert( startData.message || __( 'Failed to start next array.', 'qsa-engraving' ) );
 				}
-			} catch ( err ) {
-				alert( __( 'Network error advancing to next array.', 'qsa-engraving' ) );
+			} else {
+				alert( startData.message || __( 'Failed to start next array.', 'qsa-engraving' ) );
 			}
-		} else {
-			// Single-QSA or calculated arrays beyond available qsa_sequences: just advance counter.
-			setCurrentArrays( ( prev ) => ( { ...prev, [ itemId ]: nextArray } ) );
-
-			// Generate SVG for the next array (same QSA sequence).
-			if ( lightburnStatus.enabled ) {
-				const qsaSequence = getQsaSequenceForArray( item, 1 );
-				const svgResult = await generateSvg( qsaSequence, lightburnStatus.autoLoad );
-				if ( ! svgResult.success ) {
-					alert(
-						__( 'Failed to generate SVG for next array:', 'qsa-engraving' ) +
-							'\n\n' +
-							svgResult.error +
-							'\n\n' +
-							__( 'Use Resend to try again.', 'qsa-engraving' )
-					);
-				}
-			}
+		} catch ( err ) {
+			alert( __( 'Network error advancing to next array.', 'qsa-engraving' ) );
 		}
 	};
 
@@ -566,6 +539,16 @@ export default function EngravingQueue() {
 		// Get the current array's QSA sequence.
 		const current = getCurrentArray( itemId );
 		const qsaSequence = getQsaSequenceForArray( item, current );
+
+		// Validate the QSA sequence.
+		if ( qsaSequence === null ) {
+			alert(
+				__( 'Invalid array state. The current array index is out of sync.', 'qsa-engraving' ) +
+					'\n\n' +
+					__( 'Please refresh the page and try again.', 'qsa-engraving' )
+			);
+			return;
+		}
 
 		try {
 			// Track which specific item is being resent.
