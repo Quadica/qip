@@ -395,36 +395,8 @@ class Admin_Menu {
                             <td><code><?php echo esc_html( QSA_ENGRAVING_VERSION ); ?></code></td>
                         </tr>
                         <tr>
-                            <td><?php esc_html_e( 'Database Tables', 'qsa-engraving' ); ?></td>
-                            <td>
-                                <span class="status-ok">
-                                    <span class="dashicons dashicons-yes-alt"></span>
-                                    <?php esc_html_e( 'Installed', 'qsa-engraving' ); ?>
-                                </span>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td><?php esc_html_e( 'WooCommerce', 'qsa-engraving' ); ?></td>
-                            <td>
-                                <?php if ( class_exists( 'WooCommerce' ) ) : ?>
-                                    <span class="status-ok">
-                                        <span class="dashicons dashicons-yes-alt"></span>
-                                        <?php echo esc_html( WC_VERSION ); ?>
-                                    </span>
-                                <?php else : ?>
-                                    <span class="status-error">
-                                        <span class="dashicons dashicons-dismiss"></span>
-                                        <?php esc_html_e( 'Not installed', 'qsa-engraving' ); ?>
-                                    </span>
-                                <?php endif; ?>
-                            </td>
-                        </tr>
-                        <tr>
                             <td>
                                 <label for="qsa-toggle-lightburn"><?php esc_html_e( 'LightBurn Integration', 'qsa-engraving' ); ?></label>
-                                <p class="description" style="margin: 4px 0 0; font-size: 11px; color: #666;">
-                                    <?php esc_html_e( 'Send SVG files to laser engraver', 'qsa-engraving' ); ?>
-                                </p>
                             </td>
                             <td>
                                 <label class="qsa-toggle-switch">
@@ -434,19 +406,20 @@ class Admin_Menu {
                                 <span class="qsa-toggle-status" id="qsa-lightburn-status"></span>
                             </td>
                         </tr>
-                        <tr id="qsa-lightburn-connection-row" <?php echo $lightburn_enabled ? '' : 'style="display:none;"'; ?>>
+                        <tr>
                             <td>
-                                <?php esc_html_e( 'LightBurn Connection', 'qsa-engraving' ); ?>
-                                <p class="description" style="margin: 4px 0 0; font-size: 11px; color: #666;">
-                                    <?php
-                                    printf(
-                                        /* translators: %s: IP address */
-                                        esc_html__( 'Target: %s', 'qsa-engraving' ),
-                                        '<span id="qsa-target-host-display">' . esc_html( $system_settings['lightburn_host'] ?? '127.0.0.1' ) . '</span>'
-                                    );
-                                    ?>
-                                </p>
+                                <label for="qsa-toggle-keep-svg"><?php esc_html_e( 'Keep SVG Files', 'qsa-engraving' ); ?></label>
                             </td>
+                            <td>
+                                <label class="qsa-toggle-switch">
+                                    <input type="checkbox" id="qsa-toggle-keep-svg" <?php checked( $keep_svg_files ); ?>>
+                                    <span class="qsa-toggle-slider"></span>
+                                </label>
+                                <span class="qsa-toggle-status" id="qsa-keep-svg-status"></span>
+                            </td>
+                        </tr>
+                        <tr id="qsa-lightburn-connection-row" <?php echo $lightburn_enabled ? '' : 'style="display:none;"'; ?>>
+                            <td><?php esc_html_e( 'LightBurn Connection', 'qsa-engraving' ); ?></td>
                             <td>
                                 <span id="qsa-connection-status" class="qsa-connection-indicator">
                                     <span class="qsa-connection-dot checking"></span>
@@ -455,7 +428,12 @@ class Admin_Menu {
                                 <button type="button" id="qsa-check-connection" class="button button-small" style="margin-left: 10px;">
                                     <?php esc_html_e( 'Check', 'qsa-engraving' ); ?>
                                 </button>
-                                <button type="button" id="qsa-toggle-config" class="button button-small" style="margin-left: 5px;">
+                            </td>
+                        </tr>
+                        <tr id="qsa-lightburn-configure-row" <?php echo $lightburn_enabled ? '' : 'style="display:none;"'; ?>>
+                            <td><?php esc_html_e( 'LightBurn Configure', 'qsa-engraving' ); ?></td>
+                            <td>
+                                <button type="button" id="qsa-toggle-config" class="button button-small">
                                     <span class="dashicons dashicons-admin-generic" style="font-size: 16px; width: 16px; height: 16px; vertical-align: text-bottom;"></span>
                                     <?php esc_html_e( 'Configure', 'qsa-engraving' ); ?>
                                 </button>
@@ -528,21 +506,6 @@ class Admin_Menu {
                                         <span id="qsa-config-save-status" style="margin-left: 10px;"></span>
                                     </div>
                                 </div>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>
-                                <label for="qsa-toggle-keep-svg"><?php esc_html_e( 'Keep SVG Files', 'qsa-engraving' ); ?></label>
-                                <p class="description" style="margin: 4px 0 0; font-size: 11px; color: #666;">
-                                    <?php esc_html_e( 'Retain generated SVG files for inspection', 'qsa-engraving' ); ?>
-                                </p>
-                            </td>
-                            <td>
-                                <label class="qsa-toggle-switch">
-                                    <input type="checkbox" id="qsa-toggle-keep-svg" <?php checked( $keep_svg_files ); ?>>
-                                    <span class="qsa-toggle-slider"></span>
-                                </label>
-                                <span class="qsa-toggle-status" id="qsa-keep-svg-status"></span>
                             </td>
                         </tr>
                     </tbody>
@@ -752,13 +715,15 @@ class Admin_Menu {
                     var isEnabled = $(this).is(':checked');
                     saveToggle('lightburn_enabled', isEnabled, $('#qsa-lightburn-status'));
 
-                    // Show/hide connection row and config row
+                    // Show/hide connection row, configure row, and config panel
                     if (isEnabled) {
                         $('#qsa-lightburn-connection-row').show();
+                        $('#qsa-lightburn-configure-row').show();
                         // Check connection after enabling
                         setTimeout(checkLightBurnConnection, 500);
                     } else {
                         $('#qsa-lightburn-connection-row').hide();
+                        $('#qsa-lightburn-configure-row').hide();
                         $('#qsa-lightburn-config-row').hide();
                     }
                 });
