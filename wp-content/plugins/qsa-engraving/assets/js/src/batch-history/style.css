@@ -27,6 +27,17 @@
 	--qsa-border-light: #dcdcde;
 }
 
+/* Links */
+.qsa-link {
+	color: var(--qsa-wp-blue);
+	text-decoration: none;
+}
+
+.qsa-link:hover {
+	color: var(--qsa-wp-blue-hover);
+	text-decoration: underline;
+}
+
 /* Container */
 .qsa-batch-history {
 	font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;

@@ -316,7 +316,15 @@ export default function QueueItem( {
 					<div className="qsa-modules-list">
 						{ item.modules.map( ( mod, i ) => (
 							<span key={ i } className="qsa-module-sku">
-								{ mod.sku } ×{ mod.qty }
+								<a
+									href={ `${ window.qsaEngraving?.adminUrl || '/wp-admin/' }edit.php?post_type=product&s=${ encodeURIComponent( mod.sku ) }` }
+									className="qsa-link"
+									target="_blank"
+									rel="noopener noreferrer"
+								>
+									{ mod.sku }
+								</a>
+								{ ' ' }×{ mod.qty }
 							</span>
 						) ) }
 					</div>

@@ -68,7 +68,16 @@ export default function OrderRow( {
 				<span className="dashicons dashicons-portfolio qsa-order-icon"></span>
 
 				<div className="qsa-order-info" onClick={ onToggleExpand }>
-					<span className="qsa-order-id">{ order.order_id }</span>
+					<a
+						href={ `${ window.qsaEngraving?.adminUrl || '/wp-admin/' }post.php?post=${ order.order_id }&action=edit` }
+						className="qsa-order-id qsa-link"
+						onClick={ ( e ) => e.stopPropagation() }
+						target="_blank"
+						rel="noopener noreferrer"
+						title={ __( 'Open order in new tab', 'qsa-engraving' ) }
+					>
+						{ order.order_id }
+					</a>
 				</div>
 
 				<div className="qsa-order-stats">

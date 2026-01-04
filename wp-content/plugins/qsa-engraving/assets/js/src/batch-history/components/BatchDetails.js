@@ -148,7 +148,19 @@ export default function BatchDetails( { batch, loading, error, onLoadForReengrav
 							{ __( 'Orders:', 'qsa-engraving' ) }
 						</span>
 						<span className="qsa-info-value">
-							{ batch.order_ids.join( ', ' ) }
+							{ batch.order_ids.map( ( orderId, idx ) => (
+								<span key={ orderId }>
+									{ idx > 0 && ', ' }
+									<a
+										href={ `${ window.qsaEngraving?.adminUrl || '/wp-admin/' }post.php?post=${ orderId }&action=edit` }
+										className="qsa-link"
+										target="_blank"
+										rel="noopener noreferrer"
+									>
+										{ orderId }
+									</a>
+								</span>
+							) ) }
 						</span>
 					</div>
 				</div>
@@ -169,16 +181,28 @@ export default function BatchDetails( { batch, loading, error, onLoadForReengrav
 					{ batch.modules && batch.modules.map( ( module, index ) => (
 						<div key={ index } className="qsa-module-item">
 							<div className="qsa-module-main">
-								<span className="qsa-module-sku">{ module.module_sku }</span>
+								<a
+									href={ `${ window.qsaEngraving?.adminUrl || '/wp-admin/' }edit.php?post_type=product&s=${ encodeURIComponent( module.module_sku ) }` }
+									className="qsa-module-sku qsa-link"
+									target="_blank"
+									rel="noopener noreferrer"
+								>
+									{ module.module_sku }
+								</a>
 								<span className="qsa-module-qty">&times; { module.qty }</span>
 							</div>
 							<div className="qsa-module-meta">
 								<span className="qsa-serial-range">
 									{ module.serial_start } - { module.serial_end }
 								</span>
-								<span className="qsa-order-id">
+								<a
+									href={ `${ window.qsaEngraving?.adminUrl || '/wp-admin/' }post.php?post=${ module.order_id }&action=edit` }
+									className="qsa-order-id qsa-link"
+									target="_blank"
+									rel="noopener noreferrer"
+								>
 									{ __( 'Order', 'qsa-engraving' ) } #{ module.order_id }
-								</span>
+								</a>
 							</div>
 						</div>
 					) ) }
@@ -208,12 +232,22 @@ export default function BatchDetails( { batch, loading, error, onLoadForReengrav
 									<span className="qsa-col-serial qsa-monospace">
 										{ detail.serial_number }
 									</span>
-									<span className="qsa-col-sku">
+									<a
+										href={ `${ window.qsaEngraving?.adminUrl || '/wp-admin/' }edit.php?post_type=product&s=${ encodeURIComponent( detail.module_sku ) }` }
+										className="qsa-col-sku qsa-link"
+										target="_blank"
+										rel="noopener noreferrer"
+									>
 										{ detail.module_sku }
-									</span>
-									<span className="qsa-col-order">
+									</a>
+									<a
+										href={ `${ window.qsaEngraving?.adminUrl || '/wp-admin/' }post.php?post=${ detail.order_id }&action=edit` }
+										className="qsa-col-order qsa-link"
+										target="_blank"
+										rel="noopener noreferrer"
+									>
 										#{ detail.order_id }
-									</span>
+									</a>
 									<span className="qsa-col-qsa">
 										{ detail.qsa_sequence }
 									</span>

@@ -44,6 +44,19 @@
 }
 
 /* ============================================
+   Links
+   ============================================ */
+.qsa-engraving-queue .qsa-link {
+	color: var(--wp-blue);
+	text-decoration: none;
+}
+
+.qsa-engraving-queue .qsa-link:hover {
+	color: var(--wp-blue-hover);
+	text-decoration: underline;
+}
+
+/* ============================================
    Main Container
    ============================================ */
 .qsa-engraving-queue {
