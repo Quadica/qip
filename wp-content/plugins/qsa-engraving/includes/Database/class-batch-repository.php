@@ -508,17 +508,18 @@ class Batch_Repository {
     /**
      * Update start position for all modules in a QSA.
      *
-     * Stores the starting position (1-8). When the total modules exceed what fits
-     * in a single array from the start position, the frontend dynamically calculates
-     * how many physical QSA arrays are needed and displays "Arrays: X".
+     * Updates array_position for all modules in a QSA sequence row.
+     * Each row corresponds to ONE physical QSA array (design decision: one array per row).
      *
-     * The position calculation for multi-array support:
-     * - First array: positions from start_position to min(8, start_position + modules - 1)
-     * - Subsequent arrays: positions 1-8 (full arrays) or partial
+     * The start_position determines which physical position on the QSA the first module
+     * will occupy. For example, start_position=4 means modules use positions 4,5,6,7,8.
      *
-     * Note: Positions wrap around when exceeding 8. The `array_position` stores the
-     * logical position (1-8) within the current physical array. The frontend calculates
-     * which physical array each module belongs to based on start position and index.
+     * Validation: Returns an error if the row has more modules than available positions.
+     * With start_position=4, only 5 positions (4-8) are available. If the row has 8
+     * modules, start_position=4 would fail.
+     *
+     * To use higher start positions with many modules, create the batch with the correct
+     * start position initially, which will properly split modules across multiple rows.
      *
      * @param int $batch_id       The batch ID.
      * @param int $qsa_sequence   The QSA sequence number.
@@ -542,9 +543,26 @@ class Batch_Repository {
             return new WP_Error( 'no_modules', __( 'No modules found for this QSA.', 'qsa-engraving' ) );
         }
 
-        // Update positions with array-aware assignment.
-        // Positions wrap: first array uses start_position to 8, then 1-8 for subsequent arrays.
-        $updated = 0;
+        // Calculate available positions: start_position through 8.
+        // Each row is ONE physical array (design decision: one array per row).
+        $available_positions = 9 - $start_position; // e.g., start=4 → positions 4,5,6,7,8 = 5 slots
+        $module_count        = count( $modules );
+
+        if ( $module_count > $available_positions ) {
+            return new WP_Error(
+                'too_many_modules',
+                sprintf(
+                    /* translators: 1: Module count, 2: Start position, 3: Available positions */
+                    __( 'Cannot set start position to %2$d: this row has %1$d modules but only %3$d positions (%2$d through 8) would be available. To use a higher start position, create a new batch with fewer modules per row.', 'qsa-engraving' ),
+                    $module_count,
+                    $start_position,
+                    $available_positions
+                )
+            );
+        }
+
+        // Update positions sequentially (no wrapping - one array per row).
+        $updated          = 0;
         $current_position = $start_position;
 
         foreach ( $modules as $module ) {
@@ -560,11 +578,7 @@ class Batch_Repository {
                 $updated++;
             }
 
-            // Advance position, wrapping from 8 back to 1.
             $current_position++;
-            if ( $current_position > 8 ) {
-                $current_position = 1;
-            }
         }
 
         return $updated;
