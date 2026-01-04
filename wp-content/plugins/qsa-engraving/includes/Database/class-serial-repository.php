@@ -411,13 +411,19 @@ class Serial_Repository {
                 )
             );
 
+            // CRITICAL: If auto-fix fails, abort the commit operation.
+            // Without this check, rows could be marked complete without proper engraving.
             if ( false === $fix_result ) {
                 error_log(
                     sprintf(
-                        'QSA Engraving: Failed to auto-fix empty status serials in batch %d, QSA %d.',
+                        'QSA Engraving: CRITICAL - Failed to auto-fix empty status serials in batch %d, QSA %d. Aborting commit.',
                         $engraving_batch_id,
                         $qsa_sequence
                     )
+                );
+                return new WP_Error(
+                    'autofix_failed',
+                    __( 'Failed to repair corrupted serial status. Please contact support.', 'qsa-engraving' )
                 );
             }
         }
@@ -456,13 +462,14 @@ class Serial_Repository {
      * @return int|WP_Error Number of updated rows or WP_Error on failure.
      */
     public function void_serials( int $engraving_batch_id, int $qsa_sequence ): int|WP_Error {
-        // Check for empty status values (data integrity issue).
-        $empty_count = $this->wpdb->get_var(
+        // Check for empty/NULL status values (data integrity issue).
+        // Include both empty string AND NULL to be consistent with commit_serials.
+        $empty_count = (int) $this->wpdb->get_var(
             $this->wpdb->prepare(
                 "SELECT COUNT(*) FROM {$this->table_name}
                 WHERE engraving_batch_id = %d
                   AND qsa_sequence = %d
-                  AND status = ''",
+                  AND (status = '' OR status IS NULL)",
                 $engraving_batch_id,
                 $qsa_sequence
             )
@@ -471,7 +478,7 @@ class Serial_Repository {
         if ( $empty_count > 0 ) {
             error_log(
                 sprintf(
-                    'QSA Engraving: DATA INTEGRITY WARNING - Found %d serial(s) with empty status in batch %d, QSA %d. This indicates a data corruption issue.',
+                    'QSA Engraving: DATA INTEGRITY WARNING - Found %d serial(s) with empty/NULL status in batch %d, QSA %d. This indicates a data corruption issue.',
                     $empty_count,
                     $engraving_batch_id,
                     $qsa_sequence

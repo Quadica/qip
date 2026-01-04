@@ -899,6 +899,16 @@ class Queue_Ajax_Handler {
 			return;
 		}
 
+		// CRITICAL: Verify serials were actually committed.
+		// This prevents marking rows complete when no engraving occurred.
+		if ( 0 === $committed ) {
+			$this->send_error(
+				__( 'No serials were committed. The row cannot be marked complete without engraved serials. Please use Retry to generate new serials.', 'qsa-engraving' ),
+				'zero_serials_committed'
+			);
+			return;
+		}
+
 		// Mark the row as done (one-array-per-row implementation).
 		$mark_result = $this->batch_repository->mark_qsa_done( $batch_id, $qsa_sequence );
 		if ( is_wp_error( $mark_result ) ) {
@@ -997,6 +1007,16 @@ class Queue_Ajax_Handler {
 
 		if ( is_wp_error( $committed ) ) {
 			$this->send_error( $committed->get_error_message(), $committed->get_error_code() );
+			return;
+		}
+
+		// CRITICAL: Verify serials were actually committed.
+		// This prevents marking rows complete when no engraving occurred.
+		if ( 0 === $committed ) {
+			$this->send_error(
+				__( 'No serials were committed. The row cannot be marked complete without engraved serials. Please use Retry to generate new serials.', 'qsa-engraving' ),
+				'zero_serials_committed'
+			);
 			return;
 		}
 

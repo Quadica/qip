@@ -168,7 +168,13 @@ class Batch_Repository {
      * @return bool True on success, false on failure.
      */
     public function delete_batch( int $batch_id ): bool {
-        $this->wpdb->query( 'START TRANSACTION' );
+        // Start transaction and verify it succeeded.
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        $start_result = $this->wpdb->query( 'START TRANSACTION' );
+        if ( false === $start_result ) {
+            error_log( 'QSA Engraving: Failed to start transaction for batch deletion ' . $batch_id );
+            return false;
+        }
 
         try {
             // Delete modules first (foreign key relationship).
@@ -194,11 +200,22 @@ class Batch_Repository {
                 throw new \Exception( 'Failed to delete batch record ' . $batch_id );
             }
 
-            $this->wpdb->query( 'COMMIT' );
+            // Commit and verify success.
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+            $commit_result = $this->wpdb->query( 'COMMIT' );
+            if ( false === $commit_result ) {
+                // Commit failed - MySQL may have auto-rolled back.
+                error_log( 'QSA Engraving: COMMIT failed for batch deletion ' . $batch_id . '. Transaction may have been rolled back.' );
+                return false;
+            }
             return true;
 
         } catch ( \Exception $e ) {
-            $this->wpdb->query( 'ROLLBACK' );
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+            $rollback_result = $this->wpdb->query( 'ROLLBACK' );
+            if ( false === $rollback_result ) {
+                error_log( 'QSA Engraving: ROLLBACK also failed for batch ' . $batch_id . '. Database may be in inconsistent state.' );
+            }
             error_log( 'QSA Engraving: Batch deletion rollback - ' . $e->getMessage() );
             return false;
         }
