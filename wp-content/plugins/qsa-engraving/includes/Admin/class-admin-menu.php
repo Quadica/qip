@@ -434,6 +434,29 @@ class Admin_Menu {
                                 <span class="qsa-toggle-status" id="qsa-lightburn-status"></span>
                             </td>
                         </tr>
+                        <tr id="qsa-lightburn-connection-row" <?php echo $lightburn_enabled ? '' : 'style="display:none;"'; ?>>
+                            <td>
+                                <?php esc_html_e( 'LightBurn Connection', 'qsa-engraving' ); ?>
+                                <p class="description" style="margin: 4px 0 0; font-size: 11px; color: #666;">
+                                    <?php
+                                    printf(
+                                        /* translators: %s: IP address */
+                                        esc_html__( 'Target: %s', 'qsa-engraving' ),
+                                        esc_html( $system_settings['lightburn_host'] ?? '127.0.0.1' )
+                                    );
+                                    ?>
+                                </p>
+                            </td>
+                            <td>
+                                <span id="qsa-connection-status" class="qsa-connection-indicator">
+                                    <span class="qsa-connection-dot checking"></span>
+                                    <span class="qsa-connection-text"><?php esc_html_e( 'Checking...', 'qsa-engraving' ); ?></span>
+                                </span>
+                                <button type="button" id="qsa-check-connection" class="button button-small" style="margin-left: 10px;">
+                                    <?php esc_html_e( 'Check', 'qsa-engraving' ); ?>
+                                </button>
+                            </td>
+                        </tr>
                         <tr>
                             <td>
                                 <label for="qsa-toggle-keep-svg"><?php esc_html_e( 'Keep SVG Files', 'qsa-engraving' ); ?></label>
@@ -507,6 +530,42 @@ class Admin_Menu {
                 .qsa-toggle-status.error {
                     color: #d63638;
                 }
+                /* Connection status indicator */
+                .qsa-connection-indicator {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 6px;
+                }
+                .qsa-connection-dot {
+                    display: inline-block;
+                    width: 10px;
+                    height: 10px;
+                    border-radius: 50%;
+                    background-color: #ccc;
+                }
+                .qsa-connection-dot.checking {
+                    background-color: #dba617;
+                    animation: pulse 1s infinite;
+                }
+                .qsa-connection-dot.connected {
+                    background-color: #00a32a;
+                }
+                .qsa-connection-dot.disconnected {
+                    background-color: #d63638;
+                }
+                .qsa-connection-text {
+                    font-size: 13px;
+                }
+                .qsa-connection-text.connected {
+                    color: #00a32a;
+                }
+                .qsa-connection-text.disconnected {
+                    color: #d63638;
+                }
+                @keyframes pulse {
+                    0%, 100% { opacity: 1; }
+                    50% { opacity: 0.5; }
+                }
             </style>
             <script>
             jQuery(function($) {
@@ -534,13 +593,70 @@ class Admin_Menu {
                     });
                 }
 
+                // LightBurn connection status check
+                function checkLightBurnConnection() {
+                    var $dot = $('.qsa-connection-dot');
+                    var $text = $('.qsa-connection-text');
+                    var $btn = $('#qsa-check-connection');
+
+                    // Set checking state
+                    $dot.removeClass('connected disconnected').addClass('checking');
+                    $text.removeClass('connected disconnected').text('<?php echo esc_js( __( 'Checking...', 'qsa-engraving' ) ); ?>');
+                    $btn.prop('disabled', true);
+
+                    $.post(ajaxUrl, {
+                        action: 'qsa_get_lightburn_status',
+                        nonce: nonce
+                    }, function(response) {
+                        $btn.prop('disabled', false);
+                        $dot.removeClass('checking');
+
+                        if (response.success && response.data) {
+                            if (response.data.connected) {
+                                $dot.addClass('connected');
+                                $text.addClass('connected').text('<?php echo esc_js( __( 'Connected', 'qsa-engraving' ) ); ?>');
+                            } else {
+                                $dot.addClass('disconnected');
+                                $text.addClass('disconnected').text('<?php echo esc_js( __( 'Not Connected', 'qsa-engraving' ) ); ?>');
+                            }
+                        } else {
+                            $dot.addClass('disconnected');
+                            $text.addClass('disconnected').text('<?php echo esc_js( __( 'Check Failed', 'qsa-engraving' ) ); ?>');
+                        }
+                    }).fail(function() {
+                        $btn.prop('disabled', false);
+                        $dot.removeClass('checking').addClass('disconnected');
+                        $text.addClass('disconnected').text('<?php echo esc_js( __( 'Check Failed', 'qsa-engraving' ) ); ?>');
+                    });
+                }
+
                 $('#qsa-toggle-lightburn').on('change', function() {
-                    saveToggle('lightburn_enabled', $(this).is(':checked'), $('#qsa-lightburn-status'));
+                    var isEnabled = $(this).is(':checked');
+                    saveToggle('lightburn_enabled', isEnabled, $('#qsa-lightburn-status'));
+
+                    // Show/hide connection row
+                    if (isEnabled) {
+                        $('#qsa-lightburn-connection-row').show();
+                        // Check connection after enabling
+                        setTimeout(checkLightBurnConnection, 500);
+                    } else {
+                        $('#qsa-lightburn-connection-row').hide();
+                    }
                 });
 
                 $('#qsa-toggle-keep-svg').on('change', function() {
                     saveToggle('keep_svg_files', $(this).is(':checked'), $('#qsa-keep-svg-status'));
                 });
+
+                // Manual check button
+                $('#qsa-check-connection').on('click', function() {
+                    checkLightBurnConnection();
+                });
+
+                // Auto-check on page load if LightBurn is enabled
+                <?php if ( $lightburn_enabled ) : ?>
+                setTimeout(checkLightBurnConnection, 1000);
+                <?php endif; ?>
             });
             </script>
         </div>
