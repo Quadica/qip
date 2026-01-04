@@ -880,14 +880,10 @@ class Queue_Ajax_Handler {
 			return;
 		}
 
-		// Check for reserved serials - must have serials to commit.
-		$reserved_serials = $this->serial_repository->get_by_batch( $batch_id, 'reserved' );
-		$reserved_for_qsa = array_filter(
-			$reserved_serials,
-			fn( $s ) => (int) $s['qsa_sequence'] === $qsa_sequence
-		);
+		// Check for committable serials (reserved or empty-status that will be auto-fixed).
+		$committable_count = $this->serial_repository->count_committable_serials( $batch_id, $qsa_sequence );
 
-		if ( empty( $reserved_for_qsa ) ) {
+		if ( 0 === $committable_count ) {
 			$this->send_error(
 				__( 'No reserved serials found to commit. The row may have already been completed or serials were voided.', 'qsa-engraving' ),
 				'no_reserved_serials'
@@ -985,14 +981,10 @@ class Queue_Ajax_Handler {
 			return;
 		}
 
-		// Check for reserved serials - must have serials to commit.
-		$reserved_serials = $this->serial_repository->get_by_batch( $batch_id, 'reserved' );
-		$reserved_for_qsa = array_filter(
-			$reserved_serials,
-			fn( $s ) => (int) $s['qsa_sequence'] === $qsa_sequence
-		);
+		// Check for committable serials (reserved or empty-status that will be auto-fixed).
+		$committable_count = $this->serial_repository->count_committable_serials( $batch_id, $qsa_sequence );
 
-		if ( empty( $reserved_for_qsa ) ) {
+		if ( 0 === $committable_count ) {
 			$this->send_error(
 				__( 'No reserved serials found to commit. The row may have already been completed or serials were voided.', 'qsa-engraving' ),
 				'no_reserved_serials'

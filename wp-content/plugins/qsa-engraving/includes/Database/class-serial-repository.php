@@ -367,38 +367,62 @@ class Serial_Repository {
     /**
      * Commit reserved serials as engraved.
      *
-     * Only commits serials with status 'reserved'. Empty status values are
-     * treated as a data integrity issue and logged as a warning.
+     * Commits serials with status 'reserved'. Empty status values are treated
+     * as corrupted data and auto-fixed to 'reserved' before committing, with
+     * a warning logged for audit purposes.
      *
      * @param int $engraving_batch_id The engraving batch ID.
      * @param int $qsa_sequence The QSA sequence number.
      * @return int|WP_Error Number of updated rows or WP_Error on failure.
      */
     public function commit_serials( int $engraving_batch_id, int $qsa_sequence ): int|WP_Error {
-        // Check for empty status values (data integrity issue).
-        $empty_count = $this->wpdb->get_var(
+        // Check for and auto-fix empty status values (data integrity issue).
+        $empty_count = (int) $this->wpdb->get_var(
             $this->wpdb->prepare(
                 "SELECT COUNT(*) FROM {$this->table_name}
                 WHERE engraving_batch_id = %d
                   AND qsa_sequence = %d
-                  AND status = ''",
+                  AND (status = '' OR status IS NULL)",
                 $engraving_batch_id,
                 $qsa_sequence
             )
         );
 
         if ( $empty_count > 0 ) {
+            // Auto-fix: Set empty status to 'reserved' so they can be committed.
+            $fix_result = $this->wpdb->query(
+                $this->wpdb->prepare(
+                    "UPDATE {$this->table_name}
+                    SET status = 'reserved'
+                    WHERE engraving_batch_id = %d
+                      AND qsa_sequence = %d
+                      AND (status = '' OR status IS NULL)",
+                    $engraving_batch_id,
+                    $qsa_sequence
+                )
+            );
+
             error_log(
                 sprintf(
-                    'QSA Engraving: DATA INTEGRITY WARNING - Found %d serial(s) with empty status in batch %d, QSA %d. This indicates a data corruption issue.',
+                    'QSA Engraving: DATA INTEGRITY AUTO-FIX - Found and fixed %d serial(s) with empty status in batch %d, QSA %d. Status set to "reserved" to allow commit.',
                     $empty_count,
                     $engraving_batch_id,
                     $qsa_sequence
                 )
             );
+
+            if ( false === $fix_result ) {
+                error_log(
+                    sprintf(
+                        'QSA Engraving: Failed to auto-fix empty status serials in batch %d, QSA %d.',
+                        $engraving_batch_id,
+                        $qsa_sequence
+                    )
+                );
+            }
         }
 
-        // Only commit properly reserved serials.
+        // Commit all reserved serials (including auto-fixed ones).
         $result = $this->wpdb->query(
             $this->wpdb->prepare(
                 "UPDATE {$this->table_name}
@@ -503,6 +527,30 @@ class Serial_Repository {
             $this->wpdb->prepare( $sql, ...$params ),
             ARRAY_A
         ) ?: array();
+    }
+
+    /**
+     * Count serials that can be committed (reserved or empty status).
+     *
+     * Used to check if there are serials available for commit before attempting.
+     * Includes both properly 'reserved' serials and corrupted empty-status serials
+     * (which will be auto-fixed during commit).
+     *
+     * @param int $engraving_batch_id The engraving batch ID.
+     * @param int $qsa_sequence       The QSA sequence number.
+     * @return int Count of committable serials.
+     */
+    public function count_committable_serials( int $engraving_batch_id, int $qsa_sequence ): int {
+        return (int) $this->wpdb->get_var(
+            $this->wpdb->prepare(
+                "SELECT COUNT(*) FROM {$this->table_name}
+                WHERE engraving_batch_id = %d
+                  AND qsa_sequence = %d
+                  AND (status = 'reserved' OR status = '' OR status IS NULL)",
+                $engraving_batch_id,
+                $qsa_sequence
+            )
+        );
     }
 
     /**

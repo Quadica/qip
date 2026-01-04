@@ -161,26 +161,47 @@ class Batch_Repository {
      * Delete a batch and all its associated modules.
      *
      * Used for cleanup when batch creation fails partway through.
+     * Uses a transaction to ensure atomicity - either both modules and batch
+     * are deleted, or neither is (preventing orphaned records).
      *
      * @param int $batch_id The batch ID to delete.
      * @return bool True on success, false on failure.
      */
     public function delete_batch( int $batch_id ): bool {
-        // Delete modules first (foreign key relationship).
-        $this->wpdb->delete(
-            $this->modules_table,
-            array( 'engraving_batch_id' => $batch_id ),
-            array( '%d' )
-        );
+        $this->wpdb->query( 'START TRANSACTION' );
 
-        // Delete the batch record.
-        $result = $this->wpdb->delete(
-            $this->batches_table,
-            array( 'id' => $batch_id ),
-            array( '%d' )
-        );
+        try {
+            // Delete modules first (foreign key relationship).
+            $modules_result = $this->wpdb->delete(
+                $this->modules_table,
+                array( 'engraving_batch_id' => $batch_id ),
+                array( '%d' )
+            );
 
-        return false !== $result;
+            // Check if module deletion failed (false means query error, not zero rows).
+            if ( false === $modules_result ) {
+                throw new \Exception( 'Failed to delete modules for batch ' . $batch_id );
+            }
+
+            // Delete the batch record.
+            $batch_result = $this->wpdb->delete(
+                $this->batches_table,
+                array( 'id' => $batch_id ),
+                array( '%d' )
+            );
+
+            if ( false === $batch_result ) {
+                throw new \Exception( 'Failed to delete batch record ' . $batch_id );
+            }
+
+            $this->wpdb->query( 'COMMIT' );
+            return true;
+
+        } catch ( \Exception $e ) {
+            $this->wpdb->query( 'ROLLBACK' );
+            error_log( 'QSA Engraving: Batch deletion rollback - ' . $e->getMessage() );
+            return false;
+        }
     }
 
     /**
