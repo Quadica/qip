@@ -646,7 +646,8 @@ export default function EngravingQueue() {
 	 * Handle start position change.
 	 *
 	 * Updates the start position which affects the calculated array count.
-	 * For multi-QSA groups, this updates the first QSA sequence's positions.
+	 * For multi-QSA groups, this updates the first QSA sequence's positions
+	 * and may allocate new QSA sequences if more arrays are needed.
 	 *
 	 * @param {number} itemId        The queue item ID (first QSA sequence in group).
 	 * @param {number} startPosition The new start position (1-8).
@@ -667,9 +668,17 @@ export default function EngravingQueue() {
 			} );
 
 			if ( data.success ) {
+				// Update both startPosition AND qsa_sequences (which may have changed
+				// if more arrays were needed and new sequences were allocated).
 				setQueueItems( ( prev ) =>
 					prev.map( ( i ) =>
-						i.id === itemId ? { ...i, startPosition } : i
+						i.id === itemId
+							? {
+									...i,
+									startPosition,
+									qsa_sequences: data.data.qsa_sequences || i.qsa_sequences,
+							  }
+							: i
 					)
 				);
 			} else {

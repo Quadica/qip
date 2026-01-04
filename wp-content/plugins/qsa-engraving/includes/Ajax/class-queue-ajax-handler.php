@@ -1299,10 +1299,17 @@ class Queue_Ajax_Handler {
 			);
 		}
 
+		// Extract the NEW QSA sequences from the redistribution result.
+		// These may differ from the original row_qsa_sequences if new arrays were allocated.
+		$new_qsa_sequences = array_map(
+			fn( $arr ) => (int) $arr['sequence'],
+			$result['arrays']
+		);
+
 		$this->send_success(
 			array(
 				'batch_id'        => $batch_id,
-				'qsa_sequences'   => $row_qsa_sequences,
+				'qsa_sequences'   => $new_qsa_sequences, // NEW sequences after redistribution.
 				'start_position'  => $start_position,
 				'old_array_count' => $result['old_qsa_count'],
 				'new_array_count' => $result['new_qsa_count'],
