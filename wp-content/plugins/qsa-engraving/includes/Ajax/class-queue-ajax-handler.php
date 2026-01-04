@@ -356,114 +356,112 @@ class Queue_Ajax_Handler {
 	/**
 	 * Build queue items from modules.
 	 *
-	 * Groups modules intelligently:
-	 * - "Same ID" groups: All modules with the same single SKU AND same workflow status
-	 *   are merged into one row, even if they span multiple QSA sequences (physical arrays).
-	 * - "Mixed ID" groups: Modules with different SKUs within the same QSA sequence
-	 *   stay as separate rows.
+	 * Groups modules by original_qsa_sequence (the QSA sequence assigned at batch creation).
+	 * This ensures that modules stay grouped together even when redistributed across
+	 * multiple arrays due to start position changes.
 	 *
-	 * Status-based grouping prevents sequences from different workflow states being
-	 * mixed together (e.g., pending sequences shouldn't be grouped with in_progress
-	 * sequences that came from a different row's redistribution).
+	 * Group types for UI display:
+	 * - "Same ID": All modules in the row have the same SKU
+	 * - "Mixed ID": Row contains modules with different SKUs
 	 *
 	 * @param array $modules    Array of module records.
 	 * @param int   $batch_id   The batch ID.
-	 * @return array Queue items grouped by SKU composition and workflow status.
+	 * @return array Queue items grouped by original_qsa_sequence.
 	 */
 	private function build_queue_items( array $modules, int $batch_id ): array {
 		if ( empty( $modules ) ) {
 			return array();
 		}
 
-		// First pass: Group modules by QSA sequence to analyze composition.
-		$by_qsa = array();
+		// Group modules by original_qsa_sequence (with fallback for legacy data).
+		$by_original_qsa = array();
 		foreach ( $modules as $module ) {
-			$qsa_seq = (int) $module['qsa_sequence'];
-			if ( ! isset( $by_qsa[ $qsa_seq ] ) ) {
-				$by_qsa[ $qsa_seq ] = array();
+			// Use original_qsa_sequence if available, otherwise fall back to qsa_sequence.
+			$original_qsa = ! empty( $module['original_qsa_sequence'] )
+				? (int) $module['original_qsa_sequence']
+				: (int) $module['qsa_sequence'];
+
+			if ( ! isset( $by_original_qsa[ $original_qsa ] ) ) {
+				$by_original_qsa[ $original_qsa ] = array();
 			}
-			$by_qsa[ $qsa_seq ][] = $module;
-		}
-
-		// Second pass: Identify "Same ID" QSAs (single SKU) and group them by SKU + status.
-		// "Mixed ID" QSAs stay separate.
-		$same_id_groups = array(); // "SKU|status" => array of qsa_sequences.
-		$mixed_id_qsas  = array(); // qsa_sequence => modules.
-
-		foreach ( $by_qsa as $qsa_seq => $qsa_modules ) {
-			$unique_skus = array_unique( array_column( $qsa_modules, 'module_sku' ) );
-
-			if ( count( $unique_skus ) === 1 ) {
-				// Same ID - group by SKU AND status.
-				// This prevents mixing pending sequences with in_progress sequences
-				// that came from a different row's redistribution.
-				$sku        = $unique_skus[0];
-				$qsa_status = $this->normalize_row_status( $qsa_modules[0]['row_status'] ?? null );
-				$group_key  = $sku . '|' . $qsa_status;
-
-				if ( ! isset( $same_id_groups[ $group_key ] ) ) {
-					$same_id_groups[ $group_key ] = array(
-						'sku'    => $sku,
-						'status' => $qsa_status,
-						'qsas'   => array(),
-					);
-				}
-				$same_id_groups[ $group_key ]['qsas'][ $qsa_seq ] = $qsa_modules;
-			} else {
-				// Mixed ID - keep separate.
-				$mixed_id_qsas[ $qsa_seq ] = $qsa_modules;
-			}
+			$by_original_qsa[ $original_qsa ][] = $module;
 		}
 
 		// Get all serials for the batch once.
 		$all_serials = $this->serial_repository->get_by_batch( $batch_id );
 
-		// Build queue items from Same ID groups (merged across QSA sequences with same status).
+		// Build queue items from each row group.
 		$queue_items = array();
 
-		foreach ( $same_id_groups as $group_key => $group_data ) {
-			$sku      = $group_data['sku'];
-			$qsa_data = $group_data['qsas'];
+		foreach ( $by_original_qsa as $original_qsa => $row_modules ) {
+			// Get unique SKUs to determine group type (Same ID vs Mixed ID).
+			$unique_skus = array_unique( array_column( $row_modules, 'module_sku' ) );
+			$is_same_id  = count( $unique_skus ) === 1;
 
-			// Sort QSA sequences.
-			ksort( $qsa_data );
-			$qsa_sequences = array_keys( $qsa_data );
-			$first_qsa     = $qsa_sequences[0];
+			// Get all distinct current QSA sequences for this row.
+			$qsa_sequences = array_unique( array_column( $row_modules, 'qsa_sequence' ) );
+			$qsa_sequences = array_map( 'intval', $qsa_sequences );
+			sort( $qsa_sequences );
 
-			// Collect all modules across QSA sequences.
-			$all_group_modules = array();
-			foreach ( $qsa_data as $qsa_modules ) {
-				$all_group_modules = array_merge( $all_group_modules, $qsa_modules );
-			}
-
-			$total_count = count( $all_group_modules );
+			$first_qsa   = $qsa_sequences[0];
+			$total_count = count( $row_modules );
 			$array_count = count( $qsa_sequences );
 
-			// Module type from SKU.
-			$module_type = $this->extract_base_type( $sku );
+			// Module type from first module's SKU.
+			$first_sku   = $row_modules[0]['module_sku'];
+			$module_type = $this->extract_base_type( $first_sku );
+
+			// Group modules by current qsa_sequence for per-array analysis.
+			$by_current_qsa = array();
+			foreach ( $row_modules as $module ) {
+				$qsa = (int) $module['qsa_sequence'];
+				if ( ! isset( $by_current_qsa[ $qsa ] ) ) {
+					$by_current_qsa[ $qsa ] = array();
+				}
+				$by_current_qsa[ $qsa ][] = $module;
+			}
 
 			// Determine if full or partial (last array has 8 modules?).
-			$last_qsa_modules = $qsa_data[ end( $qsa_sequences ) ];
+			$last_qsa         = end( $qsa_sequences );
+			$last_qsa_modules = $by_current_qsa[ $last_qsa ] ?? array();
 			$is_full          = count( $last_qsa_modules ) === 8;
 
-			$group_type = 'Same ID × ' . ( $is_full ? 'Full' : 'Partial' );
+			// Set group type label.
+			$group_type = ( $is_same_id ? 'Same ID' : 'Mixed ID' ) . ' × ' . ( $is_full ? 'Full' : 'Partial' );
 
-			// Build module list.
-			$module_list = array(
-				array(
-					'sku' => $sku,
-					'qty' => $total_count,
-				),
-			);
+			// Build module list (SKU counts).
+			if ( $is_same_id ) {
+				$module_list = array(
+					array(
+						'sku' => $unique_skus[0],
+						'qty' => $total_count,
+					),
+				);
+			} else {
+				$sku_counts = array();
+				foreach ( $row_modules as $module ) {
+					$sku = $module['module_sku'];
+					if ( ! isset( $sku_counts[ $sku ] ) ) {
+						$sku_counts[ $sku ] = 0;
+					}
+					$sku_counts[ $sku ]++;
+				}
+				$module_list = array();
+				foreach ( $sku_counts as $sku => $qty ) {
+					$module_list[] = array(
+						'sku' => $sku,
+						'qty' => $qty,
+					);
+				}
+			}
 
-			// Determine status from all modules.
-			// Since we group by status, all modules should have the same normalized status.
-			$statuses    = array_map(
+			// Determine overall row status.
+			$statuses   = array_map(
 				fn( $s ) => $this->normalize_row_status( $s ),
-				array_column( $all_group_modules, 'row_status' )
+				array_column( $row_modules, 'row_status' )
 			);
-			$done_count  = count( array_filter( $statuses, fn( $s ) => $s === 'done' ) );
-			$in_prog     = in_array( 'in_progress', $statuses, true );
+			$done_count = count( array_filter( $statuses, fn( $s ) => $s === 'done' ) );
+			$in_prog    = in_array( 'in_progress', $statuses, true );
 
 			if ( $done_count === $total_count ) {
 				$status = 'complete';
@@ -477,7 +475,7 @@ class Queue_Ajax_Handler {
 
 			// Count completed QSA sequences for partial progress tracking.
 			$completed_qsa_count = 0;
-			foreach ( $qsa_data as $qsa_seq => $qsa_modules ) {
+			foreach ( $by_current_qsa as $qsa_seq => $qsa_modules ) {
 				$qsa_statuses = array_map(
 					fn( $s ) => $this->normalize_row_status( $s ),
 					array_column( $qsa_modules, 'row_status' )
@@ -487,9 +485,10 @@ class Queue_Ajax_Handler {
 				}
 			}
 
-			// Get start position from first module of first QSA.
-			$first_qsa_modules = $qsa_data[ $first_qsa ];
-			$start_position    = (int) $first_qsa_modules[0]['array_position'];
+			// Get start position from first module of first QSA (sorted by position).
+			$first_qsa_modules = $by_current_qsa[ $first_qsa ] ?? array();
+			usort( $first_qsa_modules, fn( $a, $b ) => (int) $a['array_position'] <=> (int) $b['array_position'] );
+			$start_position = ! empty( $first_qsa_modules ) ? (int) $first_qsa_modules[0]['array_position'] : 1;
 
 			// Get current array (which QSA is in progress).
 			$current_array = $this->get_current_array_for_group( $batch_id, $qsa_sequences, $all_serials );
@@ -499,7 +498,7 @@ class Queue_Ajax_Handler {
 
 			$queue_items[] = array(
 				'id'               => $first_qsa, // Primary identifier is first QSA sequence.
-				'qsa_sequences'    => $qsa_sequences, // All QSA sequences in this group.
+				'qsa_sequences'    => $qsa_sequences, // All QSA sequences in this row.
 				'groupType'        => $group_type,
 				'moduleType'       => $module_type,
 				'modules'          => $module_list,
@@ -513,78 +512,7 @@ class Queue_Ajax_Handler {
 			);
 		}
 
-		// Build queue items from Mixed ID QSAs (one row per QSA).
-		foreach ( $mixed_id_qsas as $qsa_seq => $qsa_modules ) {
-			// Get unique SKUs and counts.
-			$sku_counts = array();
-			foreach ( $qsa_modules as $module ) {
-				$sku = $module['module_sku'];
-				if ( ! isset( $sku_counts[ $sku ] ) ) {
-					$sku_counts[ $sku ] = 0;
-				}
-				$sku_counts[ $sku ]++;
-			}
-
-			$total_count = count( $qsa_modules );
-			$is_full     = $total_count === 8;
-
-			// Module type from first module.
-			$first_sku   = $qsa_modules[0]['module_sku'];
-			$module_type = $this->extract_base_type( $first_sku );
-
-			$group_type = 'Mixed ID × ' . ( $is_full ? 'Full' : 'Partial' );
-
-			// Build module list.
-			$module_list = array();
-			foreach ( $sku_counts as $sku => $qty ) {
-				$module_list[] = array(
-					'sku' => $sku,
-					'qty' => $qty,
-				);
-			}
-
-			// Determine status.
-			$statuses   = array_map(
-				fn( $s ) => $this->normalize_row_status( $s ),
-				array_column( $qsa_modules, 'row_status' )
-			);
-			$done_count = count( array_filter( $statuses, fn( $s ) => $s === 'done' ) );
-			$in_prog    = in_array( 'in_progress', $statuses, true );
-
-			if ( $done_count === $total_count ) {
-				$status = 'complete';
-			} elseif ( $in_prog ) {
-				$status = 'in_progress';
-			} else {
-				$status = 'pending';
-			}
-
-			// Start position.
-			$start_position = (int) $qsa_modules[0]['array_position'];
-
-			// Current array (for single QSA, it's 1 or 0).
-			$current_array = $this->get_current_array_for_qsa( $batch_id, $qsa_seq );
-
-			// Serials.
-			$row_serials = $this->get_serials_for_group( array( $qsa_seq ), $all_serials, $status );
-
-			$queue_items[] = array(
-				'id'               => $qsa_seq,
-				'qsa_sequences'    => array( $qsa_seq ),
-				'groupType'        => $group_type,
-				'moduleType'       => $module_type,
-				'modules'          => $module_list,
-				'totalModules'     => $total_count,
-				'arrayCount'       => 1,
-				'status'           => $status,
-				'startPosition'    => $start_position,
-				'currentArray'     => $current_array,
-				'completedArrays'  => ( 'complete' === $status ) ? 1 : 0,
-				'serials'          => $row_serials,
-			);
-		}
-
-		// Sort by first QSA sequence.
+		// Sort by first QSA sequence (original_qsa_sequence order).
 		usort( $queue_items, fn( $a, $b ) => $a['id'] <=> $b['id'] );
 
 		return $queue_items;
@@ -1399,41 +1327,6 @@ class Queue_Ajax_Handler {
 			}
 		}
 
-		// Check if this is a Mixed ID row (multiple SKUs in a single QSA).
-		// Mixed ID rows cannot be split across multiple arrays because the redistribution
-		// would create sequences with different SKU compositions, making them unfindable
-		// by get_row_qsa_sequences() on subsequent operations.
-		$is_mixed_id = count( $row_qsa_sequences ) === 1;
-		if ( $is_mixed_id ) {
-			$target_qsa_modules = array_filter(
-				$row_modules,
-				fn( $m ) => (int) $m['qsa_sequence'] === $row_qsa_sequences[0]
-			);
-			$unique_skus = array_unique( array_column( $target_qsa_modules, 'module_sku' ) );
-			$is_mixed_id = count( $unique_skus ) > 1;
-		}
-
-		if ( $is_mixed_id ) {
-			$module_count          = count( $row_modules );
-			$first_array_capacity  = 9 - $start_position; // e.g., start_position=5 means 4 slots (5,6,7,8).
-			$would_need_two_arrays = $module_count > $first_array_capacity;
-
-			if ( $would_need_two_arrays ) {
-				$this->send_error(
-					sprintf(
-						/* translators: 1: Module count, 2: Start position, 3: First array capacity */
-						__( 'Cannot set start position to %2$d for this Mixed ID row. With %1$d modules and start position %2$d, only %3$d modules fit in the first array. Mixed ID rows cannot be split across multiple arrays. Choose a start position of %4$d or less.', 'qsa-engraving' ),
-						$module_count,
-						$start_position,
-						$first_array_capacity,
-						9 - $module_count // Max start position that keeps all modules in one array.
-					),
-					'mixed_id_would_split'
-				);
-				return;
-			}
-		}
-
 		// Redistribute modules across arrays with the new start position.
 		$result = $this->batch_repository->redistribute_row_modules( $batch_id, $row_qsa_sequences, $start_position );
 
@@ -1481,61 +1374,57 @@ class Queue_Ajax_Handler {
 	/**
 	 * Get all QSA sequences that belong to the same "row" as the given sequence.
 	 *
-	 * A row is defined by modules with the same SKU composition AND workflow status:
-	 * - Same ID: All QSA sequences containing modules with the same single SKU
-	 * - Mixed ID: Just the single QSA sequence (different SKUs in same sequence)
-	 * - Status Match: Only sequences with the same normalized status are grouped together.
-	 *   This prevents in_progress sequences from one row being mixed with pending
-	 *   sequences from another row (which can happen after redistribution).
+	 * A row is defined by modules with the same original_qsa_sequence (the QSA
+	 * sequence assigned at batch creation time). This allows rows to be redistributed
+	 * across multiple arrays while maintaining their logical grouping.
+	 *
+	 * Status filtering ensures we only group modules in the same workflow state,
+	 * preventing in_progress sequences from being mixed with pending sequences.
 	 *
 	 * @param array $all_modules  All modules in the batch.
 	 * @param int   $qsa_sequence The QSA sequence to find the row for.
 	 * @return array Array of QSA sequence numbers that form the row.
 	 */
 	private function get_row_qsa_sequences( array $all_modules, int $qsa_sequence ): array {
-		// Group modules by QSA sequence.
-		$by_qsa = array();
+		// Find a module in the target QSA sequence to get its original_qsa_sequence.
+		$target_module = null;
 		foreach ( $all_modules as $module ) {
-			$qsa = (int) $module['qsa_sequence'];
-			if ( ! isset( $by_qsa[ $qsa ] ) ) {
-				$by_qsa[ $qsa ] = array();
+			if ( (int) $module['qsa_sequence'] === $qsa_sequence ) {
+				$target_module = $module;
+				break;
 			}
-			$by_qsa[ $qsa ][] = $module;
 		}
 
-		// Check if the target QSA exists.
-		if ( ! isset( $by_qsa[ $qsa_sequence ] ) ) {
+		if ( null === $target_module ) {
 			return array();
 		}
 
-		// Check if the target QSA is Same ID (single SKU) or Mixed ID (multiple SKUs).
-		$target_skus = array_unique( array_column( $by_qsa[ $qsa_sequence ], 'module_sku' ) );
+		// Get the original_qsa_sequence that defines this row.
+		// For legacy data where original_qsa_sequence might be 0 or missing, fall back to qsa_sequence.
+		$original_qsa = ! empty( $target_module['original_qsa_sequence'] )
+			? (int) $target_module['original_qsa_sequence']
+			: $qsa_sequence;
 
-		if ( count( $target_skus ) > 1 ) {
-			// Mixed ID: only this QSA sequence.
-			return array( $qsa_sequence );
-		}
+		// Get the target status for filtering.
+		$target_status = $this->normalize_row_status( $target_module['row_status'] ?? null );
 
-		// Get the target QSA's status (use first module's status as representative).
-		$target_status = $this->normalize_row_status( $by_qsa[ $qsa_sequence ][0]['row_status'] ?? null );
-
-		// Same ID: find all QSA sequences with the same single SKU AND same status.
-		$target_sku = $target_skus[0];
+		// Find all distinct qsa_sequences for modules with the same original_qsa_sequence AND status.
 		$row_sequences = array();
+		foreach ( $all_modules as $module ) {
+			$module_original_qsa = ! empty( $module['original_qsa_sequence'] )
+				? (int) $module['original_qsa_sequence']
+				: (int) $module['qsa_sequence'];
 
-		foreach ( $by_qsa as $qsa => $modules ) {
-			$skus = array_unique( array_column( $modules, 'module_sku' ) );
-
-			// Only include if it's Same ID (single SKU) AND matches our target SKU.
-			if ( count( $skus ) === 1 && $skus[0] === $target_sku ) {
-				// Also check status - don't mix sequences with different workflow states.
-				$qsa_status = $this->normalize_row_status( $modules[0]['row_status'] ?? null );
-				if ( $qsa_status === $target_status ) {
-					$row_sequences[] = $qsa;
+			if ( $module_original_qsa === $original_qsa ) {
+				$module_status = $this->normalize_row_status( $module['row_status'] ?? null );
+				if ( $module_status === $target_status ) {
+					$row_sequences[] = (int) $module['qsa_sequence'];
 				}
 			}
 		}
 
+		// Return unique, sorted QSA sequences.
+		$row_sequences = array_unique( $row_sequences );
 		sort( $row_sequences );
 		return $row_sequences;
 	}

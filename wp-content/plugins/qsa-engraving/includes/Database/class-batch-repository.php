@@ -323,19 +323,22 @@ class Batch_Repository {
      * @return int|WP_Error The module record ID or WP_Error on failure.
      */
     public function add_module( array $module_data ): int|WP_Error {
+        $qsa_sequence = $module_data['qsa_sequence'];
+
         $result = $this->wpdb->insert(
             $this->modules_table,
             array(
-                'engraving_batch_id'  => $module_data['engraving_batch_id'],
-                'production_batch_id' => $module_data['production_batch_id'],
-                'module_sku'          => $module_data['module_sku'],
-                'order_id'            => $module_data['order_id'],
-                'serial_number'       => $module_data['serial_number'],
-                'qsa_sequence'        => $module_data['qsa_sequence'],
-                'array_position'      => $module_data['array_position'],
-                'row_status'          => 'pending',
+                'engraving_batch_id'    => $module_data['engraving_batch_id'],
+                'production_batch_id'   => $module_data['production_batch_id'],
+                'module_sku'            => $module_data['module_sku'],
+                'order_id'              => $module_data['order_id'],
+                'serial_number'         => $module_data['serial_number'],
+                'qsa_sequence'          => $qsa_sequence,
+                'original_qsa_sequence' => $qsa_sequence, // Preserve original for row grouping.
+                'array_position'        => $module_data['array_position'],
+                'row_status'            => 'pending',
             ),
-            array( '%d', '%d', '%s', '%d', '%s', '%d', '%d', '%s' )
+            array( '%d', '%d', '%s', '%d', '%s', '%d', '%d', '%d', '%s' )
         );
 
         if ( false === $result ) {
