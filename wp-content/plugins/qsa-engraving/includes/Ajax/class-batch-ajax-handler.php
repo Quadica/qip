@@ -107,6 +107,7 @@ class Batch_Ajax_Handler {
 		add_action( 'wp_ajax_qsa_refresh_modules', array( $this, 'handle_refresh_modules' ) );
 		add_action( 'wp_ajax_qsa_create_batch', array( $this, 'handle_create_batch' ) );
 		add_action( 'wp_ajax_qsa_preview_batch', array( $this, 'handle_preview_batch' ) );
+		add_action( 'wp_ajax_qsa_duplicate_batch', array( $this, 'handle_duplicate_batch' ) );
 	}
 
 	/**
@@ -383,6 +384,169 @@ class Batch_Ajax_Handler {
 				),
 			)
 		);
+	}
+
+	/**
+	 * Handle duplicate batch request.
+	 *
+	 * Creates a new batch that duplicates an existing completed batch.
+	 * New serial numbers will be assigned when the batch is processed.
+	 *
+	 * @return void
+	 */
+	public function handle_duplicate_batch(): void {
+		$verify = $this->verify_request();
+		if ( is_wp_error( $verify ) ) {
+			$this->send_error( $verify->get_error_message(), $verify->get_error_code(), 403 );
+			return;
+		}
+
+		// Get source batch ID.
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce already verified.
+		$source_batch_id = isset( $_POST['source_batch_id'] ) ? absint( $_POST['source_batch_id'] ) : 0;
+
+		if ( $source_batch_id <= 0 ) {
+			$this->send_error( __( 'Invalid source batch ID.', 'qsa-engraving' ), 'invalid_batch_id' );
+			return;
+		}
+
+		// Verify source batch exists and is completed.
+		$source_batch = $this->batch_repository->get_batch( $source_batch_id );
+		if ( ! $source_batch ) {
+			$this->send_error( __( 'Source batch not found.', 'qsa-engraving' ), 'batch_not_found' );
+			return;
+		}
+
+		if ( 'completed' !== $source_batch['status'] ) {
+			$this->send_error(
+				__( 'Only completed batches can be duplicated.', 'qsa-engraving' ),
+				'batch_not_completed'
+			);
+			return;
+		}
+
+		// Get modules from source batch, grouped by SKU/order/production_batch.
+		$source_modules = $this->get_source_batch_modules( $source_batch_id );
+		if ( empty( $source_modules ) ) {
+			$this->send_error( __( 'Source batch has no modules.', 'qsa-engraving' ), 'no_modules' );
+			return;
+		}
+
+		// Resolve LED codes for each module group.
+		$modules_with_leds = $this->resolve_led_codes( $source_modules );
+		if ( is_wp_error( $modules_with_leds ) ) {
+			$this->send_error( $modules_with_leds->get_error_message(), $modules_with_leds->get_error_code() );
+			return;
+		}
+
+		// Expand selections into individual module instances.
+		$expanded = $this->batch_sorter->expand_selections( $modules_with_leds );
+
+		// Sort for LED optimization.
+		$sorted = $this->batch_sorter->sort_modules( $expanded );
+
+		// Create the new batch record.
+		$batch_id = $this->batch_repository->create_batch();
+		if ( is_wp_error( $batch_id ) ) {
+			$this->send_error( $batch_id->get_error_message(), $batch_id->get_error_code() );
+			return;
+		}
+
+		// Assign modules to QSA arrays (default start position 1).
+		$qsa_arrays = $this->batch_sorter->assign_to_arrays( $sorted, 1 );
+
+		// Add modules to the batch.
+		$module_count = 0;
+		foreach ( $qsa_arrays as $qsa ) {
+			foreach ( $qsa as $module ) {
+				$result = $this->batch_repository->add_module(
+					array(
+						'engraving_batch_id'  => $batch_id,
+						'production_batch_id' => $module['production_batch_id'],
+						'module_sku'          => $module['module_sku'],
+						'order_id'            => $module['order_id'],
+						'serial_number'       => '', // Serial numbers assigned during engraving.
+						'qsa_sequence'        => $module['qsa_sequence'],
+						'array_position'      => $module['array_position'],
+					)
+				);
+
+				if ( is_wp_error( $result ) ) {
+					error_log( sprintf( 'QSA Engraving: Failed to add module to batch %d: %s', $batch_id, $result->get_error_message() ) );
+				} else {
+					$module_count++;
+				}
+			}
+		}
+
+		// Update batch counts.
+		$this->batch_repository->update_batch_counts( $batch_id, $module_count, count( $qsa_arrays ) );
+
+		// Build redirect URL to the engraving queue.
+		$redirect_url = admin_url( 'admin.php?page=' . Admin_Menu::MENU_SLUG . '-queue&batch_id=' . $batch_id );
+
+		$this->send_success(
+			array(
+				'batch_id'        => $batch_id,
+				'source_batch_id' => $source_batch_id,
+				'module_count'    => $module_count,
+				'qsa_count'       => count( $qsa_arrays ),
+				'redirect_url'    => $redirect_url,
+			),
+			sprintf(
+				/* translators: 1: Source batch ID, 2: Module count, 3: QSA count */
+				__( 'Batch #%1$d duplicated: %2$d modules across %3$d QSAs.', 'qsa-engraving' ),
+				$source_batch_id,
+				$module_count,
+				count( $qsa_arrays )
+			)
+		);
+	}
+
+	/**
+	 * Get modules from a source batch grouped for duplication.
+	 *
+	 * @param int $batch_id Source batch ID.
+	 * @return array Array of module selections.
+	 */
+	private function get_source_batch_modules( int $batch_id ): array {
+		global $wpdb;
+
+		$modules_table = $this->batch_repository->get_modules_table_name();
+
+		// Get modules grouped by SKU, order, and production batch.
+		$results = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT
+					production_batch_id,
+					module_sku,
+					order_id,
+					COUNT(*) as quantity
+				FROM {$modules_table}
+				WHERE engraving_batch_id = %d
+				GROUP BY production_batch_id, module_sku, order_id
+				ORDER BY module_sku, order_id",
+				$batch_id
+			),
+			ARRAY_A
+		);
+
+		if ( empty( $results ) ) {
+			return array();
+		}
+
+		// Format as selections array.
+		$selections = array();
+		foreach ( $results as $row ) {
+			$selections[] = array(
+				'production_batch_id' => (int) $row['production_batch_id'],
+				'module_sku'          => $row['module_sku'],
+				'order_id'            => (int) $row['order_id'],
+				'quantity'            => (int) $row['quantity'],
+			);
+		}
+
+		return $selections;
 	}
 
 	/**

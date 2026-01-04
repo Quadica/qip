@@ -37,6 +37,7 @@ export default function BatchHistory() {
 		search: '',
 		filterType: 'all',
 	} );
+	const [ duplicating, setDuplicating ] = useState( false );
 
 	/**
 	 * Fetch batch history from the server.
@@ -161,20 +162,40 @@ export default function BatchHistory() {
 	};
 
 	/**
-	 * Handle load for re-engraving.
+	 * Handle load for re-engraving (duplicates the batch).
 	 */
-	const handleLoadForReengraving = () => {
-		if ( ! selectedBatch ) {
+	const handleLoadForReengraving = async () => {
+		if ( ! selectedBatch || duplicating ) {
 			return;
 		}
 
-		// Navigate to Batch Creator with source=history and batch_id.
-		const batchCreatorUrl = new URL( window.location.href );
-		batchCreatorUrl.searchParams.set( 'page', 'qsa-engraving-batch-creator' );
-		batchCreatorUrl.searchParams.set( 'source', 'history' );
-		batchCreatorUrl.searchParams.set( 'source_batch_id', selectedBatch.id );
+		setDuplicating( true );
+		setError( null );
 
-		window.location.href = batchCreatorUrl.toString();
+		try {
+			const formData = new FormData();
+			formData.append( 'action', 'qsa_duplicate_batch' );
+			formData.append( 'nonce', window.qsaEngraving?.nonce || '' );
+			formData.append( 'source_batch_id', selectedBatch.id );
+
+			const response = await fetch( window.qsaEngraving?.ajaxUrl || '/wp-admin/admin-ajax.php', {
+				method: 'POST',
+				body: formData,
+			} );
+
+			const data = await response.json();
+
+			if ( data.success ) {
+				// Redirect to Engraving Queue with the new batch.
+				window.location.href = data.data.redirect_url;
+			} else {
+				setError( data.data?.message || __( 'Failed to duplicate batch.', 'qsa-engraving' ) );
+				setDuplicating( false );
+			}
+		} catch ( err ) {
+			setError( __( 'Network error duplicating batch.', 'qsa-engraving' ) );
+			setDuplicating( false );
+		}
 	};
 
 	/**
@@ -265,6 +286,7 @@ export default function BatchHistory() {
 						loading={ detailsLoading }
 						error={ detailsError }
 						onLoadForReengraving={ handleLoadForReengraving }
+						duplicating={ duplicating }
 					/>
 				</div>
 			</div>
@@ -282,17 +304,12 @@ export default function BatchHistory() {
 					<span className="dashicons dashicons-arrow-right-alt"></span>
 					<span className="qsa-legend-step">
 						<span className="step-number">2</span>
-						{ __( 'Load into Batch Creator', 'qsa-engraving' ) }
+						{ __( 'Click "Load for Re-engraving"', 'qsa-engraving' ) }
 					</span>
 					<span className="dashicons dashicons-arrow-right-alt"></span>
 					<span className="qsa-legend-step">
 						<span className="step-number">3</span>
-						{ __( 'Select modules to re-engrave', 'qsa-engraving' ) }
-					</span>
-					<span className="dashicons dashicons-arrow-right-alt"></span>
-					<span className="qsa-legend-step">
-						<span className="step-number">4</span>
-						{ __( 'New serials assigned', 'qsa-engraving' ) }
+						{ __( 'New batch created with new serials', 'qsa-engraving' ) }
 					</span>
 				</div>
 			</div>
