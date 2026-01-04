@@ -594,12 +594,23 @@ class Batch_Repository {
         $available_sequences = $qsa_sequences;
         sort( $available_sequences );
 
+        // Track whether we need to manage a transaction for new sequence allocation.
+        $in_transaction = false;
+
         if ( $needed_qsa_count > count( $available_sequences ) ) {
-            // Get the max qsa_sequence for the entire batch.
+            // Start transaction to prevent race condition when allocating new sequences.
+            // Without locking, concurrent admins could read the same MAX and allocate
+            // overlapping sequence numbers.
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+            $this->wpdb->query( 'START TRANSACTION' );
+            $in_transaction = true;
+
+            // Get the max qsa_sequence for the entire batch with row-level lock.
+            // FOR UPDATE prevents other transactions from reading until we commit.
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
             $max_qsa = (int) $this->wpdb->get_var(
                 $this->wpdb->prepare(
-                    "SELECT MAX(qsa_sequence) FROM {$this->modules_table} WHERE engraving_batch_id = %d",
+                    "SELECT MAX(qsa_sequence) FROM {$this->modules_table} WHERE engraving_batch_id = %d FOR UPDATE",
                     $batch_id
                 )
             );
@@ -706,6 +717,13 @@ class Batch_Repository {
             );
             $remaining -= $count;
             $seq_idx++;
+        }
+
+        // Commit the transaction if we started one for sequence allocation.
+        // This ensures all module updates and new sequence allocations are atomic.
+        if ( $in_transaction ) {
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+            $this->wpdb->query( 'COMMIT' );
         }
 
         return array(
