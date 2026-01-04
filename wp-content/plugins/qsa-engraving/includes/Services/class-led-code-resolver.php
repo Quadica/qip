@@ -112,7 +112,8 @@ class LED_Code_Resolver {
 		foreach ( $led_data as $led ) {
 			$shortcode = $this->get_led_shortcode( $led['sku'] );
 			if ( ! empty( $shortcode ) ) {
-				$led_codes[] = $shortcode;
+				// Ensure shortcode is always a string for consistent array key handling.
+				$led_codes[] = (string) $shortcode;
 			}
 		}
 
