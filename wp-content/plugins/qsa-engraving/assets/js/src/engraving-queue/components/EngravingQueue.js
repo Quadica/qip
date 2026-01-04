@@ -898,10 +898,6 @@ export default function EngravingQueue() {
 						{ __( 'Mixed ID x Partial', 'qsa-engraving' ) }
 					</span>
 				</div>
-				<div className="qsa-queue-keyboard-hint">
-					<span className="keyboard-key">SPACE</span>
-					<span>{ __( 'Complete current row', 'qsa-engraving' ) }</span>
-				</div>
 			</div>
 		</div>
 	);
