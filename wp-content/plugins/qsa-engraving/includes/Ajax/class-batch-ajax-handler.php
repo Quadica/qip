@@ -257,10 +257,14 @@ class Batch_Ajax_Handler {
 		// Assign modules to QSA arrays (default start position 1).
 		$qsa_arrays = $this->batch_sorter->assign_to_arrays( $sorted, 1 );
 
-		// Add modules to the batch.
-		$module_count = 0;
+		// Add modules to the batch - track failures.
+		$module_count   = 0;
+		$failed_modules = array();
+		$total_modules  = 0;
+
 		foreach ( $qsa_arrays as $qsa ) {
 			foreach ( $qsa as $module ) {
+				$total_modules++;
 				$result = $this->batch_repository->add_module(
 					array(
 						'engraving_batch_id'  => $batch_id,
@@ -274,12 +278,32 @@ class Batch_Ajax_Handler {
 				);
 
 				if ( is_wp_error( $result ) ) {
-					// Log error but continue - batch is already created.
+					$failed_modules[] = array(
+						'module_sku' => $module['module_sku'],
+						'order_id'   => $module['order_id'],
+						'error'      => $result->get_error_message(),
+					);
 					error_log( sprintf( 'QSA Engraving: Failed to add module to batch %d: %s', $batch_id, $result->get_error_message() ) );
 				} else {
 					$module_count++;
 				}
 			}
+		}
+
+		// If any modules failed to insert, delete the batch and return error.
+		if ( ! empty( $failed_modules ) ) {
+			// Clean up the partial batch.
+			$this->batch_repository->delete_batch( $batch_id );
+			$this->send_error(
+				sprintf(
+					/* translators: 1: Failed count, 2: Total count */
+					__( 'Batch creation failed: %1$d of %2$d modules could not be inserted. The batch has been rolled back.', 'qsa-engraving' ),
+					count( $failed_modules ),
+					$total_modules
+				),
+				'module_insert_failed'
+			);
+			return;
 		}
 
 		// Update batch counts.
@@ -455,10 +479,14 @@ class Batch_Ajax_Handler {
 		// Assign modules to QSA arrays (default start position 1).
 		$qsa_arrays = $this->batch_sorter->assign_to_arrays( $sorted, 1 );
 
-		// Add modules to the batch.
-		$module_count = 0;
+		// Add modules to the batch - track failures.
+		$module_count   = 0;
+		$failed_modules = array();
+		$total_modules  = 0;
+
 		foreach ( $qsa_arrays as $qsa ) {
 			foreach ( $qsa as $module ) {
+				$total_modules++;
 				$result = $this->batch_repository->add_module(
 					array(
 						'engraving_batch_id'  => $batch_id,
@@ -472,11 +500,32 @@ class Batch_Ajax_Handler {
 				);
 
 				if ( is_wp_error( $result ) ) {
+					$failed_modules[] = array(
+						'module_sku' => $module['module_sku'],
+						'order_id'   => $module['order_id'],
+						'error'      => $result->get_error_message(),
+					);
 					error_log( sprintf( 'QSA Engraving: Failed to add module to batch %d: %s', $batch_id, $result->get_error_message() ) );
 				} else {
 					$module_count++;
 				}
 			}
+		}
+
+		// If any modules failed to insert, delete the batch and return error.
+		if ( ! empty( $failed_modules ) ) {
+			// Clean up the partial batch.
+			$this->batch_repository->delete_batch( $batch_id );
+			$this->send_error(
+				sprintf(
+					/* translators: 1: Failed count, 2: Total count */
+					__( 'Batch duplication failed: %1$d of %2$d modules could not be inserted. The batch has been rolled back.', 'qsa-engraving' ),
+					count( $failed_modules ),
+					$total_modules
+				),
+				'module_insert_failed'
+			);
+			return;
 		}
 
 		// Update batch counts.

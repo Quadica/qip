@@ -367,21 +367,45 @@ class Serial_Repository {
     /**
      * Commit reserved serials as engraved.
      *
-     * Note: Also handles empty status values (MySQL strict mode edge case)
-     * by treating empty strings as 'reserved'.
+     * Only commits serials with status 'reserved'. Empty status values are
+     * treated as a data integrity issue and logged as a warning.
      *
      * @param int $engraving_batch_id The engraving batch ID.
      * @param int $qsa_sequence The QSA sequence number.
      * @return int|WP_Error Number of updated rows or WP_Error on failure.
      */
     public function commit_serials( int $engraving_batch_id, int $qsa_sequence ): int|WP_Error {
+        // Check for empty status values (data integrity issue).
+        $empty_count = $this->wpdb->get_var(
+            $this->wpdb->prepare(
+                "SELECT COUNT(*) FROM {$this->table_name}
+                WHERE engraving_batch_id = %d
+                  AND qsa_sequence = %d
+                  AND status = ''",
+                $engraving_batch_id,
+                $qsa_sequence
+            )
+        );
+
+        if ( $empty_count > 0 ) {
+            error_log(
+                sprintf(
+                    'QSA Engraving: DATA INTEGRITY WARNING - Found %d serial(s) with empty status in batch %d, QSA %d. This indicates a data corruption issue.',
+                    $empty_count,
+                    $engraving_batch_id,
+                    $qsa_sequence
+                )
+            );
+        }
+
+        // Only commit properly reserved serials.
         $result = $this->wpdb->query(
             $this->wpdb->prepare(
                 "UPDATE {$this->table_name}
                 SET status = 'engraved', engraved_at = NOW()
                 WHERE engraving_batch_id = %d
                   AND qsa_sequence = %d
-                  AND (status = 'reserved' OR status = '')",
+                  AND status = 'reserved'",
                 $engraving_batch_id,
                 $qsa_sequence
             )
@@ -400,21 +424,45 @@ class Serial_Repository {
     /**
      * Void reserved serials.
      *
-     * Note: Also handles empty status values (MySQL strict mode edge case)
-     * by treating empty strings as 'reserved'.
+     * Only voids serials with status 'reserved'. Empty status values are
+     * treated as a data integrity issue and logged as a warning.
      *
      * @param int $engraving_batch_id The engraving batch ID.
      * @param int $qsa_sequence The QSA sequence number.
      * @return int|WP_Error Number of updated rows or WP_Error on failure.
      */
     public function void_serials( int $engraving_batch_id, int $qsa_sequence ): int|WP_Error {
+        // Check for empty status values (data integrity issue).
+        $empty_count = $this->wpdb->get_var(
+            $this->wpdb->prepare(
+                "SELECT COUNT(*) FROM {$this->table_name}
+                WHERE engraving_batch_id = %d
+                  AND qsa_sequence = %d
+                  AND status = ''",
+                $engraving_batch_id,
+                $qsa_sequence
+            )
+        );
+
+        if ( $empty_count > 0 ) {
+            error_log(
+                sprintf(
+                    'QSA Engraving: DATA INTEGRITY WARNING - Found %d serial(s) with empty status in batch %d, QSA %d. This indicates a data corruption issue.',
+                    $empty_count,
+                    $engraving_batch_id,
+                    $qsa_sequence
+                )
+            );
+        }
+
+        // Only void properly reserved serials.
         $result = $this->wpdb->query(
             $this->wpdb->prepare(
                 "UPDATE {$this->table_name}
                 SET status = 'voided', voided_at = NOW()
                 WHERE engraving_batch_id = %d
                   AND qsa_sequence = %d
-                  AND (status = 'reserved' OR status = '')",
+                  AND status = 'reserved'",
                 $engraving_batch_id,
                 $qsa_sequence
             )
@@ -433,8 +481,8 @@ class Serial_Repository {
     /**
      * Get serials by engraving batch ID.
      *
-     * Note: When filtering by 'reserved' status, also includes empty status values
-     * (MySQL strict mode edge case) to handle data inconsistencies gracefully.
+     * When filtering by 'reserved' status, only returns properly reserved serials.
+     * Empty status values are not included (data integrity issue).
      *
      * @param int         $engraving_batch_id The engraving batch ID.
      * @param string|null $status Optional status filter.
@@ -445,13 +493,8 @@ class Serial_Repository {
         $params = array( $engraving_batch_id );
 
         if ( null !== $status ) {
-            // For 'reserved' status, also match empty strings (data inconsistency edge case).
-            if ( 'reserved' === $status ) {
-                $sql .= " AND (status = 'reserved' OR status = '')";
-            } else {
-                $sql .= ' AND status = %s';
-                $params[] = $status;
-            }
+            $sql .= ' AND status = %s';
+            $params[] = $status;
         }
 
         $sql .= ' ORDER BY serial_integer ASC';

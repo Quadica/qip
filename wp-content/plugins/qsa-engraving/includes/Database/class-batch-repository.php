@@ -158,6 +158,32 @@ class Batch_Repository {
     }
 
     /**
+     * Delete a batch and all its associated modules.
+     *
+     * Used for cleanup when batch creation fails partway through.
+     *
+     * @param int $batch_id The batch ID to delete.
+     * @return bool True on success, false on failure.
+     */
+    public function delete_batch( int $batch_id ): bool {
+        // Delete modules first (foreign key relationship).
+        $this->wpdb->delete(
+            $this->modules_table,
+            array( 'engraving_batch_id' => $batch_id ),
+            array( '%d' )
+        );
+
+        // Delete the batch record.
+        $result = $this->wpdb->delete(
+            $this->batches_table,
+            array( 'id' => $batch_id ),
+            array( '%d' )
+        );
+
+        return false !== $result;
+    }
+
+    /**
      * Get batches with optional filtering.
      *
      * @param array $args Query arguments.

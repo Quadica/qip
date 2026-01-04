@@ -226,7 +226,8 @@ class SVG_File_Manager {
 		$filepath = $this->get_full_path( $filename );
 
 		// Delete any existing file with same batch/qsa prefix (cleanup old files).
-		$this->cleanup_old_files( $batch_id, $qsa_sequence );
+		// Always force cleanup when saving new file to avoid duplicate versions.
+		$this->cleanup_old_files( $batch_id, $qsa_sequence, true );
 
 		// Write the file.
 		$bytes_written = file_put_contents( $filepath, $svg_content );
@@ -251,13 +252,31 @@ class SVG_File_Manager {
 	}
 
 	/**
+	 * Check if SVG files should be kept after batch/row completion.
+	 *
+	 * @return bool True if files should be kept, false if they can be deleted.
+	 */
+	private function should_keep_svg_files(): bool {
+		$settings = get_option( 'qsa_engraving_settings', array() );
+		return ! empty( $settings['keep_svg_files'] );
+	}
+
+	/**
 	 * Clean up old SVG files for a batch/QSA combination.
 	 *
-	 * @param int $batch_id     The batch ID.
-	 * @param int $qsa_sequence The QSA sequence number.
+	 * Respects the 'keep_svg_files' setting - if enabled, files are retained.
+	 *
+	 * @param int  $batch_id     The batch ID.
+	 * @param int  $qsa_sequence The QSA sequence number.
+	 * @param bool $force        Force cleanup even if keep_svg_files is enabled.
 	 * @return int Number of files deleted.
 	 */
-	public function cleanup_old_files( int $batch_id, int $qsa_sequence ): int {
+	public function cleanup_old_files( int $batch_id, int $qsa_sequence, bool $force = false ): int {
+		// Respect keep_svg_files setting unless force is true.
+		if ( ! $force && $this->should_keep_svg_files() ) {
+			return 0;
+		}
+
 		$pattern = $this->output_dir . DIRECTORY_SEPARATOR . "{$batch_id}-{$qsa_sequence}-*.svg";
 		$files   = glob( $pattern );
 		$deleted = 0;
@@ -276,10 +295,18 @@ class SVG_File_Manager {
 	/**
 	 * Clean up all SVG files for a batch.
 	 *
-	 * @param int $batch_id The batch ID.
+	 * Respects the 'keep_svg_files' setting - if enabled, files are retained.
+	 *
+	 * @param int  $batch_id The batch ID.
+	 * @param bool $force    Force cleanup even if keep_svg_files is enabled.
 	 * @return int Number of files deleted.
 	 */
-	public function cleanup_batch_files( int $batch_id ): int {
+	public function cleanup_batch_files( int $batch_id, bool $force = false ): int {
+		// Respect keep_svg_files setting unless force is true.
+		if ( ! $force && $this->should_keep_svg_files() ) {
+			return 0;
+		}
+
 		$pattern = $this->output_dir . DIRECTORY_SEPARATOR . "{$batch_id}-*.svg";
 		$files   = glob( $pattern );
 		$deleted = 0;
