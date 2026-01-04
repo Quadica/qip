@@ -45,7 +45,15 @@ export default function ModuleRow( {
 			<span className="qsa-module-icon"></span>
 
 			<div className="qsa-module-info">
-				<span className="qsa-module-sku">{ module_sku }</span>
+				<a
+					href={ `${ window.qsaEngraving?.adminUrl || '/wp-admin/' }edit.php?post_type=product&s=${ encodeURIComponent( module_sku ) }` }
+					className="qsa-module-sku qsa-link"
+					target="_blank"
+					rel="noopener noreferrer"
+					title={ __( 'Search for product in new tab', 'qsa-engraving' ) }
+				>
+					{ module_sku }
+				</a>
 			</div>
 
 			<div className="qsa-module-progress">
