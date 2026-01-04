@@ -109,12 +109,13 @@ class Batch_Sorter {
 	 * @return array Matrix of overlap scores [group_key => [group_key => score]].
 	 */
 	private function calculate_overlap_matrix( array $groups ): array {
-		$keys   = array_keys( $groups );
+		// PHP converts numeric string keys to integers, so we need to cast them back to strings.
+		$keys   = array_map( 'strval', array_keys( $groups ) );
 		$matrix = array();
 
 		foreach ( $keys as $key1 ) {
 			$matrix[ $key1 ] = array();
-			$codes1          = empty( $key1 ) ? array() : explode( '|', $key1 );
+			$codes1          = empty( $key1 ) ? array() : explode( '|', (string) $key1 );
 
 			foreach ( $keys as $key2 ) {
 				if ( $key1 === $key2 ) {
@@ -122,7 +123,7 @@ class Batch_Sorter {
 					continue;
 				}
 
-				$codes2  = empty( $key2 ) ? array() : explode( '|', $key2 );
+				$codes2  = empty( $key2 ) ? array() : explode( '|', (string) $key2 );
 				$overlap = count( array_intersect( $codes1, $codes2 ) );
 
 				// Score: higher = more overlap = better to be adjacent.
