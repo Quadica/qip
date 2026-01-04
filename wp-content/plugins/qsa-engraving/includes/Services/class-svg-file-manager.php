@@ -419,10 +419,18 @@ class SVG_File_Manager {
 	/**
 	 * Clean up old SVG files based on age.
 	 *
-	 * @param int $max_age_hours Maximum file age in hours (default: 24).
+	 * Respects the 'keep_svg_files' setting - if enabled, files are retained.
+	 *
+	 * @param int  $max_age_hours Maximum file age in hours (default: 24).
+	 * @param bool $force         Force cleanup even if keep_svg_files is enabled.
 	 * @return int Number of files deleted.
 	 */
-	public function cleanup_old_files_by_age( int $max_age_hours = 24 ): int {
+	public function cleanup_old_files_by_age( int $max_age_hours = 24, bool $force = false ): int {
+		// Respect keep_svg_files setting unless force is true.
+		if ( ! $force && $this->should_keep_svg_files() ) {
+			return 0;
+		}
+
 		$files   = glob( $this->output_dir . DIRECTORY_SEPARATOR . '*.svg' );
 		$deleted = 0;
 		$cutoff  = time() - ( $max_age_hours * 3600 );
