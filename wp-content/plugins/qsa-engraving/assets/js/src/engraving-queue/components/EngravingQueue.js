@@ -231,9 +231,11 @@ export default function EngravingQueue() {
 
 				const activeItem = queueItems.find( ( item ) => item.id === activeItemId );
 				if ( activeItem && activeItem.status === 'in_progress' ) {
-					// Use qsa_sequences.length as the authoritative array count.
-					const sequences = activeItem.qsa_sequences || [ activeItem.id ];
-					const totalArrays = sequences.length;
+					// Calculate array count based on modules and start position.
+					const startPosition = activeItem.startPosition || 1;
+					const firstArraySlots = 9 - startPosition;
+					const modulesAfterFirst = Math.max( 0, activeItem.totalModules - firstArraySlots );
+					const totalArrays = 1 + Math.ceil( modulesAfterFirst / 8 );
 					const current = getCurrentArray( activeItemId );
 					const isLastArray = current >= totalArrays;
 
@@ -460,9 +462,11 @@ export default function EngravingQueue() {
 		}
 
 		const sequences = item.qsa_sequences || [ item.id ];
-		// Use qsa_sequences.length as the authoritative array count.
-		// Each QSA sequence IS one physical array.
-		const totalArrays = sequences.length;
+		// Calculate array count based on modules and start position.
+		const startPosition = item.startPosition || 1;
+		const firstArraySlots = 9 - startPosition;
+		const modulesAfterFirst = Math.max( 0, item.totalModules - firstArraySlots );
+		const totalArrays = 1 + Math.ceil( modulesAfterFirst / 8 );
 		const nextArray = currentArray + 1;
 
 		if ( nextArray > totalArrays ) {

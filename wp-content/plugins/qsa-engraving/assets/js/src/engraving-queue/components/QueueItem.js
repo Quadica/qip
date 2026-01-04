@@ -155,12 +155,16 @@ export default function QueueItem( {
 	const groupTypeClass = getGroupTypeClass( item.groupType );
 
 	// Track qsa_sequences for backend operations.
-	// Each QSA sequence IS one physical array - use this as the authoritative count.
 	const qsaSequences = item.qsa_sequences || [ item.id ];
-	const totalArrays = qsaSequences.length;
 
-	// Calculate array breakdown for display purposes (positions, serials, etc.)
+	// Calculate array breakdown based on module count and start position.
+	// This determines how many PHYSICAL arrays are needed.
 	const arrays = calculateArrayBreakdown( item.totalModules, startPos, item.serials || [] );
+
+	// Use calculated array count for display (based on modules and start position).
+	// This may differ from qsa_sequences.length if modules were previously split
+	// across more sequences than necessary.
+	const totalArrays = arrays.length;
 
 	const isLastArray = currentArray >= totalArrays;
 	const currentArrayDetails = arrays[ currentArray - 1 ] || null;
