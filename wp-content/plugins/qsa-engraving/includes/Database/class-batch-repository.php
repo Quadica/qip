@@ -506,82 +506,167 @@ class Batch_Repository {
     }
 
     /**
-     * Update start position for all modules in a QSA.
+     * Redistribute modules in a row across QSA arrays based on new start position.
      *
-     * Updates array_position for all modules in a QSA sequence row.
-     * Each row corresponds to ONE physical QSA array (design decision: one array per row).
+     * When start_position changes, this method redistributes ALL modules in the row
+     * across potentially multiple QSA arrays:
+     * - First array starts at start_position (e.g., positions 6,7,8 if start=6)
+     * - Subsequent arrays always start at position 1
+     * - This may increase or decrease the total number of QSA sequences
      *
-     * The start_position determines which physical position on the QSA the first module
-     * will occupy. For example, start_position=4 means modules use positions 4,5,6,7,8.
+     * Example: 24 modules with start_position=6:
+     * - Array 1: positions 6,7,8 (3 modules)
+     * - Array 2: positions 1-8 (8 modules)
+     * - Array 3: positions 1-8 (8 modules)
+     * - Array 4: positions 1-5 (5 modules)
+     * Total: 4 arrays instead of the original 3
      *
-     * Validation: Returns an error if the row has more modules than available positions.
-     * With start_position=4, only 5 positions (4-8) are available. If the row has 8
-     * modules, start_position=4 would fail.
-     *
-     * To use higher start positions with many modules, create the batch with the correct
-     * start position initially, which will properly split modules across multiple rows.
-     *
-     * @param int $batch_id       The batch ID.
-     * @param int $qsa_sequence   The QSA sequence number.
-     * @param int $start_position The new start position (1-8).
-     * @return int|WP_Error Number of updated rows or WP_Error on failure.
+     * @param int   $batch_id       The batch ID.
+     * @param array $qsa_sequences  Array of QSA sequence numbers that form the "row".
+     * @param int   $start_position The new start position (1-8).
+     * @return array|WP_Error Array with redistribution results or WP_Error on failure.
      */
-    public function update_start_position( int $batch_id, int $qsa_sequence, int $start_position ): int|WP_Error {
-        // Get all modules in this QSA ordered by ID to preserve insertion order.
+    public function redistribute_row_modules( int $batch_id, array $qsa_sequences, int $start_position ): array|WP_Error {
+        if ( empty( $qsa_sequences ) ) {
+            return new WP_Error( 'no_sequences', __( 'No QSA sequences provided.', 'qsa-engraving' ) );
+        }
+
+        // Validate start position.
+        $start_position = max( 1, min( 8, $start_position ) );
+
+        // Get all modules in the given QSA sequences, ordered to preserve original order.
+        $placeholders = implode( ',', array_fill( 0, count( $qsa_sequences ), '%d' ) );
+        $query_params = array_merge( array( $batch_id ), $qsa_sequences );
+
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Placeholders are safe integers.
         $modules = $this->wpdb->get_results(
             $this->wpdb->prepare(
-                "SELECT id FROM {$this->modules_table}
-                WHERE engraving_batch_id = %d AND qsa_sequence = %d
-                ORDER BY id ASC",
-                $batch_id,
-                $qsa_sequence
+                "SELECT id, module_sku, qsa_sequence, array_position
+                FROM {$this->modules_table}
+                WHERE engraving_batch_id = %d AND qsa_sequence IN ({$placeholders})
+                ORDER BY qsa_sequence ASC, array_position ASC, id ASC",
+                ...$query_params
             ),
             ARRAY_A
         );
 
         if ( empty( $modules ) ) {
-            return new WP_Error( 'no_modules', __( 'No modules found for this QSA.', 'qsa-engraving' ) );
+            return new WP_Error( 'no_modules', __( 'No modules found for these QSA sequences.', 'qsa-engraving' ) );
         }
 
-        // Calculate available positions: start_position through 8.
-        // Each row is ONE physical array (design decision: one array per row).
-        $available_positions = 9 - $start_position; // e.g., start=4 → positions 4,5,6,7,8 = 5 slots
-        $module_count        = count( $modules );
+        $module_count = count( $modules );
+        $old_qsa_count = count( array_unique( array_column( $modules, 'qsa_sequence' ) ) );
 
-        if ( $module_count > $available_positions ) {
-            return new WP_Error(
-                'too_many_modules',
-                sprintf(
-                    /* translators: 1: Module count, 2: Start position, 3: Available positions */
-                    __( 'Cannot set start position to %2$d: this row has %1$d modules but only %3$d positions (%2$d through 8) would be available. To use a higher start position, create a new batch with fewer modules per row.', 'qsa-engraving' ),
-                    $module_count,
-                    $start_position,
-                    $available_positions
-                )
-            );
-        }
-
-        // Update positions sequentially (no wrapping - one array per row).
-        $updated          = 0;
+        // Calculate new array assignments.
+        // First array: starts at $start_position, ends at 8
+        // Subsequent arrays: always start at 1, end at 8
+        $first_qsa        = min( $qsa_sequences );
+        $current_qsa      = $first_qsa;
         $current_position = $start_position;
+        $new_assignments  = array();
+        $new_qsa_count    = 1;
 
         foreach ( $modules as $module ) {
+            $new_assignments[] = array(
+                'id'             => (int) $module['id'],
+                'qsa_sequence'   => $current_qsa,
+                'array_position' => $current_position,
+            );
+
+            $current_position++;
+
+            // Check if we've filled this array.
+            if ( $current_position > 8 ) {
+                $current_qsa++;
+                $current_position = 1; // Subsequent arrays always start at 1.
+                $new_qsa_count++;
+            }
+        }
+
+        // Adjust new_qsa_count if last array wasn't fully filled.
+        // (It's already counted, so this is correct.)
+
+        // Update all modules with their new positions.
+        $updated = 0;
+        foreach ( $new_assignments as $assignment ) {
             $result = $this->wpdb->update(
                 $this->modules_table,
-                array( 'array_position' => $current_position ),
-                array( 'id' => $module['id'] ),
-                array( '%d' ),
+                array(
+                    'qsa_sequence'   => $assignment['qsa_sequence'],
+                    'array_position' => $assignment['array_position'],
+                ),
+                array( 'id' => $assignment['id'] ),
+                array( '%d', '%d' ),
                 array( '%d' )
             );
 
             if ( false !== $result ) {
                 $updated++;
             }
-
-            $current_position++;
         }
 
-        return $updated;
+        // Calculate the breakdown for display.
+        $arrays = array();
+        $remaining = $module_count;
+        $seq = $first_qsa;
+
+        // First array.
+        $first_array_slots = 9 - $start_position;
+        $first_array_count = min( $remaining, $first_array_slots );
+        $arrays[] = array(
+            'sequence'       => $seq,
+            'start_position' => $start_position,
+            'end_position'   => $start_position + $first_array_count - 1,
+            'module_count'   => $first_array_count,
+        );
+        $remaining -= $first_array_count;
+        $seq++;
+
+        // Subsequent arrays.
+        while ( $remaining > 0 ) {
+            $count = min( $remaining, 8 );
+            $arrays[] = array(
+                'sequence'       => $seq,
+                'start_position' => 1,
+                'end_position'   => $count,
+                'module_count'   => $count,
+            );
+            $remaining -= $count;
+            $seq++;
+        }
+
+        return array(
+            'updated'        => $updated,
+            'module_count'   => $module_count,
+            'old_qsa_count'  => $old_qsa_count,
+            'new_qsa_count'  => count( $arrays ),
+            'start_position' => $start_position,
+            'arrays'         => $arrays,
+        );
+    }
+
+    /**
+     * Update start position for a row in the batch.
+     *
+     * This is a convenience wrapper that handles single QSA sequence rows.
+     * For rows spanning multiple QSA sequences, use redistribute_row_modules() directly.
+     *
+     * @param int $batch_id       The batch ID.
+     * @param int $qsa_sequence   The QSA sequence number (first sequence if multi-array row).
+     * @param int $start_position The new start position (1-8).
+     * @return int|WP_Error Number of updated rows or WP_Error on failure.
+     * @deprecated Use redistribute_row_modules() for full redistribution support.
+     */
+    public function update_start_position( int $batch_id, int $qsa_sequence, int $start_position ): int|WP_Error {
+        // For backwards compatibility, call redistribute with single sequence.
+        // Note: This won't handle multi-array rows correctly. Use redistribute_row_modules() instead.
+        $result = $this->redistribute_row_modules( $batch_id, array( $qsa_sequence ), $start_position );
+
+        if ( is_wp_error( $result ) ) {
+            return $result;
+        }
+
+        return $result['updated'];
     }
 
     /**

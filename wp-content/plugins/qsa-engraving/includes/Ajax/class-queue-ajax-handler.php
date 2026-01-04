@@ -1205,8 +1205,15 @@ class Queue_Ajax_Handler {
 	/**
 	 * Handle update start position request.
 	 *
-	 * Only allows updating start position when row is in 'pending' status.
-	 * Once a row is started (in_progress) or completed (done), position cannot be changed.
+	 * Updates the start position for a row and redistributes modules across arrays.
+	 * The first array uses the new start position; subsequent arrays start at position 1.
+	 *
+	 * This may change the total number of arrays needed for the row:
+	 * - Example: 24 modules with start_position=1 needs 3 arrays (8+8+8)
+	 * - Example: 24 modules with start_position=6 needs 4 arrays (3+8+8+5)
+	 *
+	 * Only allows updating start position when ALL modules in the row are in 'pending' status.
+	 * Once any module in the row is started (in_progress) or completed (done), position cannot be changed.
 	 *
 	 * @return void
 	 */
@@ -1229,49 +1236,158 @@ class Queue_Ajax_Handler {
 			return;
 		}
 
-		// Enforce pending-only: check row status before allowing update.
-		$all_modules = $this->batch_repository->get_modules_for_batch( $batch_id );
-		$qsa_modules = array_filter(
-			$all_modules,
-			fn( $m ) => (int) $m['qsa_sequence'] === $qsa_sequence
-		);
-
-		if ( empty( $qsa_modules ) ) {
-			$this->send_error( __( 'No modules found for this QSA.', 'qsa-engraving' ), 'no_modules' );
-			return;
-		}
-
-		$current_status = $this->normalize_row_status( reset( $qsa_modules )['row_status'] ?? null );
-		if ( 'pending' !== $current_status ) {
-			$this->send_error(
-				sprintf(
-					/* translators: %s: Current row status */
-					__( 'Cannot update start position: row status is "%s". Only pending rows can have their start position changed.', 'qsa-engraving' ),
-					$current_status
-				),
-				'invalid_row_status'
-			);
-			return;
-		}
-
 		// Validate start position (1-8).
 		$start_position = max( 1, min( 8, $start_position ) );
 
-		// Update the start position for all modules in this QSA.
-		$updated = $this->batch_repository->update_start_position( $batch_id, $qsa_sequence, $start_position );
+		// Get all modules for the batch to identify the row.
+		$all_modules = $this->batch_repository->get_modules_for_batch( $batch_id );
 
-		if ( is_wp_error( $updated ) ) {
-			$this->send_error( $updated->get_error_message(), $updated->get_error_code() );
+		if ( empty( $all_modules ) ) {
+			$this->send_error( __( 'No modules found for this batch.', 'qsa-engraving' ), 'no_modules' );
 			return;
+		}
+
+		// Identify all QSA sequences that belong to the same "row" (queue item).
+		// A row is defined by modules with the same SKU composition:
+		// - Same ID: All modules with the same single SKU across QSA sequences
+		// - Mixed ID: Single QSA sequence with multiple different SKUs
+		$row_qsa_sequences = $this->get_row_qsa_sequences( $all_modules, $qsa_sequence );
+
+		if ( empty( $row_qsa_sequences ) ) {
+			$this->send_error( __( 'No modules found for this QSA sequence.', 'qsa-engraving' ), 'no_modules' );
+			return;
+		}
+
+		// Get all modules in this row and check their status.
+		$row_modules = array_filter(
+			$all_modules,
+			fn( $m ) => in_array( (int) $m['qsa_sequence'], $row_qsa_sequences, true )
+		);
+
+		// Enforce pending-only: check ALL modules in the row before allowing update.
+		foreach ( $row_modules as $module ) {
+			$status = $this->normalize_row_status( $module['row_status'] ?? null );
+			if ( 'pending' !== $status ) {
+				$this->send_error(
+					sprintf(
+						/* translators: %s: Current row status */
+						__( 'Cannot update start position: some modules have status "%s". Only pending rows can have their start position changed.', 'qsa-engraving' ),
+						$status
+					),
+					'invalid_row_status'
+				);
+				return;
+			}
+		}
+
+		// Redistribute modules across arrays with the new start position.
+		$result = $this->batch_repository->redistribute_row_modules( $batch_id, $row_qsa_sequences, $start_position );
+
+		if ( is_wp_error( $result ) ) {
+			$this->send_error( $result->get_error_message(), $result->get_error_code() );
+			return;
+		}
+
+		// Update the batch's qsa_count if it changed.
+		if ( $result['old_qsa_count'] !== $result['new_qsa_count'] ) {
+			// Recalculate total QSA count for the entire batch.
+			$new_total_qsa_count = $this->recalculate_batch_qsa_count( $batch_id );
+			$this->batch_repository->update_batch_counts(
+				$batch_id,
+				count( $all_modules ), // Module count doesn't change.
+				$new_total_qsa_count
+			);
 		}
 
 		$this->send_success(
 			array(
-				'batch_id'       => $batch_id,
-				'qsa_sequence'   => $qsa_sequence,
-				'start_position' => $start_position,
+				'batch_id'        => $batch_id,
+				'qsa_sequences'   => $row_qsa_sequences,
+				'start_position'  => $start_position,
+				'old_array_count' => $result['old_qsa_count'],
+				'new_array_count' => $result['new_qsa_count'],
+				'arrays'          => $result['arrays'],
 			),
-			__( 'Start position updated.', 'qsa-engraving' )
+			sprintf(
+				/* translators: 1: Start position, 2: Array count */
+				__( 'Start position updated to %1$d. Row now uses %2$d array(s).', 'qsa-engraving' ),
+				$start_position,
+				$result['new_qsa_count']
+			)
 		);
+	}
+
+	/**
+	 * Get all QSA sequences that belong to the same "row" as the given sequence.
+	 *
+	 * A row is defined by modules with the same SKU composition:
+	 * - Same ID: All QSA sequences containing modules with the same single SKU
+	 * - Mixed ID: Just the single QSA sequence (different SKUs in same sequence)
+	 *
+	 * @param array $all_modules  All modules in the batch.
+	 * @param int   $qsa_sequence The QSA sequence to find the row for.
+	 * @return array Array of QSA sequence numbers that form the row.
+	 */
+	private function get_row_qsa_sequences( array $all_modules, int $qsa_sequence ): array {
+		// Group modules by QSA sequence.
+		$by_qsa = array();
+		foreach ( $all_modules as $module ) {
+			$qsa = (int) $module['qsa_sequence'];
+			if ( ! isset( $by_qsa[ $qsa ] ) ) {
+				$by_qsa[ $qsa ] = array();
+			}
+			$by_qsa[ $qsa ][] = $module;
+		}
+
+		// Check if the target QSA exists.
+		if ( ! isset( $by_qsa[ $qsa_sequence ] ) ) {
+			return array();
+		}
+
+		// Check if the target QSA is Same ID (single SKU) or Mixed ID (multiple SKUs).
+		$target_skus = array_unique( array_column( $by_qsa[ $qsa_sequence ], 'module_sku' ) );
+
+		if ( count( $target_skus ) > 1 ) {
+			// Mixed ID: only this QSA sequence.
+			return array( $qsa_sequence );
+		}
+
+		// Same ID: find all QSA sequences with the same single SKU.
+		$target_sku = $target_skus[0];
+		$row_sequences = array();
+
+		foreach ( $by_qsa as $qsa => $modules ) {
+			$skus = array_unique( array_column( $modules, 'module_sku' ) );
+
+			// Only include if it's Same ID (single SKU) AND matches our target SKU.
+			if ( count( $skus ) === 1 && $skus[0] === $target_sku ) {
+				$row_sequences[] = $qsa;
+			}
+		}
+
+		sort( $row_sequences );
+		return $row_sequences;
+	}
+
+	/**
+	 * Recalculate the total QSA count for a batch.
+	 *
+	 * @param int $batch_id The batch ID.
+	 * @return int Total number of distinct QSA sequences.
+	 */
+	private function recalculate_batch_qsa_count( int $batch_id ): int {
+		global $wpdb;
+
+		$modules_table = $this->batch_repository->get_modules_table_name();
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$count = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(DISTINCT qsa_sequence) FROM {$modules_table} WHERE engraving_batch_id = %d",
+				$batch_id
+			)
+		);
+
+		return (int) $count;
 	}
 }

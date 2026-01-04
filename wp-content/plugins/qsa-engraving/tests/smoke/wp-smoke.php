@@ -3154,18 +3154,204 @@ run_test(
             }
             echo "  Non-existent batch correctly returns 0 updated rows.\n";
         } else {
-            if ( $result->get_error_code() !== 'no_modules' ) {
+            // Accept either 'no_modules' or 'no_sequences' error codes.
+            if ( ! in_array( $result->get_error_code(), array( 'no_modules', 'no_sequences' ), true ) ) {
                 return new WP_Error(
                     'error_code_fail',
-                    "Expected 'no_modules' error, got '{$result->get_error_code()}'."
+                    "Expected 'no_modules' or 'no_sequences' error, got '{$result->get_error_code()}'."
                 );
             }
-            echo "  Non-existent batch correctly returns 'no_modules' error.\n";
+            echo "  Non-existent batch correctly returns '{$result->get_error_code()}' error.\n";
         }
 
         return true;
     },
     'update_start_position() handles missing batches gracefully.'
+);
+
+run_test(
+    'TC-EQ-012: Redistribute row modules with start position change',
+    function (): bool {
+        global $wpdb;
+        $plugin     = \Quadica\QSA_Engraving\qsa_engraving();
+        $batch_repo = $plugin->get_batch_repository();
+
+        // Create a test batch.
+        $batch_id = $batch_repo->create_batch( 'Start Position Test Batch' );
+        if ( is_wp_error( $batch_id ) ) {
+            return $batch_id;
+        }
+
+        // Add 24 modules to simulate a real scenario.
+        // With start_position=1: 3 arrays (8+8+8)
+        // With start_position=6: 4 arrays (3+8+8+5)
+        $modules_added = 0;
+        for ( $i = 1; $i <= 24; $i++ ) {
+            $qsa_seq = (int) ceil( $i / 8 );
+            $pos     = ( ( $i - 1 ) % 8 ) + 1;
+            $result  = $batch_repo->add_module(
+                array(
+                    'engraving_batch_id'  => $batch_id,
+                    'production_batch_id' => 12345,
+                    'module_sku'          => 'STAR-TEST-001',
+                    'order_id'            => 99999,
+                    'serial_number'       => '',
+                    'qsa_sequence'        => $qsa_seq,
+                    'array_position'      => $pos,
+                )
+            );
+            if ( ! is_wp_error( $result ) ) {
+                $modules_added++;
+            }
+        }
+
+        if ( $modules_added !== 24 ) {
+            $batch_repo->delete_batch( $batch_id );
+            return new WP_Error( 'add_modules_fail', "Expected 24 modules, added {$modules_added}." );
+        }
+        echo "  Created test batch {$batch_id} with 24 modules (3 QSA sequences).\n";
+
+        // Test redistribute with start_position=6.
+        // Should redistribute to 4 arrays: (3+8+8+5).
+        $result = $batch_repo->redistribute_row_modules( $batch_id, array( 1, 2, 3 ), 6 );
+
+        if ( is_wp_error( $result ) ) {
+            $batch_repo->delete_batch( $batch_id );
+            return new WP_Error(
+                'redistribute_fail',
+                "redistribute_row_modules failed: {$result->get_error_message()}"
+            );
+        }
+
+        // Verify redistribution results.
+        if ( $result['module_count'] !== 24 ) {
+            $batch_repo->delete_batch( $batch_id );
+            return new WP_Error(
+                'module_count_fail',
+                "Expected 24 modules, got {$result['module_count']}."
+            );
+        }
+
+        if ( $result['old_qsa_count'] !== 3 ) {
+            $batch_repo->delete_batch( $batch_id );
+            return new WP_Error(
+                'old_qsa_count_fail',
+                "Expected old_qsa_count=3, got {$result['old_qsa_count']}."
+            );
+        }
+
+        if ( $result['new_qsa_count'] !== 4 ) {
+            $batch_repo->delete_batch( $batch_id );
+            return new WP_Error(
+                'new_qsa_count_fail',
+                "Expected new_qsa_count=4, got {$result['new_qsa_count']}."
+            );
+        }
+
+        echo "  Redistribution result: {$result['old_qsa_count']} -> {$result['new_qsa_count']} arrays.\n";
+
+        // Verify array breakdown.
+        $arrays = $result['arrays'];
+        if ( count( $arrays ) !== 4 ) {
+            $batch_repo->delete_batch( $batch_id );
+            return new WP_Error(
+                'array_count_fail',
+                "Expected 4 arrays in breakdown, got " . count( $arrays ) . "."
+            );
+        }
+
+        // Array 1: start=6, count=3 (positions 6,7,8)
+        if ( $arrays[0]['start_position'] !== 6 || $arrays[0]['module_count'] !== 3 ) {
+            $batch_repo->delete_batch( $batch_id );
+            return new WP_Error(
+                'array1_fail',
+                "Array 1 should start=6, count=3. Got start={$arrays[0]['start_position']}, count={$arrays[0]['module_count']}."
+            );
+        }
+
+        // Arrays 2,3: start=1, count=8 (full arrays)
+        if ( $arrays[1]['start_position'] !== 1 || $arrays[1]['module_count'] !== 8 ) {
+            $batch_repo->delete_batch( $batch_id );
+            return new WP_Error(
+                'array2_fail',
+                "Array 2 should start=1, count=8. Got start={$arrays[1]['start_position']}, count={$arrays[1]['module_count']}."
+            );
+        }
+
+        // Array 4: start=1, count=5 (partial array)
+        if ( $arrays[3]['start_position'] !== 1 || $arrays[3]['module_count'] !== 5 ) {
+            $batch_repo->delete_batch( $batch_id );
+            return new WP_Error(
+                'array4_fail',
+                "Array 4 should start=1, count=5. Got start={$arrays[3]['start_position']}, count={$arrays[3]['module_count']}."
+            );
+        }
+
+        echo "  Array breakdown verified: [6-8](3) + [1-8](8) + [1-8](8) + [1-5](5) = 24 modules.\n";
+
+        // Verify database records were updated correctly.
+        $modules = $batch_repo->get_modules_for_batch( $batch_id );
+        $qsa_counts = array();
+        foreach ( $modules as $m ) {
+            $qsa = (int) $m['qsa_sequence'];
+            if ( ! isset( $qsa_counts[ $qsa ] ) ) {
+                $qsa_counts[ $qsa ] = 0;
+            }
+            $qsa_counts[ $qsa ]++;
+        }
+
+        // Should have 4 QSA sequences now: 1,2,3,4.
+        if ( count( $qsa_counts ) !== 4 ) {
+            $batch_repo->delete_batch( $batch_id );
+            return new WP_Error(
+                'db_qsa_count_fail',
+                "Expected 4 QSA sequences in DB, got " . count( $qsa_counts ) . "."
+            );
+        }
+
+        // Verify module counts per QSA.
+        ksort( $qsa_counts );
+        $expected_counts = array( 1 => 3, 2 => 8, 3 => 8, 4 => 5 );
+        foreach ( $expected_counts as $qsa => $expected ) {
+            if ( ( $qsa_counts[ $qsa ] ?? 0 ) !== $expected ) {
+                $batch_repo->delete_batch( $batch_id );
+                return new WP_Error(
+                    'db_module_count_fail',
+                    "QSA {$qsa} should have {$expected} modules, got " . ( $qsa_counts[ $qsa ] ?? 0 ) . "."
+                );
+            }
+        }
+
+        echo "  Database records verified: QSA 1=3, QSA 2=8, QSA 3=8, QSA 4=5.\n";
+
+        // Test resetting back to start_position=1.
+        $result2 = $batch_repo->redistribute_row_modules( $batch_id, array( 1, 2, 3, 4 ), 1 );
+
+        if ( is_wp_error( $result2 ) ) {
+            $batch_repo->delete_batch( $batch_id );
+            return new WP_Error(
+                'redistribute_reset_fail',
+                "redistribute back to start=1 failed: {$result2->get_error_message()}"
+            );
+        }
+
+        if ( $result2['new_qsa_count'] !== 3 ) {
+            $batch_repo->delete_batch( $batch_id );
+            return new WP_Error(
+                'reset_qsa_count_fail',
+                "Expected new_qsa_count=3 after reset, got {$result2['new_qsa_count']}."
+            );
+        }
+
+        echo "  Reset to start=1 verified: 4 -> 3 arrays.\n";
+
+        // Clean up test data.
+        $batch_repo->delete_batch( $batch_id );
+        echo "  Test data cleaned up successfully.\n";
+
+        return true;
+    },
+    'redistribute_row_modules() correctly redistributes modules across arrays.'
 );
 
 run_test(
