@@ -124,10 +124,11 @@ class Datamatrix_Renderer {
         try {
             $barcode = new \Com\Tecnick\Barcode\Barcode();
 
-            // Generate Data Matrix ECC 200.
-            // Use negative values for multiplication factors.
+            // Generate Data Matrix ECC 200 in rectangular format.
+            // DATAMATRIX,R specifies rectangular shape (vs S for square).
+            // Rectangular format is required for 14mm x 6.5mm dimension per QSA spec.
             $bobj = $barcode->getBarcodeObj(
-                'DATAMATRIX',
+                'DATAMATRIX,R',
                 $data,
                 -1, // Width multiplication factor.
                 -1, // Height multiplication factor.
