@@ -359,9 +359,15 @@ export default function EngravingQueue() {
 					)
 				);
 
-				// Generate SVG and optionally auto-load in LightBurn.
-				if ( lightburnStatus.enabled ) {
-					const svgResult = await generateSvg( qsaSequence, lightburnStatus.autoLoad );
+				// Generate SVG if LightBurn is enabled OR Keep SVG Files is enabled.
+				const keepSvgFiles = window.qsaEngraving?.keepSvgFiles ?? false;
+				const shouldGenerateSvg = lightburnStatus.enabled || keepSvgFiles;
+
+				if ( shouldGenerateSvg ) {
+					// Only attempt LightBurn auto-load if LightBurn is enabled AND autoLoad is on.
+					const shouldAutoLoad = lightburnStatus.enabled && lightburnStatus.autoLoad;
+					const svgResult = await generateSvg( qsaSequence, shouldAutoLoad );
+
 					if ( ! svgResult.success ) {
 						// SVG generation failed - alert operator with error details.
 						alert(
@@ -371,7 +377,7 @@ export default function EngravingQueue() {
 								'\n\n' +
 								__( 'Please resolve the issue and use Resend to regenerate the SVG.', 'qsa-engraving' )
 						);
-					} else if ( svgResult.data && ! svgResult.data.lightburn_loaded && lightburnStatus.autoLoad ) {
+					} else if ( svgResult.data && ! svgResult.data.lightburn_loaded && shouldAutoLoad ) {
 						// SVG generated but LightBurn load failed.
 						console.warn( 'SVG generated but LightBurn load failed:', svgResult.data.lightburn_error );
 					}
@@ -504,9 +510,13 @@ export default function EngravingQueue() {
 					)
 				);
 
-				// Generate SVG for the next QSA and load in LightBurn if enabled.
-				if ( lightburnStatus.enabled ) {
-					const svgResult = await generateSvg( nextQsaSequence, lightburnStatus.autoLoad );
+				// Generate SVG for the next QSA if LightBurn is enabled OR Keep SVG Files is enabled.
+				const keepSvgFiles = window.qsaEngraving?.keepSvgFiles ?? false;
+				const shouldGenerateSvg = lightburnStatus.enabled || keepSvgFiles;
+
+				if ( shouldGenerateSvg ) {
+					const shouldAutoLoad = lightburnStatus.enabled && lightburnStatus.autoLoad;
+					const svgResult = await generateSvg( nextQsaSequence, shouldAutoLoad );
 					if ( ! svgResult.success ) {
 						alert(
 							__( 'Array started but SVG generation failed:', 'qsa-engraving' ) +
