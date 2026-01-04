@@ -257,6 +257,21 @@ class Batch_Ajax_Handler {
 		// Assign modules to QSA arrays (default start position 1).
 		$qsa_arrays = $this->batch_sorter->assign_to_arrays( $sorted, 1 );
 
+		// Calculate original_qsa_sequence for row grouping.
+		// All modules with the same SKU should have the same original_qsa_sequence
+		// (the minimum qsa_sequence assigned to that SKU). This ensures Same ID rows
+		// display as a single row in the UI even when spanning multiple arrays.
+		$sku_to_original_qsa = array();
+		foreach ( $qsa_arrays as $qsa ) {
+			foreach ( $qsa as $module ) {
+				$sku = $module['module_sku'];
+				$seq = (int) $module['qsa_sequence'];
+				if ( ! isset( $sku_to_original_qsa[ $sku ] ) || $seq < $sku_to_original_qsa[ $sku ] ) {
+					$sku_to_original_qsa[ $sku ] = $seq;
+				}
+			}
+		}
+
 		// Add modules to the batch - track failures.
 		$module_count   = 0;
 		$failed_modules = array();
@@ -265,15 +280,17 @@ class Batch_Ajax_Handler {
 		foreach ( $qsa_arrays as $qsa ) {
 			foreach ( $qsa as $module ) {
 				$total_modules++;
+				$sku = $module['module_sku'];
 				$result = $this->batch_repository->add_module(
 					array(
-						'engraving_batch_id'  => $batch_id,
-						'production_batch_id' => $module['production_batch_id'],
-						'module_sku'          => $module['module_sku'],
-						'order_id'            => $module['order_id'],
-						'serial_number'       => '', // Serial numbers assigned during engraving.
-						'qsa_sequence'        => $module['qsa_sequence'],
-						'array_position'      => $module['array_position'],
+						'engraving_batch_id'    => $batch_id,
+						'production_batch_id'   => $module['production_batch_id'],
+						'module_sku'            => $module['module_sku'],
+						'order_id'              => $module['order_id'],
+						'serial_number'         => '', // Serial numbers assigned during engraving.
+						'qsa_sequence'          => $module['qsa_sequence'],
+						'original_qsa_sequence' => $sku_to_original_qsa[ $sku ], // Group by SKU for row display.
+						'array_position'        => $module['array_position'],
 					)
 				);
 
@@ -479,6 +496,19 @@ class Batch_Ajax_Handler {
 		// Assign modules to QSA arrays (default start position 1).
 		$qsa_arrays = $this->batch_sorter->assign_to_arrays( $sorted, 1 );
 
+		// Calculate original_qsa_sequence for row grouping.
+		// All modules with the same SKU should have the same original_qsa_sequence.
+		$sku_to_original_qsa = array();
+		foreach ( $qsa_arrays as $qsa ) {
+			foreach ( $qsa as $module ) {
+				$sku = $module['module_sku'];
+				$seq = (int) $module['qsa_sequence'];
+				if ( ! isset( $sku_to_original_qsa[ $sku ] ) || $seq < $sku_to_original_qsa[ $sku ] ) {
+					$sku_to_original_qsa[ $sku ] = $seq;
+				}
+			}
+		}
+
 		// Add modules to the batch - track failures.
 		$module_count   = 0;
 		$failed_modules = array();
@@ -487,15 +517,17 @@ class Batch_Ajax_Handler {
 		foreach ( $qsa_arrays as $qsa ) {
 			foreach ( $qsa as $module ) {
 				$total_modules++;
+				$sku = $module['module_sku'];
 				$result = $this->batch_repository->add_module(
 					array(
-						'engraving_batch_id'  => $batch_id,
-						'production_batch_id' => $module['production_batch_id'],
-						'module_sku'          => $module['module_sku'],
-						'order_id'            => $module['order_id'],
-						'serial_number'       => '', // Serial numbers assigned during engraving.
-						'qsa_sequence'        => $module['qsa_sequence'],
-						'array_position'      => $module['array_position'],
+						'engraving_batch_id'    => $batch_id,
+						'production_batch_id'   => $module['production_batch_id'],
+						'module_sku'            => $module['module_sku'],
+						'order_id'              => $module['order_id'],
+						'serial_number'         => '', // Serial numbers assigned during engraving.
+						'qsa_sequence'          => $module['qsa_sequence'],
+						'original_qsa_sequence' => $sku_to_original_qsa[ $sku ], // Group by SKU for row display.
+						'array_position'        => $module['array_position'],
 					)
 				);
 
