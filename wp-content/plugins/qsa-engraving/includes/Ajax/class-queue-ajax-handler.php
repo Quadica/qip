@@ -1399,13 +1399,40 @@ class Queue_Ajax_Handler {
 			}
 		}
 
-		// DEBUG: Log input parameters and identified row sequences.
-		error_log( sprintf(
-			'QSA Engraving DEBUG: handle_update_start_position - input qsa_sequence=%d, identified row_qsa_sequences=[%s], start_position=%d',
-			$qsa_sequence,
-			implode( ',', $row_qsa_sequences ),
-			$start_position
-		) );
+		// Check if this is a Mixed ID row (multiple SKUs in a single QSA).
+		// Mixed ID rows cannot be split across multiple arrays because the redistribution
+		// would create sequences with different SKU compositions, making them unfindable
+		// by get_row_qsa_sequences() on subsequent operations.
+		$is_mixed_id = count( $row_qsa_sequences ) === 1;
+		if ( $is_mixed_id ) {
+			$target_qsa_modules = array_filter(
+				$row_modules,
+				fn( $m ) => (int) $m['qsa_sequence'] === $row_qsa_sequences[0]
+			);
+			$unique_skus = array_unique( array_column( $target_qsa_modules, 'module_sku' ) );
+			$is_mixed_id = count( $unique_skus ) > 1;
+		}
+
+		if ( $is_mixed_id ) {
+			$module_count          = count( $row_modules );
+			$first_array_capacity  = 9 - $start_position; // e.g., start_position=5 means 4 slots (5,6,7,8).
+			$would_need_two_arrays = $module_count > $first_array_capacity;
+
+			if ( $would_need_two_arrays ) {
+				$this->send_error(
+					sprintf(
+						/* translators: 1: Module count, 2: Start position, 3: First array capacity */
+						__( 'Cannot set start position to %2$d for this Mixed ID row. With %1$d modules and start position %2$d, only %3$d modules fit in the first array. Mixed ID rows cannot be split across multiple arrays. Choose a start position of %4$d or less.', 'qsa-engraving' ),
+						$module_count,
+						$start_position,
+						$first_array_capacity,
+						9 - $module_count // Max start position that keeps all modules in one array.
+					),
+					'mixed_id_would_split'
+				);
+				return;
+			}
+		}
 
 		// Redistribute modules across arrays with the new start position.
 		$result = $this->batch_repository->redistribute_row_modules( $batch_id, $row_qsa_sequences, $start_position );
