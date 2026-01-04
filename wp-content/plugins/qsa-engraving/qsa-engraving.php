@@ -473,6 +473,7 @@ final class Plugin {
             'restUrl'          => rest_url( 'qsa-engraving/v1/' ),
             'lightburnEnabled' => (bool) ( $settings['lightburn_enabled'] ?? false ),
             'lightburnAutoLoad' => (bool) ( $settings['lightburn_auto_load'] ?? true ),
+            'keepSvgFiles'     => (bool) ( $settings['keep_svg_files'] ?? false ),
         );
 
         // Batch Creator page.
