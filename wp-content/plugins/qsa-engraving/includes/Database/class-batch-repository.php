@@ -611,19 +611,15 @@ class Batch_Repository {
         $available_sequences = $qsa_sequences;
         sort( $available_sequences );
 
-        // Track whether we need to manage a transaction for new sequence allocation.
-        $in_transaction = false;
+        // Always use a transaction to ensure atomicity of the two-pass update.
+        // This prevents partial updates if any query fails.
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        $this->wpdb->query( 'START TRANSACTION' );
 
         if ( $needed_qsa_count > count( $available_sequences ) ) {
-            // Start transaction to prevent race condition when allocating new sequences.
-            // Without locking, concurrent admins could read the same MAX and allocate
-            // overlapping sequence numbers.
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-            $this->wpdb->query( 'START TRANSACTION' );
-            $in_transaction = true;
-
             // Get the max qsa_sequence for the entire batch with row-level lock.
-            // FOR UPDATE prevents other transactions from reading until we commit.
+            // FOR UPDATE prevents other transactions from reading until we commit,
+            // avoiding race conditions when concurrent admins allocate sequences.
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
             $max_qsa = (int) $this->wpdb->get_var(
                 $this->wpdb->prepare(
@@ -679,13 +675,24 @@ class Batch_Repository {
         // Pass 1: Move to temporary positions.
         foreach ( $modules as $module ) {
             $temp_seq = (int) $module['qsa_sequence'] + $temp_offset;
-            $this->wpdb->update(
+            $result = $this->wpdb->update(
                 $this->modules_table,
                 array( 'qsa_sequence' => $temp_seq ),
                 array( 'id' => (int) $module['id'] ),
                 array( '%d' ),
                 array( '%d' )
             );
+
+            // Rollback if update fails to maintain atomicity.
+            if ( false === $result ) {
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+                $this->wpdb->query( 'ROLLBACK' );
+                error_log( sprintf( 'QSA Engraving: Failed to move module %d to temp position in redistribute_row_modules', (int) $module['id'] ) );
+                return new WP_Error(
+                    'update_failed',
+                    __( 'Failed to update module positions. Please try again.', 'qsa-engraving' )
+                );
+            }
         }
 
         // Pass 2: Move to final positions.
@@ -702,9 +709,17 @@ class Batch_Repository {
                 array( '%d' )
             );
 
-            if ( false !== $result ) {
-                $updated++;
+            // Rollback if update fails to maintain atomicity.
+            if ( false === $result ) {
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+                $this->wpdb->query( 'ROLLBACK' );
+                error_log( sprintf( 'QSA Engraving: Failed to move module %d to final position in redistribute_row_modules', $assignment['id'] ) );
+                return new WP_Error(
+                    'update_failed',
+                    __( 'Failed to update module positions. Please try again.', 'qsa-engraving' )
+                );
             }
+            $updated++;
         }
 
         // Calculate the breakdown for display using the actual sequences we assigned.
@@ -736,12 +751,9 @@ class Batch_Repository {
             $seq_idx++;
         }
 
-        // Commit the transaction if we started one for sequence allocation.
-        // This ensures all module updates and new sequence allocations are atomic.
-        if ( $in_transaction ) {
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-            $this->wpdb->query( 'COMMIT' );
-        }
+        // Commit the transaction - all module updates succeeded.
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        $this->wpdb->query( 'COMMIT' );
 
         return array(
             'updated'        => $updated,
