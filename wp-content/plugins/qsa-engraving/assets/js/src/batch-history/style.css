@@ -133,12 +133,14 @@
 
 .qsa-search-input {
 	width: 100%;
-	padding: 10px 36px 10px 12px;
+	height: 40px;
+	padding: 0 36px 0 12px;
 	background-color: var(--qsa-bg-card);
 	border: 1px solid var(--qsa-border);
 	border-radius: 4px;
 	color: var(--qsa-text-primary);
 	font-size: 14px;
+	box-sizing: border-box;
 }
 
 .qsa-search-icon {
@@ -182,7 +184,8 @@
 	display: flex;
 	align-items: center;
 	gap: 6px;
-	padding: 10px 16px;
+	height: 40px;
+	padding: 0 16px;
 	background-color: var(--qsa-bg-card);
 	border: 1px solid var(--qsa-border);
 	border-radius: 4px;
@@ -190,6 +193,7 @@
 	font-size: 13px;
 	cursor: pointer;
 	transition: all 0.15s ease;
+	box-sizing: border-box;
 }
 
 .qsa-filter-toggle:hover,
