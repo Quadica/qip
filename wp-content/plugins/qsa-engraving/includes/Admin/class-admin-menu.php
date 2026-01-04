@@ -511,7 +511,7 @@ class Admin_Menu {
             <script>
             jQuery(function($) {
                 var ajaxUrl = '<?php echo esc_url( admin_url( 'admin-ajax.php' ) ); ?>';
-                var nonce = '<?php echo esc_js( wp_create_nonce( 'qsa_lightburn_nonce' ) ); ?>';
+                var nonce = '<?php echo esc_js( wp_create_nonce( 'qsa_engraving_nonce' ) ); ?>';
 
                 function saveToggle(settingName, value, $status) {
                     $status.removeClass('saved error').addClass('saving').text('<?php echo esc_js( __( 'Saving...', 'qsa-engraving' ) ); ?>');
