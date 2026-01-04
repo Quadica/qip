@@ -345,6 +345,16 @@ export default function EngravingQueue() {
 		const startingArray = completedArrays + 1;
 		const qsaSequence = getQsaSequenceForArray( item, startingArray );
 
+		// Validate the QSA sequence - prevents operating on wrong sequence if index is out of bounds.
+		if ( qsaSequence === null ) {
+			alert(
+				__( 'Invalid array state. The starting array index is out of sync with available sequences.', 'qsa-engraving' ) +
+					'\n\n' +
+					__( 'Please refresh the page and try again.', 'qsa-engraving' )
+			);
+			return;
+		}
+
 		try {
 			const data = await queueAction( 'qsa_start_row', { qsa_sequence: qsaSequence } );
 
