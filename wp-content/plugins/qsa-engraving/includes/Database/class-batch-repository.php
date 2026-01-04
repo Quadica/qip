@@ -582,6 +582,14 @@ class Batch_Repository {
         // Validate start position.
         $start_position = max( 1, min( 8, $start_position ) );
 
+        // DEBUG: Log redistribution parameters.
+        error_log( sprintf(
+            'QSA Engraving DEBUG: redistribute_row_modules called - batch=%d, sequences=[%s], start_position=%d',
+            $batch_id,
+            implode( ',', $qsa_sequences ),
+            $start_position
+        ) );
+
         // Start transaction FIRST to ensure we read consistent data.
         // This prevents race conditions where another admin modifies the row
         // between our read and updates.
@@ -621,6 +629,14 @@ class Batch_Repository {
 
         $module_count  = count( $modules );
         $old_qsa_count = count( array_unique( array_column( $modules, 'qsa_sequence' ) ) );
+
+        // DEBUG: Log modules found.
+        $module_ids = array_column( $modules, 'id' );
+        error_log( sprintf(
+            'QSA Engraving DEBUG: Found %d modules with IDs [%s]',
+            $module_count,
+            implode( ',', $module_ids )
+        ) );
 
         // Calculate how many QSA arrays we'll need.
         $first_array_slots  = 9 - $start_position; // e.g., start=6 means 3 slots (6,7,8).
@@ -681,6 +697,22 @@ class Batch_Repository {
                 }
                 $current_position = 1; // Subsequent arrays always start at 1.
             }
+        }
+
+        // DEBUG: Log new assignments.
+        error_log( sprintf(
+            'QSA Engraving DEBUG: New assignments - sequences_to_use=[%s], needed_qsa_count=%d',
+            implode( ',', $sequences_to_use ),
+            $needed_qsa_count
+        ) );
+        foreach ( $new_assignments as $idx => $assignment ) {
+            error_log( sprintf(
+                'QSA Engraving DEBUG: Assignment %d: module_id=%d -> qsa=%d, pos=%d',
+                $idx,
+                $assignment['id'],
+                $assignment['qsa_sequence'],
+                $assignment['array_position']
+            ) );
         }
 
         // Update all modules with their new positions.
@@ -788,6 +820,14 @@ class Batch_Repository {
                 __( 'Failed to save module position changes. Please try again.', 'qsa-engraving' )
             );
         }
+
+        // DEBUG: Log successful completion.
+        error_log( sprintf(
+            'QSA Engraving DEBUG: redistribute_row_modules COMMITTED - updated %d modules, old_qsa_count=%d, new_qsa_count=%d',
+            $updated,
+            $old_qsa_count,
+            count( $arrays )
+        ) );
 
         return array(
             'updated'        => $updated,
