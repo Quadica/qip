@@ -93,7 +93,18 @@ export default function BatchCreator() {
 			credentials: 'same-origin',
 		} );
 
-		return response.json();
+		// Check if response is OK before parsing JSON.
+		if ( ! response.ok ) {
+			throw new Error( `HTTP error ${ response.status }: ${ response.statusText }` );
+		}
+
+		const text = await response.text();
+		try {
+			return JSON.parse( text );
+		} catch ( e ) {
+			// If JSON parsing fails, throw an error with the response text (truncated).
+			throw new Error( `Invalid response: ${ text.substring( 0, 200 ) }` );
+		}
 	};
 
 	/**
@@ -511,7 +522,8 @@ export default function BatchCreator() {
 				setError( response.message || __( 'Failed to create batch.', 'qsa-engraving' ) );
 			}
 		} catch ( err ) {
-			setError( __( 'Failed to create batch. Please try again.', 'qsa-engraving' ) );
+			console.error( 'Batch creation error:', err );
+			setError( err.message || __( 'Failed to create batch. Please try again.', 'qsa-engraving' ) );
 		} finally {
 			setCreatingBatch( false );
 		}
