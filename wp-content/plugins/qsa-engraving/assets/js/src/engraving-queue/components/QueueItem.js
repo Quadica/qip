@@ -155,14 +155,12 @@ export default function QueueItem( {
 	const groupTypeClass = getGroupTypeClass( item.groupType );
 
 	// Track qsa_sequences for backend operations.
+	// Each QSA sequence IS one physical array - use this as the authoritative count.
 	const qsaSequences = item.qsa_sequences || [ item.id ];
+	const totalArrays = qsaSequences.length;
 
-	// Always calculate array breakdown dynamically based on totalModules and startPosition.
-	// This ensures the "Arrays:" count updates when start position changes.
-	// For 35 modules at start position 7: first array fits 2 (positions 7-8),
-	// remaining 33 need ceil(33/8)=5 more arrays, total = 6.
+	// Calculate array breakdown for display purposes (positions, serials, etc.)
 	const arrays = calculateArrayBreakdown( item.totalModules, startPos, item.serials || [] );
-	const totalArrays = arrays.length;
 
 	const isLastArray = currentArray >= totalArrays;
 	const currentArrayDetails = arrays[ currentArray - 1 ] || null;
@@ -402,9 +400,9 @@ export default function QueueItem( {
 							) }
 						</div>
 
-						{ /* Progress Dots */ }
+						{ /* Progress Dots - one per QSA sequence */ }
 						<div className="qsa-progress-dots">
-							{ arrays.map( ( _, idx ) => (
+							{ qsaSequences.map( ( _, idx ) => (
 								<div
 									key={ idx }
 									className={ `qsa-progress-dot ${
