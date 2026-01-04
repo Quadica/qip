@@ -381,6 +381,11 @@ class Admin_Menu {
             </div>
 
             <!-- System Status -->
+            <?php
+            $system_settings = get_option( 'qsa_engraving_settings', array() );
+            $lightburn_enabled = ! empty( $system_settings['lightburn_enabled'] );
+            $keep_svg_files = ! empty( $system_settings['keep_svg_files'] );
+            ?>
             <div class="qsa-widget qsa-status-widget">
                 <h2><?php esc_html_e( 'System Status', 'qsa-engraving' ); ?></h2>
                 <table class="widefat striped">
@@ -414,9 +419,130 @@ class Admin_Menu {
                                 <?php endif; ?>
                             </td>
                         </tr>
+                        <tr>
+                            <td>
+                                <label for="qsa-toggle-lightburn"><?php esc_html_e( 'LightBurn Integration', 'qsa-engraving' ); ?></label>
+                                <p class="description" style="margin: 4px 0 0; font-size: 11px; color: #666;">
+                                    <?php esc_html_e( 'Send SVG files to laser engraver', 'qsa-engraving' ); ?>
+                                </p>
+                            </td>
+                            <td>
+                                <label class="qsa-toggle-switch">
+                                    <input type="checkbox" id="qsa-toggle-lightburn" <?php checked( $lightburn_enabled ); ?>>
+                                    <span class="qsa-toggle-slider"></span>
+                                </label>
+                                <span class="qsa-toggle-status" id="qsa-lightburn-status"></span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <label for="qsa-toggle-keep-svg"><?php esc_html_e( 'Keep SVG Files', 'qsa-engraving' ); ?></label>
+                                <p class="description" style="margin: 4px 0 0; font-size: 11px; color: #666;">
+                                    <?php esc_html_e( 'Retain generated SVG files for inspection', 'qsa-engraving' ); ?>
+                                </p>
+                            </td>
+                            <td>
+                                <label class="qsa-toggle-switch">
+                                    <input type="checkbox" id="qsa-toggle-keep-svg" <?php checked( $keep_svg_files ); ?>>
+                                    <span class="qsa-toggle-slider"></span>
+                                </label>
+                                <span class="qsa-toggle-status" id="qsa-keep-svg-status"></span>
+                            </td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
+            <style>
+                .qsa-toggle-switch {
+                    position: relative;
+                    display: inline-block;
+                    width: 44px;
+                    height: 24px;
+                    vertical-align: middle;
+                }
+                .qsa-toggle-switch input {
+                    opacity: 0;
+                    width: 0;
+                    height: 0;
+                }
+                .qsa-toggle-slider {
+                    position: absolute;
+                    cursor: pointer;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background-color: #ccc;
+                    transition: .3s;
+                    border-radius: 24px;
+                }
+                .qsa-toggle-slider:before {
+                    position: absolute;
+                    content: "";
+                    height: 18px;
+                    width: 18px;
+                    left: 3px;
+                    bottom: 3px;
+                    background-color: white;
+                    transition: .3s;
+                    border-radius: 50%;
+                }
+                .qsa-toggle-switch input:checked + .qsa-toggle-slider {
+                    background-color: #2271b1;
+                }
+                .qsa-toggle-switch input:checked + .qsa-toggle-slider:before {
+                    transform: translateX(20px);
+                }
+                .qsa-toggle-status {
+                    margin-left: 8px;
+                    font-size: 12px;
+                    color: #666;
+                }
+                .qsa-toggle-status.saving {
+                    color: #666;
+                }
+                .qsa-toggle-status.saved {
+                    color: #00a32a;
+                }
+                .qsa-toggle-status.error {
+                    color: #d63638;
+                }
+            </style>
+            <script>
+            jQuery(function($) {
+                var ajaxUrl = '<?php echo esc_url( admin_url( 'admin-ajax.php' ) ); ?>';
+                var nonce = '<?php echo esc_js( wp_create_nonce( 'qsa_lightburn_nonce' ) ); ?>';
+
+                function saveToggle(settingName, value, $status) {
+                    $status.removeClass('saved error').addClass('saving').text('<?php echo esc_js( __( 'Saving...', 'qsa-engraving' ) ); ?>');
+
+                    var data = {
+                        action: 'qsa_save_lightburn_settings',
+                        nonce: nonce
+                    };
+                    data[settingName] = value ? 1 : 0;
+
+                    $.post(ajaxUrl, data, function(response) {
+                        if (response.success) {
+                            $status.removeClass('saving').addClass('saved').text('<?php echo esc_js( __( 'Saved', 'qsa-engraving' ) ); ?>');
+                            setTimeout(function() { $status.text(''); }, 2000);
+                        } else {
+                            $status.removeClass('saving').addClass('error').text('<?php echo esc_js( __( 'Error', 'qsa-engraving' ) ); ?>');
+                        }
+                    }).fail(function() {
+                        $status.removeClass('saving').addClass('error').text('<?php echo esc_js( __( 'Failed', 'qsa-engraving' ) ); ?>');
+                    });
+                }
+
+                $('#qsa-toggle-lightburn').on('change', function() {
+                    saveToggle('lightburn_enabled', $(this).is(':checked'), $('#qsa-lightburn-status'));
+                });
+
+                $('#qsa-toggle-keep-svg').on('change', function() {
+                    saveToggle('keep_svg_files', $(this).is(':checked'), $('#qsa-keep-svg-status'));
+                });
+            });
+            </script>
         </div>
         <?php
     }

@@ -735,6 +735,11 @@ class LightBurn_Ajax_Handler {
 			$settings['lightburn_path_prefix'] = sanitize_text_field( wp_unslash( $_POST['lightburn_path_prefix'] ) );
 		}
 
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce already verified.
+		if ( isset( $_POST['keep_svg_files'] ) ) {
+			$settings['keep_svg_files'] = filter_var( $_POST['keep_svg_files'], FILTER_VALIDATE_BOOLEAN );
+		}
+
 		// Save settings.
 		update_option( 'qsa_engraving_settings', $settings );
 
