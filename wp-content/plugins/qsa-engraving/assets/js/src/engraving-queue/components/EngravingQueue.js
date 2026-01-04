@@ -62,6 +62,7 @@ export default function EngravingQueue() {
 	const [ showBatchSelector, setShowBatchSelector ] = useState( false );
 	const [ currentArrays, setCurrentArrays ] = useState( {} ); // Track current array per item
 	const [ resendingItemId, setResendingItemId ] = useState( null ); // Track which item is being resent
+	const [ updatingStartPositionId, setUpdatingStartPositionId ] = useState( null ); // Track which item's start position is being updated
 	const [ lightburnStatus, setLightburnStatus ] = useState( {
 		enabled: window.qsaEngraving?.lightburnEnabled ?? false,
 		autoLoad: window.qsaEngraving?.lightburnAutoLoad ?? true,
@@ -675,6 +676,10 @@ export default function EngravingQueue() {
 		const sequences = item.qsa_sequences || [ item.id ];
 		const qsaSequence = sequences[ 0 ];
 
+		// Set loading state to prevent Engrave button from being clicked
+		// while the start position update is in progress.
+		setUpdatingStartPositionId( itemId );
+
 		try {
 			const data = await queueAction( 'qsa_update_start_position', {
 				qsa_sequence: qsaSequence,
@@ -700,6 +705,9 @@ export default function EngravingQueue() {
 			}
 		} catch ( err ) {
 			alert( __( 'Network error updating start position.', 'qsa-engraving' ) );
+		} finally {
+			// Clear loading state after update completes (success or failure).
+			setUpdatingStartPositionId( null );
 		}
 	};
 
@@ -883,6 +891,7 @@ export default function EngravingQueue() {
 							isActive={ activeItemId === item.id }
 							currentArray={ getCurrentArray( item.id ) }
 							isResending={ resendingItemId === item.id }
+							isUpdatingStartPosition={ updatingStartPositionId === item.id }
 							onStart={ handleStart }
 							onComplete={ handleComplete }
 							onNextArray={ handleNextArray }
