@@ -521,6 +521,10 @@ class Batch_Repository {
      * - Array 4: positions 1-5 (5 modules)
      * Total: 4 arrays instead of the original 3
      *
+     * IMPORTANT: When more QSA sequences are needed than the row currently has,
+     * new sequences are allocated AFTER the batch's current max qsa_sequence
+     * to avoid conflicts with other rows in the same batch.
+     *
      * @param int   $batch_id       The batch ID.
      * @param array $qsa_sequences  Array of QSA sequence numbers that form the "row".
      * @param int   $start_position The new start position (1-8).
@@ -554,17 +558,48 @@ class Batch_Repository {
             return new WP_Error( 'no_modules', __( 'No modules found for these QSA sequences.', 'qsa-engraving' ) );
         }
 
-        $module_count = count( $modules );
+        $module_count  = count( $modules );
         $old_qsa_count = count( array_unique( array_column( $modules, 'qsa_sequence' ) ) );
+
+        // Calculate how many QSA arrays we'll need.
+        $first_array_slots  = 9 - $start_position; // e.g., start=6 means 3 slots (6,7,8).
+        $modules_after_first = max( 0, $module_count - $first_array_slots );
+        $additional_arrays   = (int) ceil( $modules_after_first / 8 );
+        $needed_qsa_count    = 1 + $additional_arrays;
+
+        // If we need more QSA sequences than the row currently has, we need to
+        // allocate new ones AFTER the batch's current max qsa_sequence to avoid
+        // conflicts with other rows in the same batch.
+        $available_sequences = $qsa_sequences;
+        sort( $available_sequences );
+
+        if ( $needed_qsa_count > count( $available_sequences ) ) {
+            // Get the max qsa_sequence for the entire batch.
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+            $max_qsa = (int) $this->wpdb->get_var(
+                $this->wpdb->prepare(
+                    "SELECT MAX(qsa_sequence) FROM {$this->modules_table} WHERE engraving_batch_id = %d",
+                    $batch_id
+                )
+            );
+
+            // Allocate new sequences beyond the current max.
+            $extra_needed = $needed_qsa_count - count( $available_sequences );
+            for ( $i = 1; $i <= $extra_needed; $i++ ) {
+                $available_sequences[] = $max_qsa + $i;
+            }
+        }
+
+        // Build the list of QSA sequences to use (first N from available).
+        $sequences_to_use = array_slice( $available_sequences, 0, $needed_qsa_count );
 
         // Calculate new array assignments.
         // First array: starts at $start_position, ends at 8
         // Subsequent arrays: always start at 1, end at 8
-        $first_qsa        = min( $qsa_sequences );
-        $current_qsa      = $first_qsa;
+        $seq_index        = 0;
+        $current_qsa      = $sequences_to_use[ $seq_index ];
         $current_position = $start_position;
         $new_assignments  = array();
-        $new_qsa_count    = 1;
 
         foreach ( $modules as $module ) {
             $new_assignments[] = array(
@@ -577,14 +612,13 @@ class Batch_Repository {
 
             // Check if we've filled this array.
             if ( $current_position > 8 ) {
-                $current_qsa++;
+                $seq_index++;
+                if ( $seq_index < count( $sequences_to_use ) ) {
+                    $current_qsa = $sequences_to_use[ $seq_index ];
+                }
                 $current_position = 1; // Subsequent arrays always start at 1.
-                $new_qsa_count++;
             }
         }
-
-        // Adjust new_qsa_count if last array wasn't fully filled.
-        // (It's already counted, so this is correct.)
 
         // Update all modules with their new positions.
         // IMPORTANT: Due to the UNIQUE constraint on (engraving_batch_id, qsa_sequence, array_position),
@@ -624,34 +658,33 @@ class Batch_Repository {
             }
         }
 
-        // Calculate the breakdown for display.
-        $arrays = array();
+        // Calculate the breakdown for display using the actual sequences we assigned.
+        $arrays    = array();
         $remaining = $module_count;
-        $seq = $first_qsa;
+        $seq_idx   = 0;
 
         // First array.
-        $first_array_slots = 9 - $start_position;
         $first_array_count = min( $remaining, $first_array_slots );
         $arrays[] = array(
-            'sequence'       => $seq,
+            'sequence'       => $sequences_to_use[ $seq_idx ],
             'start_position' => $start_position,
             'end_position'   => $start_position + $first_array_count - 1,
             'module_count'   => $first_array_count,
         );
         $remaining -= $first_array_count;
-        $seq++;
+        $seq_idx++;
 
         // Subsequent arrays.
-        while ( $remaining > 0 ) {
+        while ( $remaining > 0 && $seq_idx < count( $sequences_to_use ) ) {
             $count = min( $remaining, 8 );
             $arrays[] = array(
-                'sequence'       => $seq,
+                'sequence'       => $sequences_to_use[ $seq_idx ],
                 'start_position' => 1,
                 'end_position'   => $count,
                 'module_count'   => $count,
             );
             $remaining -= $count;
-            $seq++;
+            $seq_idx++;
         }
 
         return array(
