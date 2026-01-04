@@ -367,7 +367,9 @@ oms_batch_items (modules needing build)
 
 **Goal:** Step-through workflow for array engraving
 
-**Design Decision - One Array Per Row:** The current implementation treats each QSA sequence row as a single array unit. This simplifies the workflow since our typical use case involves partial arrays (fewer than 8 modules per QSA). Multi-array support (multiple physical arrays per QSA row) can be added in future phases if needed for high-volume production scenarios. The API endpoints (`qsa_next_array`, `qsa_complete_row`) are already structured to support this future extension.
+**Design Note - Multi-Array Row Support:** The implementation supports multi-array rows where a single row spans multiple QSA arrays. When modules exceed a single array's capacity (considering start position), the system automatically distributes them across multiple arrays. Array progression is handled via "Next Array" button (or Spacebar shortcut) with "Complete" appearing on the final array.
+
+**Status-Based Row Grouping:** Rows are grouped by SKU composition AND workflow status. QSA sequences with the same SKU but different statuses appear as separate rows to prevent workflow contamination (e.g., in_progress overflow sequences don't affect pending rows).
 
 ### Tasks
 
@@ -377,18 +379,24 @@ oms_batch_items (modules needing build)
 - [x] Display status badges (Pending, In Progress, Complete)
 - [x] Group type indicators (Same ID×Full, Same ID×Partial, Mixed ID×Full, Mixed ID×Partial)
 
-#### 6.2 Array Progression (One Array Per Row)
-- [x] "Engrave" button to start row (reserves serials)
+#### 6.2 Array Progression (Multi-Array Rows)
+- [x] "Engrave" button to start row (reserves serials for all arrays)
 - [x] Row-level workflow with status tracking (pending → in_progress → done)
-- [x] "Complete" button to commit serials and mark row done
+- [x] "Next Array" button to advance through arrays (commits current array serials)
+- [x] "Complete" button on final array to commit serials and mark row done
+- [x] Array count calculation based on modules and start position
+- [x] Progress indicator showing "Array X of Y" with position details
 
 #### 6.3 Starting Offset Support
 - [x] Number input for starting position (1-8)
-- [x] Server-side validation prevents overflow (position + modules ≤ 8)
+- [x] Server-side validation ensures enough positions for modules (start_pos + modules ≤ array capacity)
 - [x] Only editable when row is Pending (enforced both UI and server-side)
+- [x] Automatic module redistribution when start position changes
+- [x] New QSA sequences allocated beyond batch max to avoid conflicts
+- [x] Array count display updates immediately after redistribution
 
 #### 6.4 Keyboard Shortcuts
-- [x] Spacebar advances to complete row (when In Progress)
+- [x] Spacebar advances through arrays (Next Array or Complete on final)
 - [x] Input focus guard prevents accidental triggers
 - [x] Active row restored on page reload
 
@@ -396,7 +404,6 @@ oms_batch_items (modules needing build)
 - [x] "Resend" - Same SVG, same serials (communication issue)
 - [x] "Retry" - New SVG, new serials (physical failure)
 - [x] "Rerun" - Reset completed row to Pending
-- Note: "Back" button removed - not applicable to one-array-per-row design
 
 #### 6.6 Serial Lifecycle Integration
 - [x] Reserve serials on row start
@@ -418,19 +425,24 @@ oms_batch_items (modules needing build)
 | TC-EQ-008 | Smoke | Serial lifecycle transitions | ✅ PASS |
 | TC-EQ-009 | Smoke | AJAX handler methods | ✅ PASS |
 | TC-EQ-010 | Smoke | Start position handling | ✅ PASS |
+| TC-EQ-011 | Smoke | normalize_row_status handles empty/null | ✅ PASS |
+| TC-EQ-012 | Smoke | redistribute_row_modules with start position | ✅ PASS |
 | TC-UI-004 | Manual | Queue UI matches mockup | Pending |
 | TC-UI-005 | Manual | Keyboard shortcuts function | Pending |
 | TC-UI-006 | Manual | Error recovery buttons work | Pending |
 
 ### Completion Criteria
 - [x] Engraving Queue UI matches mockup in `engraving-queue-mockup.jsx`
+- [x] Multi-array row progression with Next Array/Complete buttons
 - [x] Array progression commits serials correctly
+- [x] Start position change triggers module redistribution
+- [x] Status-based row grouping prevents workflow contamination
 - [x] Error recovery controls function as specified
 - [x] Keyboard shortcuts work for power users
 
 ### Reference Files
 - `docs/reference/engraving-queue-mockup.jsx` - UI design
-- `qsa-engraving-discovery.md` - Section 5 (Engraving Queue)
+- `qsa-engraving-discovery.md` - Engraving Queue section
 
 ---
 
@@ -746,3 +758,4 @@ npm run build
 | 1.1 | 2025-12-31 | Claude | Resolved open questions; added CUBEa and PICOa to Phase 9 |
 | 1.2 | 2025-12-31 | Claude | Phase 4 complete: SVG Generation Core with 17 smoke tests |
 | 1.3 | 2025-12-31 | Claude | Phase 5 complete: Batch Creator UI with 14 smoke tests (63 total) |
+| 1.4 | 2026-01-04 | Claude | Phase 6 updated: Multi-array rows, start position redistribution, status-based grouping |

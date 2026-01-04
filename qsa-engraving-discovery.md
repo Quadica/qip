@@ -1,6 +1,6 @@
 # Quadica Standard Array Engraving - Required Functionality
  
-**Last Update:** Dec 30, 2025  
+**Last Update:** Jan 4, 2026
 **Author:** Ron Warris  
 
 ## 1. Project Overview
@@ -161,6 +161,13 @@ QSAs are grouped into rows to organize the work for the operator:
 
 Each row displays: module count, array count, and an "Engrave" button. Each QSA in the row will have its own unique SVG file (generated with unique serial numbers).
 
+**Status-Based Row Grouping:**
+Rows are grouped by both SKU composition AND workflow status. This means:
+- QSA sequences with the same SKU but different statuses appear as separate rows
+- This prevents workflow contamination (e.g., in_progress sequences from one workflow don't affect pending rows)
+- Example: If a "Same ID" row overflows to a new QSA sequence during redistribution, that overflow sequence maintains its own status and appears as a separate row until completed
+- The row a sequence belongs to is determined at query time based on its current status
+
 #### QSA Starting Offset
 QSAs may have unused positions from previous batches. The operator can specify a **Starting Position** (1-8) for the first QSA in a run.
 
@@ -170,11 +177,13 @@ QSAs may have unused positions from previous batches. The operator can specify a
 | **Valid Range** | 1-8 (position 1 = first/top-left; position 8 = single module remaining) |
 
 **Behavior:**
-- The offset applies **only to the first QSA** in a multi-array run
+- The offset applies **only to the first QSA** in a multi-array row
 - Subsequent QSAs always start at position 1
 - If Starting Position = 5, the first QSA uses positions 5-8 (4 modules max)
 - Offset is set **per row** — operator engraves one row at a time
-- No persistence — operator manually provides starting position each time
+- Changing start position triggers automatic module redistribution across arrays
+- Start position can only be changed when row status is "Pending"
+- Array count updates immediately to reflect the new distribution
 
 **Example:** 26 identical modules, Starting Position = 5
 1. **QSA 1** — positions 5-8 (4 modules, 4 unique serials)
@@ -255,11 +264,21 @@ Things can go wrong during the engraving process. A module may not be positioned
 - **Resend** = Same QSA, same serials, just re-transmit the file (communication issue)
 - **Retry** = New QSA, new serials, the old QSA is scrapped (physical failure)
 
-**Implementation Note — One Array Per Row:**
-The current implementation treats each QSA sequence row as a single array unit. This simplifies the workflow for our typical use case of partial arrays (fewer than 8 modules per QSA). Each row is processed as a single engraving operation:
-- "Engrave" reserves serials and marks row as in_progress
-- "Complete" commits serials (reserved → engraved) and marks row as done
-- The "Back" control (originally for multi-array navigation) is not implemented — use "Retry" instead to start fresh with new serials
+**Multi-Array Row Workflow:**
+When a row contains more modules than fit on a single QSA array, the system supports multi-array progression:
+- Each row can span multiple QSA arrays based on module count and starting position
+- "Engrave" reserves serials for ALL arrays in the row and marks row as in_progress
+- "Next Array" advances to the next array in the row (commits current array's serials)
+- "Complete" commits final array's serials and marks row as done
+- The Spacebar keyboard shortcut advances through arrays (Next Array or Complete on final)
+
+**Starting Position and Array Redistribution:**
+When the operator changes the starting position for a row, the system automatically redistributes modules across arrays:
+- Starting position applies ONLY to the first array in the row
+- Subsequent arrays ALWAYS start at position 1
+- Example: 24 modules with start_position=6 requires 4 arrays: (3 + 8 + 8 + 5 = 24)
+- The system allocates new QSA sequences beyond the batch's current maximum to avoid conflicts
+- Array count display updates immediately to reflect the new distribution
 
 **Important Behaviors:**
 - The "Resend" and "Retry" buttons are available during an in-progress row
