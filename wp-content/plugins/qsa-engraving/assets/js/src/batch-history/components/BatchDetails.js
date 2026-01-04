@@ -38,9 +38,10 @@ function formatDate( dateString ) {
  * @param {boolean}  props.loading               Whether details are loading.
  * @param {string}   props.error                 Error message if fetch failed.
  * @param {Function} props.onLoadForReengraving  Callback when load button clicked.
+ * @param {boolean}  props.duplicating           Whether batch is being duplicated.
  * @return {JSX.Element} The component.
  */
-export default function BatchDetails( { batch, loading, error, onLoadForReengraving } ) {
+export default function BatchDetails( { batch, loading, error, onLoadForReengraving, duplicating } ) {
 	// Loading state.
 	if ( loading ) {
 		return (
@@ -231,15 +232,25 @@ export default function BatchDetails( { batch, loading, error, onLoadForReengrav
 				<button
 					onClick={ onLoadForReengraving }
 					className="qsa-load-button"
+					disabled={ duplicating }
 				>
-					<span className="dashicons dashicons-update"></span>
-					{ __( 'Load for Re-engraving', 'qsa-engraving' ) }
+					{ duplicating ? (
+						<>
+							<span className="spinner is-active"></span>
+							{ __( 'Duplicating...', 'qsa-engraving' ) }
+						</>
+					) : (
+						<>
+							<span className="dashicons dashicons-update"></span>
+							{ __( 'Load for Re-engraving', 'qsa-engraving' ) }
+						</>
+					) }
 				</button>
 			</div>
 
 			{ /* Help Text */ }
 			<p className="qsa-details-help">
-				{ __( 'Loading this batch will display all modules in the Batch Creator, where you can select specific modules to re-engrave with new serial numbers.', 'qsa-engraving' ) }
+				{ __( 'This will create a duplicate batch with the same modules, assigning new serial numbers for re-engraving.', 'qsa-engraving' ) }
 			</p>
 		</div>
 	);

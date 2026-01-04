@@ -142,68 +142,19 @@ export default function BatchCreator() {
 	}, [] );
 
 	/**
-	 * Apply re-engraving selections to match modules from the source batch.
+	 * Apply re-engraving selections - NOT USED for direct batch duplication.
+	 *
+	 * Note: Re-engraving now creates a direct duplicate of the source batch
+	 * via the backend. This function is kept for potential future use but
+	 * is no longer called in the re-engraving workflow.
 	 *
 	 * @param {Object} reengraveData The re-engraving data from the API.
 	 * @param {Object} availableModules The currently available modules.
 	 */
 	const applyReengravingSelections = useCallback( ( reengraveData, availableModules ) => {
-		if ( ! reengraveData?.modules || ! availableModules ) {
-			return;
-		}
-
-		const newSelected = new Set();
-		const newQuantities = {};
-		const newExpandedBaseTypes = new Set();
-		const newExpandedOrders = new Set();
-
-		// Iterate through re-engraving data to find matching available modules.
-		reengraveData.modules.forEach( ( typeGroup ) => {
-			const baseType = typeGroup.base_type;
-
-			if ( availableModules[ baseType ] ) {
-				newExpandedBaseTypes.add( baseType );
-
-				typeGroup.orders.forEach( ( orderGroup ) => {
-					const orderId = orderGroup.order_id;
-					newExpandedOrders.add( orderId );
-
-					orderGroup.modules.forEach( ( reengravModule ) => {
-						// Find matching module in available data.
-						const matchingOrder = availableModules[ baseType ].modules.find(
-							( o ) => o.order_id === orderId
-						);
-
-						if ( matchingOrder ) {
-							const matchingItem = matchingOrder.items.find(
-								( item ) =>
-									item.module_sku === reengravModule.sku &&
-									item.production_batch_id === reengravModule.production_batch_id
-							);
-
-							if ( matchingItem ) {
-								const moduleId = `${ matchingItem.production_batch_id }-${ matchingItem.module_sku }-${ matchingItem.order_id }`;
-								newSelected.add( moduleId );
-
-								// Set quantity to match original batch (no maximum restriction).
-								// Operators may have engraved more than the order required.
-								const qty = reengravModule.qty;
-								if ( qty !== matchingItem.qty_to_engrave ) {
-									newQuantities[ moduleId ] = qty;
-								}
-							}
-						}
-					} );
-				} );
-			}
-		} );
-
-		if ( newSelected.size > 0 ) {
-			setSelectedModules( newSelected );
-			setEngraveQuantities( newQuantities );
-			setExpandedBaseTypes( newExpandedBaseTypes );
-			setExpandedOrders( newExpandedOrders );
-		}
+		// This function is no longer used - re-engraving creates a direct
+		// duplicate of the source batch without matching against awaiting modules.
+		return;
 	}, [] );
 
 	/**
@@ -697,6 +648,38 @@ export default function BatchCreator() {
 	const renderReengravingBanner = () => {
 		if ( ! reengravingSource || ! reengravingData ) {
 			return null;
+		}
+
+		// Check if any modules were matched from the source batch.
+		const hasMatchedModules = selectedModules.size > 0;
+
+		if ( ! hasMatchedModules ) {
+			// No matching modules found - show warning.
+			return (
+				<div style={ {
+					padding: '12px 16px',
+					marginBottom: '16px',
+					backgroundColor: '#fff3cd',
+					borderLeft: '4px solid #dba617',
+					borderRadius: '4px',
+				} }>
+					<div style={ { display: 'flex', alignItems: 'flex-start', gap: '10px' } }>
+						<span className="dashicons dashicons-warning" style={ { color: '#856404', marginTop: '2px' } }></span>
+						<div>
+							<strong style={ { color: '#856404' } }>
+								{ __( 'No Matching Modules Found', 'qsa-engraving' ) }
+							</strong>
+							<p style={ { margin: '4px 0 0 0', fontSize: '13px', color: '#856404' } }>
+								{ __( 'Batch', 'qsa-engraving' ) } #{ reengravingData.batch_id }
+								{ __( ' was loaded, but none of its modules are currently awaiting engraving. This typically means all modules from that batch have already been engraved.', 'qsa-engraving' ) }
+							</p>
+							<p style={ { margin: '8px 0 0 0', fontSize: '13px', color: '#856404' } }>
+								{ __( 'If you need to re-engrave specific modules, they must first be added back to the production queue (oms_batch_items) with the same SKU and order details.', 'qsa-engraving' ) }
+							</p>
+						</div>
+					</div>
+				</div>
+			);
 		}
 
 		return (
