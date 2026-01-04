@@ -402,21 +402,13 @@ class Serial_Repository {
                 )
             );
 
-            error_log(
-                sprintf(
-                    'QSA Engraving: DATA INTEGRITY AUTO-FIX - Found and fixed %d serial(s) with empty status in batch %d, QSA %d. Status set to "reserved" to allow commit.',
-                    $empty_count,
-                    $engraving_batch_id,
-                    $qsa_sequence
-                )
-            );
-
-            // CRITICAL: If auto-fix fails, abort the commit operation.
-            // Without this check, rows could be marked complete without proper engraving.
+            // CRITICAL: Verify auto-fix succeeded before logging success.
+            // Without this check, a failed update would still log as "fixed".
             if ( false === $fix_result ) {
                 error_log(
                     sprintf(
-                        'QSA Engraving: CRITICAL - Failed to auto-fix empty status serials in batch %d, QSA %d. Aborting commit.',
+                        'QSA Engraving: CRITICAL - Failed to auto-fix %d empty status serial(s) in batch %d, QSA %d. Aborting commit.',
+                        $empty_count,
                         $engraving_batch_id,
                         $qsa_sequence
                     )
@@ -426,6 +418,16 @@ class Serial_Repository {
                     __( 'Failed to repair corrupted serial status. Please contact support.', 'qsa-engraving' )
                 );
             }
+
+            // Log success only after verifying the fix was applied.
+            error_log(
+                sprintf(
+                    'QSA Engraving: DATA INTEGRITY AUTO-FIX - Found and fixed %d serial(s) with empty status in batch %d, QSA %d. Status set to "reserved" to allow commit.',
+                    $empty_count,
+                    $engraving_batch_id,
+                    $qsa_sequence
+                )
+            );
         }
 
         // Commit all reserved serials (including auto-fixed ones).
@@ -554,6 +556,29 @@ class Serial_Repository {
                 WHERE engraving_batch_id = %d
                   AND qsa_sequence = %d
                   AND (status = 'reserved' OR status = '' OR status IS NULL)",
+                $engraving_batch_id,
+                $qsa_sequence
+            )
+        );
+    }
+
+    /**
+     * Count engraved serials for a batch/QSA sequence.
+     *
+     * Used to detect race conditions where another admin completed the row
+     * before the current request could commit.
+     *
+     * @param int $engraving_batch_id The engraving batch ID.
+     * @param int $qsa_sequence       The QSA sequence number.
+     * @return int Count of engraved serials.
+     */
+    public function count_engraved_serials( int $engraving_batch_id, int $qsa_sequence ): int {
+        return (int) $this->wpdb->get_var(
+            $this->wpdb->prepare(
+                "SELECT COUNT(*) FROM {$this->table_name}
+                WHERE engraving_batch_id = %d
+                  AND qsa_sequence = %d
+                  AND status = 'engraved'",
                 $engraving_batch_id,
                 $qsa_sequence
             )

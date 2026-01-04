@@ -902,11 +902,31 @@ class Queue_Ajax_Handler {
 		// CRITICAL: Verify serials were actually committed.
 		// This prevents marking rows complete when no engraving occurred.
 		if ( 0 === $committed ) {
-			$this->send_error(
-				__( 'No serials were committed. The row cannot be marked complete without engraved serials. Please use Retry to generate new serials.', 'qsa-engraving' ),
-				'zero_serials_committed'
-			);
-			return;
+			// Race condition check: Another admin may have completed this row
+			// between our count check and commit call. If serials are already
+			// engraved, proceed to mark the row done instead of showing an error.
+			$already_engraved = $this->serial_repository->count_engraved_serials( $batch_id, $qsa_sequence );
+
+			if ( $already_engraved > 0 ) {
+				// Race condition detected: serials were committed by another request.
+				// Log and proceed to mark the row as done.
+				error_log(
+					sprintf(
+						'QSA Engraving: Race condition detected - %d serials already engraved for batch %d, QSA %d. Proceeding to mark row done.',
+						$already_engraved,
+						$batch_id,
+						$qsa_sequence
+					)
+				);
+				// Fall through to mark_qsa_done below.
+			} else {
+				// No engraved serials found - this is a genuine error (serials voided or missing).
+				$this->send_error(
+					__( 'No serials were committed. The row cannot be marked complete without engraved serials. Please use Retry to generate new serials.', 'qsa-engraving' ),
+					'zero_serials_committed'
+				);
+				return;
+			}
 		}
 
 		// Mark the row as done (one-array-per-row implementation).
@@ -1013,11 +1033,31 @@ class Queue_Ajax_Handler {
 		// CRITICAL: Verify serials were actually committed.
 		// This prevents marking rows complete when no engraving occurred.
 		if ( 0 === $committed ) {
-			$this->send_error(
-				__( 'No serials were committed. The row cannot be marked complete without engraved serials. Please use Retry to generate new serials.', 'qsa-engraving' ),
-				'zero_serials_committed'
-			);
-			return;
+			// Race condition check: Another admin may have completed this row
+			// between our count check and commit call. If serials are already
+			// engraved, proceed to mark the row done instead of showing an error.
+			$already_engraved = $this->serial_repository->count_engraved_serials( $batch_id, $qsa_sequence );
+
+			if ( $already_engraved > 0 ) {
+				// Race condition detected: serials were committed by another request.
+				// Log and proceed to mark the row as done.
+				error_log(
+					sprintf(
+						'QSA Engraving: Race condition detected in next_array - %d serials already engraved for batch %d, QSA %d. Proceeding to mark row done.',
+						$already_engraved,
+						$batch_id,
+						$qsa_sequence
+					)
+				);
+				// Fall through to mark_qsa_done below.
+			} else {
+				// No engraved serials found - this is a genuine error (serials voided or missing).
+				$this->send_error(
+					__( 'No serials were committed. The row cannot be marked complete without engraved serials. Please use Retry to generate new serials.', 'qsa-engraving' ),
+					'zero_serials_committed'
+				);
+				return;
+			}
 		}
 
 		// Mark the row as done.
