@@ -207,7 +207,10 @@ class Batch_Repository {
                 // Commit failed - explicitly rollback to release any locks.
                 // While MySQL may auto-rollback, explicit ROLLBACK ensures cleanup.
                 // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-                $this->wpdb->query( 'ROLLBACK' );
+                $rollback_result = $this->wpdb->query( 'ROLLBACK' );
+                if ( false === $rollback_result ) {
+                    error_log( 'QSA Engraving: CRITICAL - ROLLBACK also failed after COMMIT failure for batch deletion ' . $batch_id . '. Database may be in inconsistent state.' );
+                }
                 error_log( 'QSA Engraving: COMMIT failed for batch deletion ' . $batch_id . '. Explicit ROLLBACK issued to release locks.' );
                 return false;
             }
