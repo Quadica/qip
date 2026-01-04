@@ -3171,7 +3171,7 @@ run_test(
 
 run_test(
     'TC-EQ-012: Redistribute row modules with start position change',
-    function (): bool {
+    function (): bool|WP_Error {
         global $wpdb;
         $plugin     = \Quadica\QSA_Engraving\qsa_engraving();
         $batch_repo = $plugin->get_batch_repository();
@@ -3291,6 +3291,8 @@ run_test(
 
         // Verify database records were updated correctly.
         $modules = $batch_repo->get_modules_for_batch( $batch_id );
+        echo "  DB returned " . count( $modules ) . " modules.\n";
+
         $qsa_counts = array();
         foreach ( $modules as $m ) {
             $qsa = (int) $m['qsa_sequence'];
@@ -3300,12 +3302,14 @@ run_test(
             $qsa_counts[ $qsa ]++;
         }
 
+        echo "  QSA counts: " . json_encode( $qsa_counts ) . "\n";
+
         // Should have 4 QSA sequences now: 1,2,3,4.
         if ( count( $qsa_counts ) !== 4 ) {
             $batch_repo->delete_batch( $batch_id );
             return new WP_Error(
                 'db_qsa_count_fail',
-                "Expected 4 QSA sequences in DB, got " . count( $qsa_counts ) . "."
+                "Expected 4 QSA sequences in DB, got " . count( $qsa_counts ) . ". Counts: " . json_encode( $qsa_counts )
             );
         }
 
