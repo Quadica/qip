@@ -487,12 +487,6 @@ All sample SVGs demonstrate:
 | serial_url | Roboto Thin, text-anchor middle |
 | led_code_1 | Roboto Thin, text-anchor middle |
 
-## 4. Out of Band Functions
-None of the the following needs to be considered as part of the plugin development as they are handled using separate business processes:
-
-1. None
-
-
 ## Batch Generation Rules
 
 ### Row Grouping
@@ -575,3 +569,8 @@ The batch should have **exactly 2 rows** (one per revision):
 | 2 | STARb | 10 | 2 |
 
 Even though both are "STAR" modules with the same config code, they have different revisions and cannot share arrays.
+
+## 4. Out of Band Functions
+None of the the following needs to be considered as part of the plugin development as they are handled using separate business processes:
+
+1. None
