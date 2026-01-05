@@ -570,11 +570,15 @@ class Queue_Ajax_Handler {
 	/**
 	 * Extract base type from SKU.
 	 *
+	 * Includes the revision letter (e.g., "STARa", "CUBEb") because different
+	 * revisions have different physical layouts and SVG configurations.
+	 *
 	 * @param string $sku The module SKU.
-	 * @return string The base type (CORE, SOLO, EDGE, STAR, etc.).
+	 * @return string The base type with revision (e.g., "STARa").
 	 */
 	private function extract_base_type( string $sku ): string {
-		if ( preg_match( '/^([A-Z]{4})/', $sku, $matches ) ) {
+		// Match 4 uppercase letters + optional lowercase revision letter.
+		if ( preg_match( '/^([A-Z]{4}[a-z]?)/', $sku, $matches ) ) {
 			return $matches[1];
 		}
 		return 'UNKNOWN';

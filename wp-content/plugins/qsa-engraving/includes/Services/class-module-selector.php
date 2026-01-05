@@ -228,15 +228,19 @@ class Module_Selector {
     /**
      * Extract the base type from a module SKU.
      *
+     * Includes the revision letter because different revisions have different
+     * physical layouts and SVG configurations.
+     *
      * Examples:
      * - "CORE-91247" -> "CORE"
-     * - "STARa-34924" -> "STAR"
+     * - "STARa-34924" -> "STARa"
      *
      * @param string $sku The module SKU.
-     * @return string The base type (4 letters).
+     * @return string The base type with revision (4-5 characters).
      */
     public function extract_base_type( string $sku ): string {
-        return substr( $sku, 0, 4 );
+        // Get everything before the hyphen (design + optional revision).
+        return strtok( $sku, '-' ) ?: substr( $sku, 0, 4 );
     }
 
     /**
