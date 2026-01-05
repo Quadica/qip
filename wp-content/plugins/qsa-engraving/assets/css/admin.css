@@ -1,0 +1,2216 @@
+/**
+ * QSA Engraving Admin Styles
+ *
+ * @package QSA_Engraving
+ * @since 1.0.0
+ */
+
+/* =========================================
+   General Styles
+   ========================================= */
+
+.qsa-engraving-wrap {
+    max-width: 1200px;
+}
+
+.qsa-engraving-wrap h1 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* =========================================
+   Loading State
+   ========================================= */
+
+.qsa-engraving-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+    padding: 40px;
+}
+
+.qsa-engraving-loading .spinner {
+    float: none;
+    margin: 0;
+}
+
+.qsa-engraving-loading p {
+    margin-top: 10px;
+    color: #666;
+}
+
+/* =========================================
+   Dashboard Widgets
+   ========================================= */
+
+.qsa-engraving-dashboard {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.qsa-widget {
+    background: #fff;
+    border: 1px solid #c3c4c7;
+    border-radius: 4px;
+    padding: 20px;
+}
+
+.qsa-widget h2 {
+    margin: 0 0 15px 0;
+    padding: 0 0 10px 0;
+    border-bottom: 1px solid #eee;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+/* Capacity Widget */
+.qsa-capacity-widget .capacity-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+    text-align: center;
+    margin-bottom: 15px;
+}
+
+.qsa-capacity-widget .stat {
+    padding: 10px;
+    background: #f6f7f7;
+    border-radius: 4px;
+}
+
+.qsa-capacity-widget .stat-value {
+    display: block;
+    font-size: 24px;
+    font-weight: 600;
+    color: #1d2327;
+}
+
+.qsa-capacity-widget .stat-label {
+    display: block;
+    font-size: 12px;
+    color: #666;
+    margin-top: 5px;
+}
+
+.qsa-capacity-widget.warning .stat-value {
+    color: #996800;
+}
+
+.qsa-capacity-widget.critical .stat-value {
+    color: #d63638;
+}
+
+.qsa-capacity-widget .notice {
+    margin: 10px 0 0 0;
+}
+
+/* Actions Widget */
+.qsa-actions-widget .action-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.qsa-actions-widget .button-hero {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    text-decoration: none;
+}
+
+.qsa-actions-widget .button-hero .dashicons {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+}
+
+/* Status Widget */
+.qsa-status-widget table {
+    margin: 0;
+}
+
+.qsa-status-widget .status-ok {
+    color: #00a32a;
+}
+
+.qsa-status-widget .status-ok .dashicons {
+    color: #00a32a;
+}
+
+.qsa-status-widget .status-error {
+    color: #d63638;
+}
+
+.qsa-status-widget .status-error .dashicons {
+    color: #d63638;
+}
+
+/* =========================================
+   React App Container
+   ========================================= */
+
+.qsa-engraving-app {
+    margin-top: 20px;
+    background: #fff;
+    border: 1px solid #c3c4c7;
+    border-radius: 4px;
+    min-height: 400px;
+}
+
+/* =========================================
+   Notices
+   ========================================= */
+
+.qsa-engraving-wrap .notice.inline {
+    margin: 15px 0 0 0;
+}
+
+/* =========================================
+   Responsive
+   ========================================= */
+
+@media screen and (max-width: 1200px) {
+    .qsa-engraving-dashboard {
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    }
+}
+
+@media screen and (max-width: 782px) {
+    .qsa-engraving-dashboard {
+        grid-template-columns: 1fr;
+    }
+
+    .qsa-capacity-widget .capacity-stats {
+        grid-template-columns: 1fr;
+    }
+
+    .qsa-capacity-widget .stat-value {
+        font-size: 20px;
+    }
+}
+
+/* =========================================
+   Settings Page
+   ========================================= */
+
+.qsa-settings-wrap {
+    max-width: 900px;
+    margin-top: 20px;
+}
+
+.qsa-settings-section {
+    background: #fff;
+    border: 1px solid #c3c4c7;
+    border-radius: 4px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.qsa-settings-section h2 {
+    margin: 0 0 5px 0;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.qsa-settings-section > .description {
+    margin: 0 0 20px 0;
+    color: #666;
+}
+
+.qsa-settings-section .form-table {
+    margin-top: 0;
+}
+
+.qsa-settings-section .form-table th {
+    width: 200px;
+    padding-left: 0;
+}
+
+.qsa-settings-section .form-table td .description {
+    font-size: 12px;
+    margin-top: 5px;
+}
+
+/* Test Result Indicator */
+.qsa-test-result {
+    display: inline-block;
+    margin-left: 10px;
+    padding: 4px 8px;
+    border-radius: 3px;
+    font-size: 13px;
+}
+
+.qsa-test-result.success {
+    background: #d4edda;
+    color: #155724;
+}
+
+.qsa-test-result.error {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+/* Save Result Indicator */
+.qsa-save-result {
+    display: inline-block;
+    margin-left: 10px;
+    padding: 4px 8px;
+    border-radius: 3px;
+    font-size: 13px;
+}
+
+.qsa-save-result.success {
+    background: #d4edda;
+    color: #155724;
+}
+
+.qsa-save-result.error {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+/* Directory Status */
+.qsa-directory-status {
+    background: #f6f7f7;
+    padding: 15px;
+    border-radius: 4px;
+}
+
+.qsa-directory-status p {
+    margin: 0 0 8px 0;
+}
+
+.qsa-directory-status p:last-child {
+    margin-bottom: 0;
+}
+
+.qsa-directory-status code {
+    background: #fff;
+    padding: 2px 5px;
+    word-break: break-all;
+}
+
+.qsa-directory-status .status-ok {
+    color: #00a32a;
+}
+
+.qsa-directory-status .status-warning {
+    color: #996800;
+}
+
+.qsa-directory-status .status-info {
+    color: #0073aa;
+}
+
+.qsa-directory-status .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    vertical-align: text-bottom;
+}
+
+/* Button with Icon */
+#qsa-test-lightburn .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    margin-right: 4px;
+    vertical-align: text-bottom;
+}
+
+/* =========================================
+   Batch Creator Navigation
+   ========================================= */
+
+.qsa-batch-creator-nav {
+    margin: 15px 0;
+}
+
+.qsa-batch-creator-nav .page-title-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.qsa-batch-creator-nav .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+}
+
+/* =========================================
+   Module Details (QSA Positions) in Batch History
+   ========================================= */
+
+.qsa-module-details-section {
+    margin-top: 16px;
+    border-top: 1px solid #3a3a3a;
+    padding-top: 16px;
+}
+
+.qsa-module-details-expandable {
+    background: #252525;
+    border-radius: 4px;
+}
+
+.qsa-module-details-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    cursor: pointer;
+    color: #9ca3af;
+    font-size: 13px;
+}
+
+.qsa-module-details-header:hover {
+    color: #e0e0e0;
+}
+
+.qsa-module-details-header .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+}
+
+.qsa-module-details-grid {
+    padding: 0 12px 12px;
+}
+
+.qsa-details-table-header,
+.qsa-details-table-row {
+    display: grid;
+    grid-template-columns: 90px 1fr 70px 40px 40px;
+    gap: 8px;
+    padding: 6px 0;
+    font-size: 12px;
+}
+
+.qsa-details-table-header {
+    color: #9ca3af;
+    border-bottom: 1px solid #3a3a3a;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.qsa-details-table-row {
+    color: #e0e0e0;
+    border-bottom: 1px solid #2a2a2a;
+}
+
+.qsa-details-table-row:last-child {
+    border-bottom: none;
+}
+
+.qsa-col-serial.qsa-monospace {
+    font-family: monospace;
+    font-size: 11px;
+}
+
+.qsa-col-qsa,
+.qsa-col-pos {
+    text-align: center;
+}
+
+/* =========================================
+   Batch Selector (Engraving Queue)
+   ========================================= */
+
+.qsa-batch-selector {
+    background-color: #1e1e1e;
+    border-radius: 8px;
+    padding: 24px;
+    max-width: 800px;
+    margin: 20px auto;
+}
+
+.qsa-batch-selector-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.qsa-batch-selector-header .dashicons {
+    font-size: 24px;
+    width: 24px;
+    height: 24px;
+    color: #8b5cf6;
+}
+
+.qsa-batch-selector-header h2 {
+    margin: 0;
+    color: #f0f0f0;
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.qsa-batch-selector-desc {
+    color: #9ca3af;
+    margin: 0 0 20px 0;
+    font-size: 14px;
+}
+
+.qsa-batch-selector-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.qsa-batch-selector-item {
+    background-color: #2a2a2a;
+    border: 1px solid #3a3a3a;
+    border-radius: 6px;
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.qsa-batch-selector-item:hover,
+.qsa-batch-selector-item:focus {
+    background-color: #333333;
+    border-color: #8b5cf6;
+    outline: none;
+}
+
+.qsa-batch-selector-item-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.qsa-batch-id {
+    background-color: #8b5cf6;
+    color: #fff;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.qsa-batch-name {
+    color: #f0f0f0;
+    font-size: 15px;
+    font-weight: 500;
+}
+
+.qsa-batch-selector-item-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 12px;
+    font-size: 13px;
+    color: #9ca3af;
+}
+
+.qsa-batch-selector-item-meta > span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.qsa-batch-selector-item-meta .dashicons {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+}
+
+.qsa-batch-selector-item-progress {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.qsa-batch-selector-item-progress .qsa-progress-bar {
+    flex: 1;
+    height: 8px;
+    background-color: #1e1e1e;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.qsa-batch-selector-item-progress .qsa-progress-fill {
+    height: 100%;
+    background-color: #22c55e;
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+.qsa-batch-selector-item-progress .qsa-progress-text {
+    color: #9ca3af;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.qsa-batch-selector-actions {
+    display: flex;
+    justify-content: center;
+    padding-top: 16px;
+    border-top: 1px solid #3a3a3a;
+}
+
+.qsa-batch-selector-actions .button {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.qsa-batch-selector-actions .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+}
+
+/* Queue Error State */
+.qsa-queue-error {
+    background-color: #1e1e1e;
+    border-radius: 8px;
+    padding: 40px;
+    text-align: center;
+    max-width: 500px;
+    margin: 40px auto;
+}
+
+.qsa-queue-error .notice {
+    margin-bottom: 20px;
+}
+
+.qsa-queue-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+    padding: 40px;
+    color: #9ca3af;
+}
+
+.qsa-queue-loading .spinner {
+    float: none;
+    margin: 0 0 10px 0;
+}
+
+/* =========================================
+   Batch Creator - WordPress Admin Theme
+   Matching the mockup design specification
+   ========================================= */
+
+/* Color Variables (WordPress Admin) */
+.qsa-batch-creator {
+    --qsa-bg-primary: #f0f0f1;
+    --qsa-bg-card: #ffffff;
+    --qsa-bg-elevated: #f6f7f7;
+    --qsa-bg-hover: #f0f6fc;
+    --qsa-wp-blue: #2271b1;
+    --qsa-wp-blue-hover: #135e96;
+    --qsa-wp-blue-light: #f0f6fc;
+    --qsa-text-primary: #1d2327;
+    --qsa-text-secondary: #50575e;
+    --qsa-text-muted: #787c82;
+    --qsa-success: #00a32a;
+    --qsa-success-light: #edfaef;
+    --qsa-warning: #dba617;
+    --qsa-error: #d63638;
+    --qsa-border: #c3c4c7;
+    --qsa-border-light: #dcdcde;
+}
+
+/* Main Container */
+.qsa-batch-creator {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
+}
+
+/* Loading State */
+.qsa-batch-creator.qsa-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 300px;
+    background: var(--qsa-bg-card);
+    border: 1px solid var(--qsa-border-light);
+    border-radius: 4px;
+}
+
+.qsa-batch-creator.qsa-loading .spinner {
+    float: none;
+    margin: 0;
+}
+
+/* Page Header */
+.qsa-batch-creator-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    background: var(--qsa-bg-card);
+    border: 1px solid var(--qsa-border-light);
+    border-bottom: none;
+    border-radius: 4px 4px 0 0;
+}
+
+.qsa-batch-creator-header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.qsa-batch-creator-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--qsa-wp-blue);
+    border-radius: 4px;
+}
+
+.qsa-batch-creator-icon .dashicons {
+    color: #fff;
+    font-size: 24px;
+    width: 24px;
+    height: 24px;
+}
+
+.qsa-batch-creator-title {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--qsa-text-primary);
+}
+
+.qsa-batch-creator-subtitle {
+    margin: 2px 0 0 0;
+    font-size: 13px;
+    color: var(--qsa-text-muted);
+}
+
+.qsa-btn-history {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    background: var(--qsa-bg-elevated);
+    border: 1px solid var(--qsa-border);
+    border-radius: 4px;
+    color: var(--qsa-wp-blue);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    text-decoration: none;
+}
+
+.qsa-btn-history:hover {
+    background: var(--qsa-wp-blue-light);
+    border-color: var(--qsa-wp-blue);
+    color: var(--qsa-wp-blue);
+}
+
+.qsa-btn-history .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+}
+
+/* Stats Bar */
+.qsa-stats-bar {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    background: var(--qsa-bg-card);
+    border-left: 1px solid var(--qsa-border-light);
+    border-right: 1px solid var(--qsa-border-light);
+}
+
+.qsa-stats-bar.has-preview {
+    grid-template-columns: repeat(6, 1fr);
+}
+
+.qsa-stat {
+    padding: 16px;
+    text-align: center;
+    border-right: 1px solid var(--qsa-border-light);
+}
+
+.qsa-stat:last-child {
+    border-right: none;
+}
+
+.qsa-stat-label {
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--qsa-text-muted);
+    margin-bottom: 4px;
+}
+
+.qsa-stat-value {
+    display: block;
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--qsa-text-primary);
+}
+
+.qsa-stat:nth-child(2) .qsa-stat-value {
+    color: var(--qsa-wp-blue);
+}
+
+.qsa-stat:nth-child(3) .qsa-stat-value {
+    color: var(--qsa-success);
+}
+
+.qsa-stat-preview .qsa-stat-value {
+    color: var(--qsa-wp-blue);
+}
+
+/* Action Bar */
+.qsa-action-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: var(--qsa-bg-elevated);
+    border: 1px solid var(--qsa-border-light);
+    border-top: none;
+    min-height: 48px;
+}
+
+.qsa-action-bar--selected {
+    background: var(--qsa-bg-elevated);
+}
+
+.qsa-action-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.qsa-action-icon {
+    color: var(--qsa-wp-blue);
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+}
+
+.qsa-action-text {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--qsa-text-primary);
+}
+
+.qsa-action-text-muted {
+    color: var(--qsa-text-muted);
+    font-weight: 400;
+}
+
+.qsa-action-buttons {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.qsa-btn-clear {
+    padding: 6px 12px;
+    background: var(--qsa-bg-card);
+    border: 1px solid var(--qsa-border);
+    border-radius: 4px;
+    color: var(--qsa-text-secondary);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.qsa-btn-clear:hover {
+    border-color: var(--qsa-error);
+    color: var(--qsa-error);
+}
+
+.qsa-btn-preview {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: var(--qsa-bg-card);
+    border: 1px solid var(--qsa-border);
+    border-radius: 4px;
+    color: var(--qsa-text-secondary);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.qsa-btn-preview:hover {
+    border-color: var(--qsa-wp-blue);
+    color: var(--qsa-wp-blue);
+}
+
+.qsa-btn-preview .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+}
+
+.qsa-btn-create {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 16px;
+    background: var(--qsa-wp-blue);
+    border: 1px solid var(--qsa-wp-blue);
+    border-radius: 4px;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.qsa-btn-create:hover {
+    background: var(--qsa-wp-blue-hover);
+    border-color: var(--qsa-wp-blue-hover);
+}
+
+.qsa-btn-create .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+}
+
+.qsa-btn-refresh {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    color: var(--qsa-text-muted);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.qsa-btn-refresh:hover {
+    background: var(--qsa-bg-hover);
+    color: var(--qsa-wp-blue);
+}
+
+.qsa-btn-refresh .dashicons {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+}
+
+/* Module Tree Container */
+.qsa-module-tree {
+    background: var(--qsa-bg-card);
+    border: 1px solid var(--qsa-border-light);
+    border-top: none;
+    border-radius: 0 0 4px 4px;
+}
+
+.qsa-tree-header {
+    display: none; /* Header is now in ActionBar */
+}
+
+.qsa-tree-body {
+    /* Container for base types */
+}
+
+/* Base Type Row */
+.qsa-base-type {
+    border-bottom: 1px solid var(--qsa-border-light);
+}
+
+.qsa-base-type:last-child,
+.qsa-base-type.is-last {
+    border-bottom: none;
+}
+
+.qsa-base-type-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.qsa-base-type-row:hover {
+    background: var(--qsa-bg-elevated);
+}
+
+.qsa-base-type.is-selected > .qsa-base-type-row {
+    background: var(--qsa-bg-hover);
+}
+
+/* Checkbox Styling */
+.qsa-checkbox {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 3px;
+    border: 2px solid var(--qsa-border);
+    background: var(--qsa-bg-card);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    padding: 0;
+    flex-shrink: 0;
+}
+
+.qsa-checkbox--all,
+.qsa-checkbox--partial {
+    background: var(--qsa-wp-blue);
+    border-color: var(--qsa-wp-blue);
+}
+
+.qsa-checkbox .dashicons {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+    color: #fff;
+}
+
+.qsa-checkbox--none .dashicons {
+    display: none;
+}
+
+.qsa-checkbox-empty {
+    display: none;
+}
+
+/* Expand Button */
+.qsa-expand-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--qsa-text-muted);
+    flex-shrink: 0;
+}
+
+.qsa-expand-btn .dashicons {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+}
+
+/* Base Type Info */
+.qsa-base-type-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    cursor: pointer;
+}
+
+.qsa-base-type-code {
+    display: inline-block;
+    padding: 2px 8px;
+    background: var(--qsa-wp-blue-light);
+    color: var(--qsa-wp-blue);
+    font-family: 'SF Mono', 'Consolas', 'Monaco', monospace;
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: 4px;
+}
+
+.qsa-base-type-name {
+    color: var(--qsa-text-secondary);
+    font-size: 14px;
+}
+
+.qsa-base-type-stats {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-left: auto;
+    font-size: 13px;
+    color: var(--qsa-text-muted);
+}
+
+/* Orders Container */
+.qsa-orders {
+    /* Container for order rows */
+}
+
+/* Order Row */
+.qsa-order {
+    border-top: 1px solid var(--qsa-border-light);
+}
+
+.qsa-order-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px 10px 48px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.qsa-order-row:hover {
+    background: var(--qsa-bg-elevated);
+}
+
+.qsa-order.is-selected > .qsa-order-row {
+    background: var(--qsa-bg-elevated);
+}
+
+.qsa-order-icon {
+    color: var(--qsa-text-muted);
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+}
+
+.qsa-order-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    cursor: pointer;
+}
+
+.qsa-order-id {
+    color: var(--qsa-wp-blue);
+    font-weight: 500;
+    font-size: 14px;
+}
+
+.qsa-order-customer {
+    color: var(--qsa-text-secondary);
+    font-size: 14px;
+}
+
+.qsa-order-stats {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-left: auto;
+}
+
+.qsa-stat-skus,
+.qsa-stat-units,
+.qsa-stat-orders {
+    font-size: 13px;
+    color: var(--qsa-text-muted);
+}
+
+.qsa-order-module-count {
+    display: inline-block;
+    padding: 2px 8px;
+    background: var(--qsa-bg-elevated);
+    color: var(--qsa-text-muted);
+    font-size: 12px;
+    border-radius: 4px;
+}
+
+/* Modules Container */
+.qsa-modules {
+    /* Container for module rows */
+}
+
+/* Module Row */
+.qsa-module {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 16px 8px 80px;
+    border-top: 1px solid var(--qsa-border-light);
+    transition: background 0.15s ease;
+}
+
+.qsa-module:hover {
+    background: var(--qsa-bg-elevated);
+}
+
+.qsa-module.is-selected {
+    background: var(--qsa-success-light);
+}
+
+.qsa-module.is-selected:hover {
+    background: var(--qsa-success-light);
+}
+
+.qsa-module-icon {
+    color: var(--qsa-text-muted);
+    font-size: 12px;
+    font-weight: 500;
+    flex-shrink: 0;
+}
+
+.qsa-module-info {
+    flex: 1;
+}
+
+.qsa-module-sku {
+    font-family: 'SF Mono', 'Consolas', 'Monaco', monospace;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--qsa-text-primary);
+}
+
+.qsa-module-progress {
+    margin-left: auto;
+}
+
+.qsa-progress-text {
+    font-size: 13px;
+    color: var(--qsa-text-muted);
+}
+
+.qsa-module-qty {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.qsa-qty-input {
+    width: 56px;
+    padding: 4px 8px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 500;
+    border: 1px solid var(--qsa-border);
+    border-radius: 4px;
+    background: var(--qsa-bg-card);
+    color: var(--qsa-text-primary);
+}
+
+.qsa-qty-input:focus {
+    border-color: var(--qsa-wp-blue);
+    box-shadow: 0 0 0 1px var(--qsa-wp-blue);
+    outline: none;
+}
+
+.qsa-qty-max {
+    font-size: 13px;
+    color: var(--qsa-text-muted);
+}
+
+/* Empty State */
+.qsa-empty-state {
+    padding: 60px 20px;
+    text-align: center;
+    background: var(--qsa-bg-card);
+    border: 1px solid var(--qsa-border-light);
+    border-top: none;
+    border-radius: 0 0 4px 4px;
+}
+
+.qsa-empty-state p {
+    color: var(--qsa-text-muted);
+    margin-bottom: 16px;
+}
+
+/* Footer */
+.qsa-batch-creator-footer {
+    text-align: center;
+    padding: 12px;
+    font-size: 11px;
+    color: var(--qsa-text-muted);
+}
+
+/* =========================================
+   Engraving Queue - WordPress Admin Theme
+   Matching the Batch Creator design
+   ========================================= */
+
+/* Color Variables (same as batch-creator) */
+.qsa-engraving-queue {
+    --qsa-bg-primary: #f0f0f1;
+    --qsa-bg-card: #ffffff;
+    --qsa-bg-elevated: #f6f7f7;
+    --qsa-bg-hover: #f0f6fc;
+    --qsa-wp-blue: #2271b1;
+    --qsa-wp-blue-hover: #135e96;
+    --qsa-wp-blue-light: #f0f6fc;
+    --qsa-text-primary: #1d2327;
+    --qsa-text-secondary: #50575e;
+    --qsa-text-muted: #787c82;
+    --qsa-success: #00a32a;
+    --qsa-success-light: #edfaef;
+    --qsa-warning: #dba617;
+    --qsa-warning-light: #fcf9e8;
+    --qsa-error: #d63638;
+    --qsa-error-light: #fcf0f1;
+    --qsa-border: #c3c4c7;
+    --qsa-border-light: #dcdcde;
+}
+
+/* Main Container */
+.qsa-engraving-queue {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
+}
+
+/* Queue Header */
+.qsa-queue-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    background: var(--qsa-bg-card);
+    border: 1px solid var(--qsa-border-light);
+    border-bottom: none;
+    border-radius: 4px 4px 0 0;
+}
+
+.qsa-queue-header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.qsa-back-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 4px;
+    color: var(--qsa-text-muted);
+    text-decoration: none;
+    transition: all 0.15s ease;
+}
+
+.qsa-back-button:hover {
+    background: var(--qsa-bg-elevated);
+    color: var(--qsa-wp-blue);
+}
+
+.qsa-back-button .dashicons {
+    font-size: 24px;
+    width: 24px;
+    height: 24px;
+}
+
+.qsa-queue-header-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--qsa-wp-blue);
+    border-radius: 4px;
+}
+
+.qsa-queue-header-icon .dashicons {
+    color: #fff;
+    font-size: 24px;
+    width: 24px;
+    height: 24px;
+}
+
+.qsa-queue-header-text h1 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--qsa-text-primary);
+}
+
+.qsa-queue-header-text p {
+    margin: 2px 0 0 0;
+    font-size: 13px;
+    color: var(--qsa-text-muted);
+}
+
+.qsa-queue-header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.qsa-batch-id {
+    display: inline-block;
+    padding: 4px 10px;
+    background: var(--qsa-wp-blue-light);
+    color: var(--qsa-wp-blue);
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 4px;
+}
+
+.qsa-batch-status {
+    display: inline-block;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 500;
+    border-radius: 4px;
+}
+
+.qsa-batch-status.status-in_progress {
+    background: var(--qsa-warning-light);
+    color: var(--qsa-warning);
+}
+
+.qsa-batch-status.status-completed {
+    background: var(--qsa-success-light);
+    color: var(--qsa-success);
+}
+
+/* Queue Stats Bar */
+.qsa-queue-stats {
+    background: var(--qsa-bg-card);
+    border-left: 1px solid var(--qsa-border-light);
+    border-right: 1px solid var(--qsa-border-light);
+}
+
+.qsa-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+}
+
+.qsa-stat-item {
+    padding: 16px;
+    text-align: center;
+    border-right: 1px solid var(--qsa-border-light);
+}
+
+.qsa-stat-item:last-child {
+    border-right: none;
+}
+
+.qsa-stat-label {
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--qsa-text-muted);
+    margin-bottom: 4px;
+}
+
+.qsa-stat-value {
+    display: block;
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--qsa-text-primary);
+}
+
+.qsa-stat-item:nth-child(2) .qsa-stat-value .qsa-stat-completed {
+    color: var(--qsa-success);
+}
+
+.qsa-stat-item:nth-child(3) .qsa-stat-value .qsa-stat-completed {
+    color: var(--qsa-success);
+}
+
+.qsa-stat-item:last-child .qsa-stat-value,
+.qsa-stat-progress {
+    color: var(--qsa-wp-blue);
+}
+
+.qsa-stat-separator {
+    color: var(--qsa-text-muted);
+    margin: 0 2px;
+}
+
+.qsa-stat-total {
+    color: var(--qsa-text-muted);
+}
+
+/* Progress Bar Container */
+.qsa-progress-bar-container {
+    padding: 0 16px 16px 16px;
+    background: var(--qsa-bg-card);
+    border-left: 1px solid var(--qsa-border-light);
+    border-right: 1px solid var(--qsa-border-light);
+}
+
+.qsa-progress-bar {
+    height: 8px;
+    background: var(--qsa-success);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+.qsa-progress-bar-bg {
+    height: 8px;
+    background: var(--qsa-bg-elevated);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+/* Capacity Warning */
+.qsa-capacity-warning {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    margin: 0 16px 16px 16px;
+    background: var(--qsa-warning-light);
+    border-radius: 4px;
+    font-size: 13px;
+    color: var(--qsa-warning);
+}
+
+.qsa-capacity-warning.critical {
+    background: var(--qsa-error-light);
+    color: var(--qsa-error);
+}
+
+.qsa-capacity-warning .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+}
+
+/* LightBurn Status */
+.qsa-lightburn-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: var(--qsa-bg-card);
+    border-left: 1px solid var(--qsa-border-light);
+    border-right: 1px solid var(--qsa-border-light);
+    font-size: 13px;
+    color: var(--qsa-text-secondary);
+}
+
+.qsa-lightburn-status .dashicons {
+    color: var(--qsa-text-muted);
+}
+
+.qsa-lightburn-label {
+    font-weight: 500;
+}
+
+.qsa-lightburn-state.loading {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--qsa-warning);
+}
+
+.qsa-lightburn-state.loading .spinner {
+    float: none;
+    margin: 0;
+}
+
+.qsa-lightburn-state.ready {
+    color: var(--qsa-success);
+}
+
+.qsa-lightburn-file code {
+    padding: 2px 6px;
+    background: var(--qsa-bg-elevated);
+    border-radius: 3px;
+    font-size: 12px;
+    color: var(--qsa-text-secondary);
+}
+
+/* Queue List */
+.qsa-queue-list {
+    background: var(--qsa-bg-card);
+    border: 1px solid var(--qsa-border-light);
+    border-top: none;
+    border-radius: 0 0 4px 4px;
+}
+
+.qsa-queue-list-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    background: var(--qsa-bg-elevated);
+    border-bottom: 1px solid var(--qsa-border-light);
+}
+
+.qsa-queue-list-header .dashicons {
+    color: var(--qsa-wp-blue);
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+}
+
+.qsa-queue-list-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--qsa-text-secondary);
+}
+
+/* Queue Items */
+.qsa-queue-items {
+    background: var(--qsa-bg-card);
+}
+
+.qsa-queue-item {
+    padding: 16px;
+    border-bottom: 1px solid var(--qsa-border-light);
+    transition: background 0.15s ease;
+}
+
+.qsa-queue-item:last-child,
+.qsa-queue-item.is-last {
+    border-bottom: none;
+}
+
+.qsa-queue-item.is-active {
+    background: var(--qsa-warning-light);
+}
+
+/* Queue Item Header */
+.qsa-queue-item-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.qsa-queue-item-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.qsa-status-icon {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+}
+
+.qsa-status-icon.status-pending {
+    background: var(--qsa-bg-elevated);
+    color: var(--qsa-text-muted);
+}
+
+.qsa-status-icon.status-in-progress {
+    background: var(--qsa-warning-light);
+    color: var(--qsa-warning);
+}
+
+.qsa-status-icon.status-complete {
+    background: var(--qsa-success-light);
+    color: var(--qsa-success);
+}
+
+.qsa-status-icon .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+}
+
+.qsa-status-icon .dashicons.spin {
+    animation: qsa-spin 1s linear infinite;
+}
+
+@keyframes qsa-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Base Type Badge - Queue row identifier (e.g., CUBE, STAR, PICO) */
+.qsa-base-type-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    background: var(--qsa-wp-blue-light);
+    color: var(--qsa-wp-blue);
+    font-family: 'SF Mono', 'Consolas', 'Monaco', monospace;
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: 4px;
+    border: 1px solid rgba(34, 113, 177, 0.2);
+}
+
+/* Module count summary */
+.qsa-module-summary {
+    display: inline-block;
+    padding: 4px 8px;
+    font-size: 13px;
+    color: var(--qsa-text-secondary);
+}
+
+.qsa-status-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    font-size: 12px;
+    font-weight: 500;
+    border-radius: 4px;
+}
+
+.qsa-status-badge.status-pending {
+    background: var(--qsa-bg-elevated);
+    color: var(--qsa-text-muted);
+}
+
+.qsa-status-badge.status-in-progress {
+    background: var(--qsa-warning-light);
+    color: var(--qsa-warning);
+}
+
+.qsa-status-badge.status-complete {
+    background: var(--qsa-success-light);
+    color: var(--qsa-success);
+}
+
+/* Queue Item Actions */
+.qsa-queue-item-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.qsa-btn-start {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background: var(--qsa-wp-blue);
+    border: 1px solid var(--qsa-wp-blue);
+    border-radius: 4px;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.qsa-btn-start:hover {
+    background: var(--qsa-wp-blue-hover);
+    border-color: var(--qsa-wp-blue-hover);
+}
+
+.qsa-btn-start .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+}
+
+.qsa-action-buttons {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.qsa-btn-resend,
+.qsa-btn-retry,
+.qsa-btn-rerun {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 12px;
+    background: var(--qsa-bg-card);
+    border: 1px solid var(--qsa-border);
+    border-radius: 4px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.qsa-btn-resend {
+    color: var(--qsa-wp-blue);
+    border-color: var(--qsa-wp-blue);
+}
+
+.qsa-btn-resend:hover {
+    background: var(--qsa-wp-blue-light);
+}
+
+.qsa-btn-retry {
+    color: var(--qsa-warning);
+    border-color: var(--qsa-warning);
+}
+
+.qsa-btn-retry:hover {
+    background: var(--qsa-warning-light);
+}
+
+.qsa-btn-rerun {
+    color: var(--qsa-text-secondary);
+}
+
+.qsa-btn-rerun:hover {
+    background: var(--qsa-bg-hover);
+}
+
+.qsa-btn-resend .dashicons,
+.qsa-btn-retry .dashicons,
+.qsa-btn-rerun .dashicons {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+}
+
+.qsa-btn-complete {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 16px;
+    background: var(--qsa-success);
+    border: 1px solid var(--qsa-success);
+    border-radius: 4px;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.qsa-btn-complete:hover {
+    background: #008a20;
+    border-color: #008a20;
+}
+
+.qsa-btn-complete .dashicons {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+}
+
+.qsa-done-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: var(--qsa-success-light);
+    color: var(--qsa-success);
+    font-size: 13px;
+    font-weight: 500;
+    border-radius: 4px;
+}
+
+.qsa-done-badge .dashicons {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+}
+
+/* Queue Item Details */
+.qsa-queue-item-details {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-left: 44px;
+    font-size: 13px;
+}
+
+.qsa-detail-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.qsa-detail-group .dashicons {
+    color: var(--qsa-text-muted);
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+}
+
+.qsa-detail-label {
+    color: var(--qsa-text-muted);
+}
+
+.qsa-modules-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.qsa-module-sku {
+    display: inline-block;
+    padding: 2px 8px;
+    background: var(--qsa-bg-elevated);
+    color: var(--qsa-text-secondary);
+    font-family: 'SF Mono', 'Consolas', 'Monaco', monospace;
+    font-size: 12px;
+    border-radius: 4px;
+}
+
+/* Queue Item Stats */
+.qsa-queue-item-stats {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    margin-left: 44px;
+    margin-top: 10px;
+    font-size: 13px;
+}
+
+.qsa-stat-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.qsa-stat-label {
+    color: var(--qsa-text-muted);
+}
+
+.qsa-stat-value {
+    font-weight: 500;
+    color: var(--qsa-text-primary);
+}
+
+.qsa-start-position-input {
+    width: 48px;
+    padding: 4px 8px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 500;
+    border: 1px solid var(--qsa-border);
+    border-radius: 4px;
+    background: var(--qsa-bg-card);
+    color: var(--qsa-text-primary);
+}
+
+.qsa-start-position-input:focus {
+    border-color: var(--qsa-wp-blue);
+    box-shadow: 0 0 0 1px var(--qsa-wp-blue);
+    outline: none;
+}
+
+.qsa-start-position-input:disabled {
+    background: var(--qsa-bg-elevated);
+    color: var(--qsa-text-muted);
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.qsa-serial-range {
+    font-family: 'SF Mono', 'Consolas', 'Monaco', monospace;
+    font-size: 12px;
+    padding: 2px 8px;
+    background: var(--qsa-wp-blue-light);
+    color: var(--qsa-wp-blue);
+    border-radius: 4px;
+}
+
+/* In Progress Details */
+.qsa-in-progress-details {
+    margin-left: 44px;
+    margin-top: 12px;
+    padding: 12px 16px;
+    background: var(--qsa-warning-light);
+    border: 1px solid rgba(219, 166, 23, 0.2);
+    border-radius: 4px;
+}
+
+.qsa-progress-indicator {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.qsa-progress-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: var(--qsa-warning);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 20px;
+}
+
+.qsa-progress-badge .dashicons {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+}
+
+.qsa-progress-info {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+}
+
+.qsa-info-label {
+    color: var(--qsa-text-muted);
+}
+
+.qsa-info-value {
+    font-weight: 500;
+    color: var(--qsa-text-primary);
+    padding: 2px 8px;
+    background: var(--qsa-bg-card);
+    border-radius: 4px;
+}
+
+.qsa-serial-range-active {
+    font-family: 'SF Mono', 'Consolas', 'Monaco', monospace;
+    font-size: 12px;
+    padding: 2px 8px;
+    background: var(--qsa-bg-card);
+    color: var(--qsa-wp-blue);
+    border-radius: 4px;
+}
+
+.qsa-keyboard-hint {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(219, 166, 23, 0.15);
+    font-size: 12px;
+    color: var(--qsa-text-muted);
+}
+
+.keyboard-key {
+    display: inline-block;
+    padding: 3px 8px;
+    background: var(--qsa-bg-card);
+    border: 1px solid var(--qsa-border);
+    border-radius: 4px;
+    font-family: 'SF Mono', 'Consolas', 'Monaco', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--qsa-text-secondary);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+/* Queue Footer */
+.qsa-queue-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    margin-top: 16px;
+    font-size: 12px;
+    color: var(--qsa-text-muted);
+}
+
+.qsa-queue-legend {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.qsa-legend-title {
+    font-weight: 500;
+}
+
+.qsa-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.qsa-legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}
+
+.qsa-legend-item.same-full .qsa-legend-dot {
+    background: var(--qsa-wp-blue);
+}
+
+.qsa-legend-item.same-partial .qsa-legend-dot {
+    background: #0a9fd8;
+}
+
+.qsa-legend-item.mixed-full .qsa-legend-dot {
+    background: var(--qsa-warning);
+}
+
+.qsa-legend-item.mixed-partial .qsa-legend-dot {
+    background: #72aee6;
+}
+
+.qsa-queue-keyboard-hint {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Batch Selector - Updated to match WordPress Admin theme */
+.qsa-batch-selector {
+    background: var(--qsa-bg-card, #ffffff);
+    border: 1px solid var(--qsa-border-light, #dcdcde);
+    border-radius: 4px;
+    padding: 24px;
+    max-width: 800px;
+    margin: 20px 0;
+}
+
+.qsa-batch-selector-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.qsa-batch-selector-header .dashicons {
+    font-size: 24px;
+    width: 24px;
+    height: 24px;
+    color: var(--qsa-wp-blue, #2271b1);
+}
+
+.qsa-batch-selector-header h2 {
+    margin: 0;
+    color: var(--qsa-text-primary, #1d2327);
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.qsa-batch-selector-desc {
+    color: var(--qsa-text-muted, #787c82);
+    margin: 0 0 20px 0;
+    font-size: 14px;
+}
+
+.qsa-batch-selector-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.qsa-batch-selector-item {
+    background: var(--qsa-bg-elevated, #f6f7f7);
+    border: 1px solid var(--qsa-border-light, #dcdcde);
+    border-radius: 4px;
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.qsa-batch-selector-item:hover,
+.qsa-batch-selector-item:focus {
+    background: var(--qsa-bg-hover, #f0f6fc);
+    border-color: var(--qsa-wp-blue, #2271b1);
+    outline: none;
+}
+
+.qsa-batch-selector-item-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.qsa-batch-selector-item .qsa-batch-id {
+    background: var(--qsa-wp-blue, #2271b1);
+    color: #fff;
+}
+
+.qsa-batch-selector-item .qsa-batch-name {
+    color: var(--qsa-text-primary, #1d2327);
+    font-size: 15px;
+    font-weight: 500;
+}
+
+.qsa-batch-selector-item-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 12px;
+    font-size: 13px;
+    color: var(--qsa-text-muted, #787c82);
+}
+
+.qsa-batch-selector-item-meta > span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.qsa-batch-selector-item-meta .dashicons {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+}
+
+.qsa-batch-selector-item-progress {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.qsa-batch-selector-item-progress .qsa-progress-bar {
+    flex: 1;
+    height: 8px;
+    background: var(--qsa-bg-elevated, #f6f7f7);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.qsa-batch-selector-item-progress .qsa-progress-fill {
+    height: 100%;
+    background: var(--qsa-success, #00a32a);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+.qsa-batch-selector-item-progress .qsa-progress-text {
+    color: var(--qsa-text-muted, #787c82);
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.qsa-batch-selector-actions {
+    display: flex;
+    justify-content: flex-start;
+    gap: 12px;
+    padding-top: 16px;
+    border-top: 1px solid var(--qsa-border-light, #dcdcde);
+}
+
+.qsa-batch-selector-actions .button {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.qsa-batch-selector-actions .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+}
+
+/* Queue Error/Loading States */
+.qsa-queue-error {
+    background: var(--qsa-bg-card, #ffffff);
+    border: 1px solid var(--qsa-border-light, #dcdcde);
+    border-radius: 4px;
+    padding: 40px;
+    text-align: center;
+    max-width: 500px;
+    margin: 20px 0;
+}
+
+.qsa-queue-error .notice {
+    margin-bottom: 20px;
+}
+
+.qsa-queue-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+    padding: 40px;
+    background: var(--qsa-bg-card, #ffffff);
+    border: 1px solid var(--qsa-border-light, #dcdcde);
+    border-radius: 4px;
+    color: var(--qsa-text-muted, #787c82);
+}
+
+.qsa-queue-loading .spinner {
+    float: none;
+    margin: 0 0 10px 0;
+}

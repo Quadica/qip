@@ -1,39 +1,42 @@
 import React, { useState } from 'react';
-import { ChevronLeft, Search, Calendar, Package, Hash, Clock, CheckCircle, Loader2, ChevronRight, RotateCcw, Filter, X } from 'lucide-react';
+import { ChevronLeft, Search, Package, Hash, Clock, CheckCircle, ChevronRight, RotateCcw, Filter, X } from 'lucide-react';
 
 /*
- * Luxeon Star LEDs / Quadica LEDs Brand Guidelines - DARK THEME
+ * WordPress Admin Color Scheme
  * Batch History Screen - View previously completed engraving batches for re-engraving
  */
 
-// Brand color constants for dark theme
+// WordPress Admin color constants
 const colors = {
   // Backgrounds
-  bgPrimary: '#0a1628',
-  bgCard: '#0f1f35',
-  bgElevated: '#152a45',
-  bgHover: '#1a3352',
+  bgPrimary: '#f0f0f1',
+  bgCard: '#ffffff',
+  bgElevated: '#f6f7f7',
+  bgHover: '#f0f6fc',
   
-  // Brand blues
-  deepNavy: '#01236d',
-  luxeonBlue: '#0056A4',
-  electricBlue: '#00A0E3',
-  skyBlue: '#109cf6',
-  coolLed: '#87CEEB',
+  // WordPress blues
+  wpBlue: '#2271b1',
+  wpBlueHover: '#135e96',
+  wpBlueFocus: '#043959',
+  wpBlueLight: '#f0f6fc',
   
   // Text
-  textPrimary: '#FFFFFF',
-  textSecondary: '#A8B4BD',
-  textMuted: '#6b7c8f',
+  textPrimary: '#1d2327',
+  textSecondary: '#50575e',
+  textMuted: '#787c82',
   
   // Accents
-  warmLed: '#FFB347',
-  success: '#28A745',
-  alert: '#DC3545',
+  success: '#00a32a',
+  successLight: '#edfaef',
+  warning: '#dba617',
+  warningLight: '#fcf9e8',
+  error: '#d63638',
+  errorLight: '#fcf0f1',
   
   // Borders
-  border: '#1e3a5f',
-  borderLight: '#2a4a6f',
+  border: '#c3c4c7',
+  borderLight: '#dcdcde',
+  borderFocus: '#2271b1',
 };
 
 // Mock data for batch history
@@ -117,10 +120,9 @@ export default function BatchHistory() {
   const [batches] = useState(mockBatchHistory);
   const [selectedBatchId, setSelectedBatchId] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterType, setFilterType] = useState('all'); // all, CORE, SOLO, EDGE, STAR
+  const [filterType, setFilterType] = useState('all');
   const [showFilters, setShowFilters] = useState(false);
 
-  // Format date for display
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { 
@@ -132,7 +134,6 @@ export default function BatchHistory() {
     });
   };
 
-  // Format relative time
   const formatRelativeTime = (dateString) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -146,7 +147,6 @@ export default function BatchHistory() {
     return `${Math.floor(diffDays / 30)} months ago`;
   };
 
-  // Filter batches based on search and type filter
   const filteredBatches = batches.filter(batch => {
     const matchesSearch = searchQuery === '' || 
       batch.id.toString().includes(searchQuery) ||
@@ -159,13 +159,10 @@ export default function BatchHistory() {
     return matchesSearch && matchesType;
   });
 
-  // Get selected batch details
   const selectedBatch = batches.find(b => b.id === selectedBatchId);
 
-  // Load batch into Batch Creator
   const loadBatch = () => {
     if (selectedBatch) {
-      // TODO: Navigate to Batch Creator with selected batch data
       console.log('Load batch into Batch Creator:', selectedBatch);
       alert(`Loading Batch #${selectedBatch.id} into Module Engraving Batch Creator...`);
     }
@@ -175,58 +172,51 @@ export default function BatchHistory() {
     <div 
       className="min-h-screen p-6"
       style={{ 
-        fontFamily: "'Roboto', 'Segoe UI', 'Arial', sans-serif",
+        fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif",
         backgroundColor: colors.bgPrimary,
         color: colors.textPrimary
       }}
     >
       <div className="max-w-6xl mx-auto">
-        {/* Brand Header Bar */}
+        {/* Header */}
         <div 
-          className="rounded-t-lg px-6 py-4 flex items-center justify-between"
+          className="rounded-t px-6 py-4 flex items-center justify-between"
           style={{ 
-            background: `linear-gradient(135deg, ${colors.deepNavy} 0%, ${colors.luxeonBlue} 100%)`,
-            borderBottom: `1px solid ${colors.electricBlue}`
+            backgroundColor: colors.bgCard,
+            borderBottom: `1px solid ${colors.borderLight}`
           }}
         >
           <div className="flex items-center gap-3">
             <button
-              onClick={() => {
-                // TODO: Navigate back to Batch Creator
-                console.log('Navigate back to Batch Creator');
-              }}
+              onClick={() => console.log('Navigate back to Batch Creator')}
               className="p-2 rounded transition-all"
-              style={{ color: colors.coolLed }}
+              style={{ color: colors.textMuted }}
               onMouseOver={(e) => {
-                e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)';
+                e.currentTarget.style.backgroundColor = colors.bgElevated;
+                e.currentTarget.style.color = colors.wpBlue;
               }}
               onMouseOut={(e) => {
                 e.currentTarget.style.backgroundColor = 'transparent';
+                e.currentTarget.style.color = colors.textMuted;
               }}
               title="Back to Batch Creator"
             >
               <ChevronLeft className="w-6 h-6" />
             </button>
             <div 
-              className="w-10 h-10 rounded-lg flex items-center justify-center"
-              style={{ 
-                backgroundColor: colors.electricBlue,
-                boxShadow: `0 0 20px ${colors.electricBlue}40`
-              }}
+              className="w-10 h-10 rounded flex items-center justify-center"
+              style={{ backgroundColor: colors.wpBlue }}
             >
               <Clock className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-white tracking-tight">
+              <h1 className="text-xl font-semibold" style={{ color: colors.textPrimary }}>
                 Engraving Batch History
               </h1>
-              <p className="text-sm" style={{ color: colors.skyBlue }}>
-                LUXEON STAR LEDs Production System
+              <p className="text-sm" style={{ color: colors.textMuted }}>
+                View and reload previous batches for re-engraving
               </p>
             </div>
-          </div>
-          <div className="text-right">
-            <p className="text-xs" style={{ color: colors.coolLed }}>Quadica Developments Inc.</p>
           </div>
         </div>
 
@@ -235,16 +225,12 @@ export default function BatchHistory() {
           className="px-4 py-3 flex items-center gap-4"
           style={{ 
             backgroundColor: colors.bgCard,
-            borderLeft: `1px solid ${colors.border}`,
-            borderRight: `1px solid ${colors.border}`
+            borderLeft: `1px solid ${colors.borderLight}`,
+            borderRight: `1px solid ${colors.borderLight}`
           }}
         >
-          {/* Search Input */}
           <div className="flex-1 relative">
-            <Search 
-              className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4" 
-              style={{ color: colors.textMuted }} 
-            />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4" style={{ color: colors.textMuted }} />
             <input
               type="text"
               placeholder="Search by batch ID, order ID, or module SKU..."
@@ -252,14 +238,14 @@ export default function BatchHistory() {
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2 rounded text-sm"
               style={{
-                backgroundColor: colors.bgElevated,
+                backgroundColor: colors.bgCard,
                 color: colors.textPrimary,
                 border: `1px solid ${colors.border}`,
                 outline: 'none'
               }}
               onFocus={(e) => {
-                e.target.style.borderColor = colors.electricBlue;
-                e.target.style.boxShadow = `0 0 0 2px ${colors.electricBlue}30`;
+                e.target.style.borderColor = colors.wpBlue;
+                e.target.style.boxShadow = `0 0 0 1px ${colors.wpBlue}`;
               }}
               onBlur={(e) => {
                 e.target.style.borderColor = colors.border;
@@ -277,14 +263,13 @@ export default function BatchHistory() {
             )}
           </div>
 
-          {/* Filter Toggle */}
           <button
             onClick={() => setShowFilters(!showFilters)}
             className="px-3 py-2 rounded flex items-center gap-2 text-sm transition-all"
             style={{ 
-              backgroundColor: showFilters ? `${colors.electricBlue}20` : colors.bgElevated,
-              color: showFilters ? colors.electricBlue : colors.textSecondary,
-              border: `1px solid ${showFilters ? colors.electricBlue : colors.border}`
+              backgroundColor: showFilters ? colors.wpBlueLight : colors.bgCard,
+              color: showFilters ? colors.wpBlue : colors.textSecondary,
+              border: `1px solid ${showFilters ? colors.wpBlue : colors.border}`
             }}
           >
             <Filter className="w-4 h-4" />
@@ -298,9 +283,9 @@ export default function BatchHistory() {
             className="px-4 py-3 flex items-center gap-2"
             style={{ 
               backgroundColor: colors.bgElevated,
-              borderLeft: `1px solid ${colors.border}`,
-              borderRight: `1px solid ${colors.border}`,
-              borderBottom: `1px solid ${colors.border}`
+              borderLeft: `1px solid ${colors.borderLight}`,
+              borderRight: `1px solid ${colors.borderLight}`,
+              borderBottom: `1px solid ${colors.borderLight}`
             }}
           >
             <span className="text-xs" style={{ color: colors.textMuted }}>Module Type:</span>
@@ -310,9 +295,9 @@ export default function BatchHistory() {
                 onClick={() => setFilterType(type)}
                 className="px-3 py-1 rounded text-xs font-medium transition-all"
                 style={{ 
-                  backgroundColor: filterType === type ? colors.electricBlue : colors.bgCard,
+                  backgroundColor: filterType === type ? colors.wpBlue : colors.bgCard,
                   color: filterType === type ? '#FFFFFF' : colors.textSecondary,
-                  border: `1px solid ${filterType === type ? colors.electricBlue : colors.border}`
+                  border: `1px solid ${filterType === type ? colors.wpBlue : colors.border}`
                 }}
               >
                 {type === 'all' ? 'All Types' : type}
@@ -325,45 +310,28 @@ export default function BatchHistory() {
         <div 
           className="flex"
           style={{ 
-            borderLeft: `1px solid ${colors.border}`,
-            borderRight: `1px solid ${colors.border}`,
-            borderBottom: `1px solid ${colors.border}`,
-            borderRadius: '0 0 8px 8px',
+            borderLeft: `1px solid ${colors.borderLight}`,
+            borderRight: `1px solid ${colors.borderLight}`,
+            borderBottom: `1px solid ${colors.borderLight}`,
+            borderRadius: '0 0 4px 4px',
             overflow: 'hidden'
           }}
         >
           {/* Batch List */}
-          <div 
-            className="w-1/2"
-            style={{ 
-              backgroundColor: colors.bgCard,
-              borderRight: `1px solid ${colors.border}`
-            }}
-          >
-            {/* List Header */}
+          <div className="w-1/2" style={{ backgroundColor: colors.bgCard, borderRight: `1px solid ${colors.borderLight}` }}>
             <div 
               className="px-4 py-2 flex items-center gap-2"
-              style={{ 
-                backgroundColor: colors.bgElevated,
-                borderBottom: `1px solid ${colors.border}`
-              }}
+              style={{ backgroundColor: colors.bgElevated, borderBottom: `1px solid ${colors.borderLight}` }}
             >
-              <Package className="w-4 h-4" style={{ color: colors.electricBlue }} />
-              <span 
-                className="text-xs uppercase tracking-wider font-semibold"
-                style={{ color: colors.electricBlue }}
-              >
+              <Package className="w-4 h-4" style={{ color: colors.wpBlue }} />
+              <span className="text-sm font-medium" style={{ color: colors.textSecondary }}>
                 Completed Batches ({filteredBatches.length})
               </span>
             </div>
 
-            {/* Batch Items */}
             <div style={{ maxHeight: '500px', overflowY: 'auto' }}>
               {filteredBatches.length === 0 ? (
-                <div 
-                  className="p-8 text-center"
-                  style={{ color: colors.textMuted }}
-                >
+                <div className="p-8 text-center" style={{ color: colors.textMuted }}>
                   <Package className="w-12 h-12 mx-auto mb-3 opacity-50" />
                   <p>No batches found matching your criteria</p>
                 </div>
@@ -378,50 +346,35 @@ export default function BatchHistory() {
                       onClick={() => setSelectedBatchId(batch.id)}
                       className="p-4 cursor-pointer transition-all"
                       style={{ 
-                        backgroundColor: isSelected ? `${colors.electricBlue}15` : 'transparent',
-                        borderBottom: isLast ? 'none' : `1px solid ${colors.border}`,
-                        borderLeft: isSelected ? `3px solid ${colors.electricBlue}` : '3px solid transparent'
+                        backgroundColor: isSelected ? colors.wpBlueLight : colors.bgCard,
+                        borderBottom: isLast ? 'none' : `1px solid ${colors.borderLight}`,
+                        borderLeft: isSelected ? `3px solid ${colors.wpBlue}` : '3px solid transparent'
                       }}
                       onMouseOver={(e) => {
-                        if (!isSelected) {
-                          e.currentTarget.style.backgroundColor = colors.bgHover;
-                        }
+                        if (!isSelected) e.currentTarget.style.backgroundColor = colors.bgHover;
                       }}
                       onMouseOut={(e) => {
-                        if (!isSelected) {
-                          e.currentTarget.style.backgroundColor = 'transparent';
-                        }
+                        if (!isSelected) e.currentTarget.style.backgroundColor = colors.bgCard;
                       }}
                     >
-                      {/* Batch Header */}
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
-                          <span 
-                            className="text-lg font-bold"
-                            style={{ color: isSelected ? colors.electricBlue : colors.textPrimary }}
-                          >
+                          <span className="text-lg font-semibold" style={{ color: isSelected ? colors.wpBlue : colors.textPrimary }}>
                             Batch #{batch.id}
                           </span>
                           <span 
                             className="px-2 py-0.5 rounded text-xs flex items-center gap-1"
-                            style={{ 
-                              backgroundColor: `${colors.success}20`,
-                              color: colors.success
-                            }}
+                            style={{ backgroundColor: colors.successLight, color: colors.success }}
                           >
                             <CheckCircle className="w-3 h-3" />
                             Completed
                           </span>
                         </div>
-                        <span 
-                          className="text-xs"
-                          style={{ color: colors.textMuted }}
-                        >
+                        <span className="text-xs" style={{ color: colors.textMuted }}>
                           {formatRelativeTime(batch.completedAt)}
                         </span>
                       </div>
 
-                      {/* Batch Stats */}
                       <div className="flex items-center gap-4 text-sm mb-2">
                         <div className="flex items-center gap-1">
                           <Package className="w-3 h-3" style={{ color: colors.textMuted }} />
@@ -441,17 +394,12 @@ export default function BatchHistory() {
                         </div>
                       </div>
 
-                      {/* Module Type Tags */}
                       <div className="flex items-center gap-1">
                         {batch.moduleTypes.map(type => (
                           <span 
                             key={type}
                             className="px-2 py-0.5 rounded text-xs font-medium"
-                            style={{ 
-                              fontFamily: "'Roboto Mono', 'Consolas', monospace",
-                              backgroundColor: `${colors.skyBlue}20`,
-                              color: colors.skyBlue
-                            }}
+                            style={{ fontFamily: "'SF Mono', 'Consolas', monospace", backgroundColor: colors.wpBlueLight, color: colors.wpBlue }}
                           >
                             {type}
                           </span>
@@ -465,59 +413,35 @@ export default function BatchHistory() {
           </div>
 
           {/* Batch Details */}
-          <div 
-            className="w-1/2"
-            style={{ backgroundColor: colors.bgPrimary }}
-          >
-            {/* Details Header */}
+          <div className="w-1/2" style={{ backgroundColor: colors.bgPrimary }}>
             <div 
               className="px-4 py-2 flex items-center gap-2"
-              style={{ 
-                backgroundColor: colors.bgElevated,
-                borderBottom: `1px solid ${colors.border}`
-              }}
+              style={{ backgroundColor: colors.bgElevated, borderBottom: `1px solid ${colors.borderLight}` }}
             >
-              <Hash className="w-4 h-4" style={{ color: colors.electricBlue }} />
-              <span 
-                className="text-xs uppercase tracking-wider font-semibold"
-                style={{ color: colors.electricBlue }}
-              >
+              <Hash className="w-4 h-4" style={{ color: colors.wpBlue }} />
+              <span className="text-sm font-medium" style={{ color: colors.textSecondary }}>
                 Batch Details
               </span>
             </div>
 
-            {/* Details Content */}
             {!selectedBatch ? (
-              <div 
-                className="p-8 text-center"
-                style={{ color: colors.textMuted }}
-              >
+              <div className="p-8 text-center" style={{ color: colors.textMuted }}>
                 <Hash className="w-12 h-12 mx-auto mb-3 opacity-50" />
                 <p>Select a batch to view details</p>
               </div>
             ) : (
               <div className="p-4">
-                {/* Batch Info */}
                 <div 
-                  className="p-4 rounded-lg mb-4"
-                  style={{ 
-                    backgroundColor: colors.bgCard,
-                    border: `1px solid ${colors.border}`
-                  }}
+                  className="p-4 rounded mb-4"
+                  style={{ backgroundColor: colors.bgCard, border: `1px solid ${colors.borderLight}` }}
                 >
                   <div className="flex items-center justify-between mb-3">
-                    <span 
-                      className="text-xl font-bold"
-                      style={{ color: colors.electricBlue }}
-                    >
+                    <span className="text-xl font-semibold" style={{ color: colors.wpBlue }}>
                       Batch #{selectedBatch.id}
                     </span>
                     <span 
                       className="px-2 py-1 rounded text-xs flex items-center gap-1"
-                      style={{ 
-                        backgroundColor: `${colors.success}20`,
-                        color: colors.success
-                      }}
+                      style={{ backgroundColor: colors.successLight, color: colors.success }}
                     >
                       <CheckCircle className="w-3 h-3" />
                       Completed
@@ -527,50 +451,32 @@ export default function BatchHistory() {
                   <div className="grid grid-cols-2 gap-3 text-sm">
                     <div>
                       <span style={{ color: colors.textMuted }}>Created:</span>
-                      <span className="ml-2" style={{ color: colors.textSecondary }}>
-                        {formatDate(selectedBatch.createdAt)}
-                      </span>
+                      <span className="ml-2" style={{ color: colors.textSecondary }}>{formatDate(selectedBatch.createdAt)}</span>
                     </div>
                     <div>
                       <span style={{ color: colors.textMuted }}>Completed:</span>
-                      <span className="ml-2" style={{ color: colors.textSecondary }}>
-                        {formatDate(selectedBatch.completedAt)}
-                      </span>
+                      <span className="ml-2" style={{ color: colors.textSecondary }}>{formatDate(selectedBatch.completedAt)}</span>
                     </div>
                     <div>
                       <span style={{ color: colors.textMuted }}>Total Arrays:</span>
-                      <span className="ml-2" style={{ color: colors.textSecondary }}>
-                        {selectedBatch.totalArrays}
-                      </span>
+                      <span className="ml-2" style={{ color: colors.textSecondary }}>{selectedBatch.totalArrays}</span>
                     </div>
                     <div>
                       <span style={{ color: colors.textMuted }}>Orders:</span>
-                      <span className="ml-2" style={{ color: colors.textSecondary }}>
-                        {selectedBatch.orderIds.join(', ')}
-                      </span>
+                      <span className="ml-2" style={{ color: colors.textSecondary }}>{selectedBatch.orderIds.join(', ')}</span>
                     </div>
                   </div>
                 </div>
 
-                {/* Module List */}
                 <div 
-                  className="rounded-lg overflow-hidden"
-                  style={{ 
-                    backgroundColor: colors.bgCard,
-                    border: `1px solid ${colors.border}`
-                  }}
+                  className="rounded overflow-hidden"
+                  style={{ backgroundColor: colors.bgCard, border: `1px solid ${colors.borderLight}` }}
                 >
                   <div 
                     className="px-4 py-2"
-                    style={{ 
-                      backgroundColor: colors.bgElevated,
-                      borderBottom: `1px solid ${colors.border}`
-                    }}
+                    style={{ backgroundColor: colors.bgElevated, borderBottom: `1px solid ${colors.borderLight}` }}
                   >
-                    <span 
-                      className="text-xs uppercase tracking-wider font-semibold"
-                      style={{ color: colors.textSecondary }}
-                    >
+                    <span className="text-xs uppercase tracking-wider font-medium" style={{ color: colors.textSecondary }}>
                       Modules in Batch ({selectedBatch.totalModules})
                     </span>
                   </div>
@@ -580,77 +486,45 @@ export default function BatchHistory() {
                       <div 
                         key={index}
                         className="p-3"
-                        style={{ 
-                          borderBottom: index < selectedBatch.modules.length - 1 
-                            ? `1px solid ${colors.border}` 
-                            : 'none'
-                        }}
+                        style={{ borderBottom: index < selectedBatch.modules.length - 1 ? `1px solid ${colors.borderLight}` : 'none' }}
                       >
                         <div className="flex items-center justify-between mb-1">
                           <div>
                             <span 
-                              className="font-bold text-sm"
-                              style={{ 
-                                fontFamily: "'Roboto Mono', 'Consolas', monospace",
-                                color: colors.skyBlue
-                              }}
+                              className="font-medium text-sm"
+                              style={{ fontFamily: "'SF Mono', 'Consolas', monospace", color: colors.wpBlue }}
                             >
                               {module.sku}
                             </span>
-                            <span 
-                              className="ml-2 text-sm"
-                              style={{ color: colors.textSecondary }}
-                            >
-                              × {module.qty}
-                            </span>
+                            <span className="ml-2 text-sm" style={{ color: colors.textSecondary }}>× {module.qty}</span>
                           </div>
                           <div 
                             className="text-xs font-mono px-2 py-1 rounded"
-                            style={{ 
-                              backgroundColor: colors.bgElevated,
-                              color: colors.textMuted
-                            }}
+                            style={{ backgroundColor: colors.bgElevated, color: colors.textMuted }}
                           >
                             {module.serialStart} - {module.serialEnd}
                           </div>
                         </div>
-                        <div className="text-xs" style={{ color: colors.textMuted }}>
-                          Order #{module.orderId}
-                        </div>
+                        <div className="text-xs" style={{ color: colors.textMuted }}>Order #{module.orderId}</div>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                {/* Action Buttons */}
                 <div className="mt-4 flex items-center gap-3">
                   <button
                     onClick={loadBatch}
-                    className="flex-1 px-4 py-3 rounded font-bold text-sm flex items-center justify-center gap-2 transition-all"
-                    style={{ 
-                      backgroundColor: colors.electricBlue,
-                      color: '#FFFFFF',
-                      boxShadow: `0 0 15px ${colors.electricBlue}30`
-                    }}
-                    onMouseOver={(e) => {
-                      e.currentTarget.style.backgroundColor = colors.skyBlue;
-                      e.currentTarget.style.boxShadow = `0 0 25px ${colors.skyBlue}50`;
-                    }}
-                    onMouseOut={(e) => {
-                      e.currentTarget.style.backgroundColor = colors.electricBlue;
-                      e.currentTarget.style.boxShadow = `0 0 15px ${colors.electricBlue}30`;
-                    }}
+                    className="flex-1 px-4 py-3 rounded font-medium text-sm flex items-center justify-center gap-2 transition-all"
+                    style={{ backgroundColor: colors.wpBlue, color: '#FFFFFF' }}
+                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = colors.wpBlueHover}
+                    onMouseOut={(e) => e.currentTarget.style.backgroundColor = colors.wpBlue}
                   >
                     <RotateCcw className="w-4 h-4" />
                     Load for Re-engraving
                   </button>
                 </div>
 
-                {/* Help Text */}
-                <p 
-                  className="mt-3 text-xs text-center"
-                  style={{ color: colors.textMuted }}
-                >
+                <p className="mt-3 text-xs text-center" style={{ color: colors.textMuted }}>
                   Loading this batch will display all modules in the Batch Creator, 
                   where you can select specific modules to re-engrave with new serial numbers.
                 </p>
@@ -659,17 +533,13 @@ export default function BatchHistory() {
           </div>
         </div>
 
-        {/* Footer Legend */}
+        {/* Footer Workflow */}
         <div 
-          className="mt-6 flex items-center justify-between text-xs p-4 rounded-lg"
-          style={{ 
-            backgroundColor: colors.bgCard,
-            border: `1px solid ${colors.border}`,
-            color: colors.textMuted
-          }}
+          className="mt-6 flex items-center justify-between text-xs p-4 rounded"
+          style={{ backgroundColor: colors.bgCard, border: `1px solid ${colors.borderLight}`, color: colors.textMuted }}
         >
           <div className="flex items-center gap-4">
-            <span className="font-semibold" style={{ color: colors.textSecondary }}>Re-engraving Workflow:</span>
+            <span className="font-medium" style={{ color: colors.textSecondary }}>Re-engraving Workflow:</span>
             <div className="flex items-center gap-2">
               <span className="px-2 py-0.5 rounded" style={{ backgroundColor: colors.bgElevated }}>1</span>
               <span>Select batch</span>
@@ -692,12 +562,9 @@ export default function BatchHistory() {
           </div>
         </div>
 
-        {/* Brand Footer */}
-        <div 
-          className="mt-4 text-center text-xs py-2"
-          style={{ color: colors.textMuted }}
-        >
-          LUXEON STAR LEDs by Quadica® • Production Management System
+        {/* Footer */}
+        <div className="mt-4 text-center text-xs py-2" style={{ color: colors.textMuted }}>
+          QSA Engraving System • Quadica Developments Inc.
         </div>
       </div>
     </div>

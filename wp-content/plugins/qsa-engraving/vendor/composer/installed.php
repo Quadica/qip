@@ -1,0 +1,41 @@
+<?php return array(
+    'root' => array(
+        'name' => 'quadica/qsa-engraving',
+        'pretty_version' => 'dev-main',
+        'version' => 'dev-main',
+        'reference' => '0d217058bb4a986e0da39759e2f8adc49f84f7d8',
+        'type' => 'wordpress-plugin',
+        'install_path' => __DIR__ . '/../../',
+        'aliases' => array(),
+        'dev' => false,
+    ),
+    'versions' => array(
+        'quadica/qsa-engraving' => array(
+            'pretty_version' => 'dev-main',
+            'version' => 'dev-main',
+            'reference' => '0d217058bb4a986e0da39759e2f8adc49f84f7d8',
+            'type' => 'wordpress-plugin',
+            'install_path' => __DIR__ . '/../../',
+            'aliases' => array(),
+            'dev_requirement' => false,
+        ),
+        'tecnickcom/tc-lib-barcode' => array(
+            'pretty_version' => '2.4.18',
+            'version' => '2.4.18.0',
+            'reference' => '338095651126ec4207f98e5221beea30b27c0fe9',
+            'type' => 'library',
+            'install_path' => __DIR__ . '/../tecnickcom/tc-lib-barcode',
+            'aliases' => array(),
+            'dev_requirement' => false,
+        ),
+        'tecnickcom/tc-lib-color' => array(
+            'pretty_version' => '2.3.2',
+            'version' => '2.3.2.0',
+            'reference' => '4a70cf68cd9fd4082b1b6d16234876a66649be0b',
+            'type' => 'library',
+            'install_path' => __DIR__ . '/../tecnickcom/tc-lib-color',
+            'aliases' => array(),
+            'dev_requirement' => false,
+        ),
+    ),
+);

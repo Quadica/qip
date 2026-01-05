@@ -1,6 +1,6 @@
 # Quadica Standard Array Engraving - Required Functionality
  
-**Last Update:** Dec 30, 2025  
+**Last Update:** Jan 4, 2026 (Batch Generation Rules clarified)
 **Author:** Ron Warris  
 
 ## 1. Project Overview
@@ -54,8 +54,10 @@ The process will only process LED modules that use the QSA.
 - The operator will be able to refresh the list of modules by clicking on an refresh icon.
 - Needed modules can be determined by querying and comparing the values from the build_qty field with the value in the qty_recieved field in the oms_batch_items table. If the value in the qty_received field is less than the build_qty field, then the difference is what needs to be built and is included in the modules to build list.
 
+**Legacy OMS Table Note:** The `oms_batch_items` table is from the legacy Order Management System and intentionally does NOT use the WordPress table prefix (it's just `oms_batch_items`, not `{prefix}_oms_batch_items`). This table will eventually be deprecated but is required for the current engraving workflow integration.
+
 **Module Engraving Batch Creator Page Mockup**
-- [Functional React mockup page](https://claude.ai/public/artifacts/bc2959bd-0c6d-402b-ba37-2ada39964eda)
+- [Functional React mockup page](https://claude.ai/public/artifacts/85194353-81af-4ea0-b621-49bd6aa13bda)
 - [JSX React Source Code](docs/reference/module-engraving-batch-creator-mockup.jsx)
 
 #### Batch History Access
@@ -72,7 +74,7 @@ The Module Engraving Batch Creator screen includes a link to view previously com
 This allows QA-rejected modules to be re-engraved, or additional modules to be added to an existing order, without affecting other modules in the original batch. Original serial numbers remain in "engraved" status (not recycled).
 
 **Engraving Batch History Page Mockup**
-- [Functional React mockup page](https://claude.ai/public/artifacts/10900dfa-9d47-4a73-99fd-60960f169cb5)
+- [Functional React mockup page](https://claude.ai/public/artifacts/fbfd8d16-67d8-4bc6-a264-50af2613ef06)
 - [JSX React Source Code](docs/reference/engraving-batch-history-mockup.jsx)
 
 ### SVG Engraving
@@ -128,36 +130,31 @@ This is an optimization problem similar to minimizing transitions in a traveling
   | CORE-45946 | 3 |
   | **Total** | **13** |
 
-  Then it will create two QSAs (and two unique SVG files):
+  
+  Since all modules are CORE type (same base type), they form **one row** with 13 modules.
+  After LED optimization sorting, the system creates 2 QSAs:
 
-  **QSA 1** (8 modules - full array)
-  | Module | Quantity |
-  |--------|----------|
-  | CORE-91247 | 2 |
-  | CORE-38455 | 1 |
-  | CORE-98546 | 3 |
-  | CORE-23405 | 2 |
+  - **QSA 1**: 8 modules (positions 1-8)
+  - **QSA 2**: 5 modules (positions 1-5)
 
-  **QSA 2** (5 modules - partial array)
-  | Module | Quantity |
-  |--------|----------|
-  | CORE-23405 | 2 |
-  | CORE-45946 | 3 |
+  The specific mix of config codes on each array depends on LED optimization sorting.
+  See "Batch Generation Rules" section for complete details.
 
 ### Engraving Queue
 After creating an engraving batch, the operator sees an Engraving Queue interface listing all QSAs to be engraved.
 
-#### QSA Grouping
-QSAs are grouped into rows to organize the work for the operator:
+#### Row Organization
+Rows are organized by **base type** (the 4-letter SKU prefix: CUBE, STAR, PICO, etc.):
 
-| Group Type | Description |
-|------------|-------------|
-| **Same ID × Full** | 8 identical modules per QSA |
-| **Same ID × Partial** | <8 identical modules (final QSA) |
-| **Mixed ID × Full** | 8 different module types per QSA |
-| **Mixed ID × Partial** | <8 different module types (final QSA) |
+- All modules of the same base type are grouped into one row
+- Each row displays: base type, module count, array count, and an "Engrave" button
+- Each QSA in the row will have its own unique SVG file (generated with unique serial numbers)
 
-Each row displays: module count, array count, and an "Engrave" button. Each QSA in the row will have its own unique SVG file (generated with unique serial numbers).
+**Example:** A batch with 33 CUBE modules and 44 STAR modules has exactly 2 rows:
+- Row 1: CUBE — 33 modules, 5 arrays
+- Row 2: STAR — 44 modules, 6 arrays
+
+See "Batch Generation Rules" section for complete grouping and sorting rules.
 
 #### QSA Starting Offset
 QSAs may have unused positions from previous batches. The operator can specify a **Starting Position** (1-8) for the first QSA in a run.
@@ -168,11 +165,13 @@ QSAs may have unused positions from previous batches. The operator can specify a
 | **Valid Range** | 1-8 (position 1 = first/top-left; position 8 = single module remaining) |
 
 **Behavior:**
-- The offset applies **only to the first QSA** in a multi-array run
+- The offset applies **only to the first QSA** in a multi-array row
 - Subsequent QSAs always start at position 1
 - If Starting Position = 5, the first QSA uses positions 5-8 (4 modules max)
 - Offset is set **per row** — operator engraves one row at a time
-- No persistence — operator manually provides starting position each time
+- Changing start position triggers automatic module redistribution across arrays
+- Start position can only be changed when row status is "Pending"
+- Array count updates immediately to reflect the new distribution
 
 **Example:** 26 identical modules, Starting Position = 5
 1. **QSA 1** — positions 5-8 (4 modules, 4 unique serials)
@@ -183,7 +182,7 @@ QSAs may have unused positions from previous batches. The operator can specify a
 Total: 4 + 8 + 8 + 6 = 26 modules across 4 QSAs, each with its own SVG file.
 
 **Engraving Queue Page Mockup**
-- [Functional React mockup page](https://claude.ai/public/artifacts/8319e841-26b2-4ae9-a7d6-8df243b19cf8)
+- [Functional React mockup page](https://claude.ai/public/artifacts/78f135ab-c163-4ff5-b1bb-ff083ca49a8d)
 - [JSX React Source Code](docs/reference/engraving-queue-mockup.jsx)
 
 #### Array-by-Array Workflow
@@ -246,18 +245,31 @@ Things can go wrong during the engraving process. A module may not be positioned
 | Control | When Available | What It Does | Serial Number Impact |
 |---------|----------------|--------------|---------------------|
 | **Resend** | During engraving | Sends the current SVG to LightBurn again. Use when the file didn't transfer properly but the QSA is still usable. | No change — same serials |
-| **Retry** | During engraving | Scraps the current QSA and generates a fresh SVG with new serial numbers. Use when the QSA is ruined and you need a fresh substrate. | Original serials stay reserved, new serials assigned |
-| **Back** | After first array | Returns to the previous array. The previous array's serials remain committed; you'll re-engrave on a new QSA with new serials. | Previous stays committed, new serials assigned for re-do |
-| **Rerun** | After row complete | Resets selected arrays (or entire row) back to pending. Allows adjusting starting position. | Original serials stay engraved, new serials assigned |
+| **Retry** | During engraving | Scraps the current QSA and generates a fresh SVG with new serial numbers. Use when the QSA is ruined and you need a fresh substrate. | Original serials voided, new serials assigned |
+| **Rerun** | After row complete | Resets row back to pending. Allows adjusting starting position. | Original serials stay engraved, new serials assigned on restart |
 
 **Resend vs Retry — Key Distinction:**
 - **Resend** = Same QSA, same serials, just re-transmit the file (communication issue)
 - **Retry** = New QSA, new serials, the old QSA is scrapped (physical failure)
 
+**Multi-Array Row Workflow:**
+When a row contains more modules than fit on a single QSA array, the system supports multi-array progression:
+- Each row can span multiple QSA arrays based on module count and starting position
+- "Engrave" reserves serials for ALL arrays in the row and marks row as in_progress
+- "Next Array" advances to the next array in the row (commits current array's serials)
+- "Complete" commits final array's serials and marks row as done
+- The Spacebar keyboard shortcut advances through arrays (Next Array or Complete on final)
+
+**Starting Position and Array Redistribution:**
+When the operator changes the starting position for a row, the system automatically redistributes modules across arrays:
+- Starting position applies ONLY to the first array in the row
+- Subsequent arrays ALWAYS start at position 1
+- Example: 24 modules with start_position=6 requires 4 arrays: (3 + 8 + 8 + 5 = 24)
+- The system allocates new QSA sequences beyond the batch's current maximum to avoid conflicts
+- Array count display updates immediately to reflect the new distribution
+
 **Important Behaviors:**
-- The "Back" button only appears after the first array
 - The "Resend" and "Retry" buttons are available during an in-progress row
-- Using "Rerun" allows selecting which arrays to redo, or redoing the entire row
 - None of these actions affect other rows in the queue
 - Serial numbers are never recycled — new serials are always assigned for re-engraving
 
@@ -449,27 +461,114 @@ A module with two LEDs might have:
 Sample files are available for development and testing:
 
 **Sample Coordinate Data:**
-- [stara-qsa-sample-svg-data.csv](docs/sample-data/stara-qsa-sample-svg-data.csv) - Complete coordinate and engraving data for a STARa QSA with 8 modules
-- Includes X/Y positions for all element types (micro_id, datamatrix, module_id, serial_url, led_code_1)
+- [qsa-sample-svg-data.csv](docs/sample-data/qsa-sample-svg-data.csv) - Complete coordinate and engraving data for STARa, CUBEa, and PICOa QSAs with 8 modules each
+- Includes X/Y positions for all element types (micro_id, datamatrix, module_id, serial_url, led_code_x)
 - Coordinates use bottom-left origin (CAD format); convert to SVG with: `svg_y = 113.7 - csv_y`
-- Contains metadata header documenting rendering parameters (text heights, font, sizes)
+- Contains metadata header documenting rendering parameters
 
 **Sample SVG Output:**
-- [stara-qsa-sample.svg](docs/sample-data/stara-qsa-sample.svg) - Generated SVG showing all 8 module positions
-- Demonstrates correct element positioning and coordinate transformation
-- Includes working Micro-ID dot patterns encoded from sample serial numbers
+- [stara-qsa-sample.svg](docs/sample-data/stara-qsa-sample.svg) - STARa QSA with 8 modules, 1 LED code each (serials 00123454-00123461)
+- [picoa-qsa-sample.svg](docs/sample-data/picoa-qsa-sample.svg) - PICOa QSA with 8 modules, 1 LED code each (serials 00234501-00234508)
+- [cubea-qsa-sample.svg](docs/sample-data/cubea-qsa-sample.svg) - CUBEa QSA with 8 modules, 4 LED codes each in 2x2 grid (serials 00345601-00345608)
+
+All sample SVGs demonstrate:
+- Correct element positioning and CAD-to-SVG coordinate transformation
+- Working Micro-ID dot patterns encoded from sample serial numbers
 - Data Matrix shown as placeholder rectangles (14mm x 6.5mm) - actual barcodes require library generation
 - Text rendered using Roboto Thin font with hair-space character spacing
 
 **Key Rendering Parameters (from sample data):**
 
-| Element | Size/Height | Notes |
-|---------|-------------|-------|
-| micro_id | 1.0mm x 1.0mm | 0.10mm dots, 0.225mm pitch |
-| datamatrix | 14mm x 6.5mm | ECC 200 rectangular format |
-| module_id | 1.5mm text height | Roboto Thin, text-anchor middle |
-| serial_url | 1.2mm text height | Roboto Thin, text-anchor middle |
-| led_code_1 | 1.0mm text height | Roboto Thin, text-anchor middle |
+| Element | Notes |
+|---------|-------|
+| micro_id | 0.10mm dots, 0.225mm pitch |
+| datamatrix | ECC 200 rectangular format |
+| module_id | Roboto Thin, text-anchor middle |
+| serial_url | Roboto Thin, text-anchor middle |
+| led_code_1 | Roboto Thin, text-anchor middle |
+
+## Batch Generation Rules
+
+### Row Grouping
+
+1. **Rows are grouped by base type AND revision.** The base type includes the 4-letter design prefix plus the revision letter (e.g., STARa, CUBEb, PICO). Different revisions have different physical layouts and cannot share arrays.
+
+2. **All modules of the same base type + revision go in the same row**, regardless of config code or order. For example:
+   - CUBEa-88546 and CUBEa-98345 are both CUBEa type → same row
+   - STARa-10343, STARa-29654, and STARa-39285 are all STARa type → same row
+   - STARa-10343 and STARb-10343 are DIFFERENT types → separate rows
+
+3. **Different base types or revisions are always in separate rows.** A batch with CUBEa and STARa modules will have exactly 2 rows. A batch with STARa and STARb modules will also have 2 rows.
+
+4. **Each base type + revision uses its own SVG configuration** defined in the `lw_quad_qsa_config` table (e.g., CUBEa, STARa, STARb). The config code portion of the SKU (e.g., -88546) identifies which LEDs are mounted, not the physical layout.
+
+### LED Optimization Sorting
+
+5. **Modules within a row are sorted to minimize LED pick-and-place transitions**, as defined in the "Module Sorting for LED Pick-and-Place Optimization" section.
+
+6. **LED position matters for sorting.** Two modules with the same LED codes but in different PCB socket positions are treated as different configurations:
+   - Module A: [K7P@position1, AF3@position2]
+   - Module B: [AF3@position1, K7P@position2]
+   - These are DIFFERENT configurations and will be in separate sort groups
+
+7. **Sorting can interleave different config codes.** After LED optimization, CUBE-88546 and CUBE-98345 modules may be interleaved if that minimizes LED transitions.
+
+### Array Assignment
+
+8. **Modules of the same base type share physical QSA arrays.** After sorting, arrays are filled sequentially. A single array may contain modules with different config codes (e.g., 4× CUBE-88546 + 4× CUBE-98345).
+
+9. **Each array holds up to 8 modules** at positions 1-8.
+
+### Start Position
+
+10. **Start position defaults to 1** for every row when the batch is created.
+
+11. **Start position only affects the first array** in a row. Subsequent arrays always start at position 1.
+
+12. **Changing start position redistributes modules** across arrays and may add additional arrays to accommodate all modules.
+
+13. **Start position can only be changed when the row status is "Pending."**
+
+14. **Sort order is preserved** when start position changes—modules maintain their LED-optimized sequence.
+
+### UI Display
+
+15. **Row labels show the base type with revision** (e.g., "CUBEa", "STARb"). The "Same ID × Full / Mixed ID × Partial" labels are removed.
+
+16. **Row details show module count and array count** (e.g., "CUBEa — 33 modules, 5 arrays").
+
+### Example: Batch 1
+
+If the operator selects:
+- 28× CUBEa-88546 (from orders 283469, 283487)
+- 5× CUBEa-98345 (from order 283472)
+- 40× STARa-10343 (from orders 283457, 283487)
+- 3× STARa-29654 (from order 283457)
+- 1× STARa-39285 (from order 283457)
+
+The batch should have **exactly 2 rows**:
+
+| Row | Base Type | Modules | Arrays |
+|-----|-----------|---------|--------|
+| 1 | CUBEa | 33 (28 + 5) | 5 |
+| 2 | STARa | 44 (40 + 3 + 1) | 6 |
+
+Within each row, modules are sorted by LED optimization, and different config codes may share the same physical arrays.
+
+### Example: Batch with Multiple Revisions
+
+If the operator selects:
+- 20× STARa-10343
+- 10× STARb-10343 (different physical layout)
+
+The batch should have **exactly 2 rows** (one per revision):
+
+| Row | Base Type | Modules | Arrays |
+|-----|-----------|---------|--------|
+| 1 | STARa | 20 | 3 |
+| 2 | STARb | 10 | 2 |
+
+Even though both are "STAR" modules with the same config code, they have different revisions and cannot share arrays.
 
 ## 4. Out of Band Functions
 None of the the following needs to be considered as part of the plugin development as they are handled using separate business processes:

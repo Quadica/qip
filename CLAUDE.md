@@ -87,7 +87,7 @@
 - **GitHub Repository:** See the CONFIG.md file for details
 - **Testing Site:** Cloned from live site (safe for development testing)
 - **GitHub Actions:** CI/CD pipeline to Kinsta via SSH
-- **Automated Deployment:** Push to `main` triggers deployment to the cloned testing site
+- **Automated Deployment:** Push to `[BRANCH_NAME]` triggers deployment to the cloned testing site
 
 ## Default Repository Structure
 This is the standard structure of our repositories.
@@ -179,13 +179,52 @@ This is the standard structure of our repositories.
 ## AJAX Guidelines
 - **IMPORTANT** Reference the AJAX.md file before implementing ANY AJAX code
 
-## Testing Environment**
+## Testing Environment
 - **Available Via SSH**: WP-CLI with SSH access to our testing site is available
 - **Details In TESTING.md**: Includes complete test environment information and access instructions
-- **Automated Staging Deployment**: GitHub Actions deploys code pushes to staging automatically for `main`
+- **Automated Staging Deployment**: GitHub Actions deploys code pushes to staging automatically for `[BRANCH_NAME]`
 - **Safe for Development**: Our testing environments are isolated from our production sites
 - **Dev Dependencies on Staging**: Composer dev packages are installed on staging for tests; production never has dev deps
 - For SSH connection details and quick test commands, see `TESTING.md` (Testing Environment → Quick Test Commands).
+
+## Code Deployment Policy - CRITICAL
+
+### NEVER Deploy Code Via SSH/SCP/Rsync
+**DO NOT use SSH, SCP, rsync, or any direct file transfer to deploy code changes to the testing site.**
+
+This is the **wrong** approach:
+```bash
+# WRONG - Never do this for code deployment!
+scp -P 21264 file.php user@host:/path/to/plugin/
+rsync -e "ssh -p 21264" ./plugin/ user@host:/path/to/plugin/
+ssh user@host -p 21264 "cat > /path/to/file.php" < file.php
+```
+
+### ALWAYS Use Git + GitHub Actions
+**The ONLY way to deploy code changes to the testing site is:**
+1. Make code changes locally
+2. Commit changes: `git add . && git commit -m "Description"`
+3. Push to GitHub: `git push origin [BRANCH_NAME]`
+4. Wait ~30 seconds for `deploy-to-testsite.yml` workflow to complete
+5. Verify deployment via smoke tests or screenshots
+
+This ensures:
+- Version control tracks all changes
+- Deployment is reproducible and auditable
+- No manual file sync errors or permission issues
+- Consistent workflow across all sessions
+
+### SSH Is ONLY For:
+- **Running tests**: WP-CLI smoke tests, PHPUnit tests
+- **Reading data**: Checking logs, database queries via WP-CLI
+- **Taking screenshots**: Playwright authentication
+- **Code Snippets**: Managing snippets via WP-CLI (these are database-stored, not file-based)
+
+### NOT For:
+- Uploading plugin files
+- Editing files directly on the server
+- Syncing directories
+- Any file write operations to the plugin codebase
 
 ## Testing Standards
 - **Purpose:** Right-sized testing for internal plugins; stability over coverage
