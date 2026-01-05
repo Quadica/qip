@@ -1617,7 +1617,8 @@
     to { transform: rotate(360deg); }
 }
 
-.qsa-module-type {
+/* Base Type - Primary row identifier (e.g., CUBE, STAR, PICO) */
+.qsa-base-type {
     display: inline-block;
     padding: 4px 12px;
     background: var(--qsa-wp-blue-light);
@@ -1629,31 +1630,12 @@
     border: 1px solid rgba(34, 113, 177, 0.2);
 }
 
-.qsa-group-type {
+/* Module count summary */
+.qsa-module-summary {
     display: inline-block;
     padding: 4px 8px;
-    font-size: 12px;
-    border-radius: 4px;
-}
-
-.qsa-group-type.group-same-full {
-    background: rgba(34, 113, 177, 0.1);
-    color: var(--qsa-wp-blue);
-}
-
-.qsa-group-type.group-same-partial {
-    background: rgba(10, 159, 216, 0.1);
-    color: #0a9fd8;
-}
-
-.qsa-group-type.group-mixed-full {
-    background: var(--qsa-warning-light);
-    color: var(--qsa-warning);
-}
-
-.qsa-group-type.group-mixed-partial {
-    background: rgba(114, 174, 230, 0.1);
-    color: #72aee6;
+    font-size: 13px;
+    color: var(--qsa-text-secondary);
 }
 
 .qsa-status-badge {

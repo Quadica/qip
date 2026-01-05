@@ -394,10 +394,6 @@ class Queue_Ajax_Handler {
 		$queue_items = array();
 
 		foreach ( $by_original_qsa as $original_qsa => $row_modules ) {
-			// Get unique SKUs to determine group type (Same ID vs Mixed ID).
-			$unique_skus = array_unique( array_column( $row_modules, 'module_sku' ) );
-			$is_same_id  = count( $unique_skus ) === 1;
-
 			// Get all distinct current QSA sequences for this row.
 			$qsa_sequences = array_unique( array_column( $row_modules, 'qsa_sequence' ) );
 			$qsa_sequences = array_map( 'intval', $qsa_sequences );
@@ -407,7 +403,7 @@ class Queue_Ajax_Handler {
 			$total_count = count( $row_modules );
 			$array_count = count( $qsa_sequences );
 
-			// Module type from first module's SKU.
+			// Base type from first module's SKU (all modules in a row have the same base type).
 			$first_sku   = $row_modules[0]['module_sku'];
 			$module_type = $this->extract_base_type( $first_sku );
 
@@ -421,38 +417,21 @@ class Queue_Ajax_Handler {
 				$by_current_qsa[ $qsa ][] = $module;
 			}
 
-			// Determine if full or partial (last array has 8 modules?).
-			$last_qsa         = end( $qsa_sequences );
-			$last_qsa_modules = $by_current_qsa[ $last_qsa ] ?? array();
-			$is_full          = count( $last_qsa_modules ) === 8;
-
-			// Set group type label.
-			$group_type = ( $is_same_id ? 'Same ID' : 'Mixed ID' ) . ' × ' . ( $is_full ? 'Full' : 'Partial' );
-
-			// Build module list (SKU counts).
-			if ( $is_same_id ) {
-				$module_list = array(
-					array(
-						'sku' => $unique_skus[0],
-						'qty' => $total_count,
-					),
+			// Build module list (SKU counts) - always show breakdown by config code.
+			$sku_counts = array();
+			foreach ( $row_modules as $module ) {
+				$sku = $module['module_sku'];
+				if ( ! isset( $sku_counts[ $sku ] ) ) {
+					$sku_counts[ $sku ] = 0;
+				}
+				$sku_counts[ $sku ]++;
+			}
+			$module_list = array();
+			foreach ( $sku_counts as $sku => $qty ) {
+				$module_list[] = array(
+					'sku' => $sku,
+					'qty' => $qty,
 				);
-			} else {
-				$sku_counts = array();
-				foreach ( $row_modules as $module ) {
-					$sku = $module['module_sku'];
-					if ( ! isset( $sku_counts[ $sku ] ) ) {
-						$sku_counts[ $sku ] = 0;
-					}
-					$sku_counts[ $sku ]++;
-				}
-				$module_list = array();
-				foreach ( $sku_counts as $sku => $qty ) {
-					$module_list[] = array(
-						'sku' => $sku,
-						'qty' => $qty,
-					);
-				}
 			}
 
 			// Determine overall row status.
@@ -499,9 +478,8 @@ class Queue_Ajax_Handler {
 			$queue_items[] = array(
 				'id'               => $first_qsa, // Primary identifier is first QSA sequence.
 				'qsa_sequences'    => $qsa_sequences, // All QSA sequences in this row.
-				'groupType'        => $group_type,
-				'moduleType'       => $module_type,
-				'modules'          => $module_list,
+				'baseType'         => $module_type, // Row identifier is the base type (e.g., CUBE, STAR).
+				'modules'          => $module_list, // Breakdown by config code.
 				'totalModules'     => $total_count,
 				'arrayCount'       => $array_count,
 				'status'           => $status,

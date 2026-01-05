@@ -90,24 +90,6 @@ function getStatusStyle( status, completedArrays = 0 ) {
 	}
 }
 
-/**
- * Get group type badge class.
- *
- * @param {string} groupType The group type string.
- * @return {string} CSS class name.
- */
-function getGroupTypeClass( groupType ) {
-	if ( groupType.includes( 'Same ID' ) && groupType.includes( 'Full' ) ) {
-		return 'group-same-full';
-	}
-	if ( groupType.includes( 'Same ID' ) && groupType.includes( 'Partial' ) ) {
-		return 'group-same-partial';
-	}
-	if ( groupType.includes( 'Mixed ID' ) && groupType.includes( 'Full' ) ) {
-		return 'group-mixed-full';
-	}
-	return 'group-mixed-partial';
-}
 
 /**
  * Format serial number.
@@ -154,7 +136,6 @@ export default function QueueItem( {
 	const [ startPos, setStartPos ] = useState( item.startPosition || 1 );
 	const completedArrays = item.completedArrays || 0;
 	const statusStyle = getStatusStyle( item.status, completedArrays );
-	const groupTypeClass = getGroupTypeClass( item.groupType );
 
 	// Track qsa_sequences for backend operations.
 	const qsaSequences = item.qsa_sequences || [ item.id ];
@@ -217,11 +198,13 @@ export default function QueueItem( {
 						) }
 					</div>
 
-					{ /* Module Type */ }
-					<span className="qsa-module-type">{ item.moduleType }</span>
+					{ /* Base Type - Primary Row Identifier */ }
+					<span className="qsa-base-type">{ item.baseType }</span>
 
-					{ /* Group Type Badge */ }
-					<span className={ `qsa-group-type ${ groupTypeClass }` }>{ item.groupType }</span>
+					{ /* Module Count Summary */ }
+					<span className="qsa-module-summary">
+						{ item.totalModules } { __( 'modules', 'qsa-engraving' ) }
+					</span>
 
 					{ /* Status Badge */ }
 					<span className={ `qsa-status-badge ${ statusStyle.className }` }>
