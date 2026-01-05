@@ -199,7 +199,7 @@ export default function QueueItem( {
 					</div>
 
 					{ /* Base Type - Primary Row Identifier */ }
-					<span className="qsa-base-type">{ item.baseType }</span>
+					<span className="qsa-base-type-badge">{ item.baseType }</span>
 
 					{ /* Module Count Summary */ }
 					<span className="qsa-module-summary">
