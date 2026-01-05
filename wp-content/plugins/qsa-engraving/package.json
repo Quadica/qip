@@ -1,0 +1,23 @@
+{
+  "name": "qsa-engraving",
+  "version": "1.0.0",
+  "description": "QSA Engraving WordPress Plugin - React Admin Interface",
+  "author": "Quadica Developments",
+  "license": "Proprietary",
+  "private": true,
+  "scripts": {
+    "build": "wp-scripts build",
+    "start": "wp-scripts start",
+    "lint:js": "wp-scripts lint-js",
+    "lint:css": "wp-scripts lint-style"
+  },
+  "devDependencies": {
+    "@wordpress/scripts": "^27.9.0"
+  },
+  "dependencies": {
+    "@wordpress/api-fetch": "^7.12.0",
+    "@wordpress/components": "^28.12.0",
+    "@wordpress/element": "^6.12.0",
+    "@wordpress/i18n": "^5.12.0"
+  }
+}

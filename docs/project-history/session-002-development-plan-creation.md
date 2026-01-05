@@ -38,7 +38,7 @@ This session created a comprehensive 9-phase DEVELOPMENT-PLAN.md for the QSA Eng
   - Phase 6: Engraving Queue UI (array progression, keyboard shortcuts)
   - Phase 7: LightBurn Integration (UDP client, file loading)
   - Phase 8: Batch History & Polish (re-engraving, settings)
-  - Phase 9: QSA Configuration Data (STARa, QUAD, PICO coordinates)
+  - Phase 9: QSA Configuration Data (STARa, CUBEa, PICOa coordinates)
 
 - **Database Schema Design**: Four tables designed with:
   - Appropriate indexes for common query patterns
@@ -86,13 +86,13 @@ The project now has a complete implementation roadmap:
 ## Next Steps
 ### Immediate Tasks
 - [ ] User to review DEVELOPMENT-PLAN.md for completeness
-- [ ] User to provide QUAD coordinate data for Phase 9
-- [ ] User to provide PICO coordinate data for Phase 9
+- [ ] User to provide CUBEa coordinate data for Phase 9
+- [ ] User to provide PICOa coordinate data for Phase 9
 - [ ] Commit planning documents after review approval
 - [ ] Begin Phase 1 implementation when plan is approved
 
 ### Known Issues
-- **QUAD/PICO Coordinates Missing**: Phase 9 requires coordinate data for QUAD and PICO QSA designs. STARa coordinates are available from existing sample data.
+- **CUBEa/PICOa Coordinates Missing**: Phase 9 requires coordinate data for CUBEa and PICOa QSA designs. STARa coordinates are available from existing sample data.
 - **Staging Site Path**: The DEVELOPMENT-PLAN.md references plugin path `/www/luxeonstarleds_546/public/wp-content/plugins/qsa-engraving` - verify this matches actual deployment structure.
 
 ## Notes for Next Session
