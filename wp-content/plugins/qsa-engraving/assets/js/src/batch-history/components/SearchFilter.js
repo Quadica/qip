@@ -34,13 +34,13 @@ export default function SearchFilter( { filters, onFilterChange, loading } ) {
 	const [ searchInput, setSearchInput ] = useState( filters.search );
 	const [ showFilters, setShowFilters ] = useState( false );
 
-	// Debounce search input.
+	// Debounce search input (500ms delay to avoid triggering on every keystroke).
 	useEffect( () => {
 		const timer = setTimeout( () => {
 			if ( searchInput !== filters.search ) {
 				onFilterChange( { ...filters, search: searchInput } );
 			}
-		}, 300 );
+		}, 500 );
 
 		return () => clearTimeout( timer );
 	}, [ searchInput ] );
