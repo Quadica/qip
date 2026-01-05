@@ -903,27 +903,7 @@ export default function EngravingQueue() {
 				</div>
 			</div>
 
-			<div className="qsa-queue-footer">
-				<div className="qsa-queue-legend">
-					<span className="qsa-legend-title">{ __( 'Group Types:', 'qsa-engraving' ) }</span>
-					<span className="qsa-legend-item same-full">
-						<span className="qsa-legend-dot"></span>
-						{ __( 'Same ID x Full', 'qsa-engraving' ) }
-					</span>
-					<span className="qsa-legend-item same-partial">
-						<span className="qsa-legend-dot"></span>
-						{ __( 'Same ID x Partial', 'qsa-engraving' ) }
-					</span>
-					<span className="qsa-legend-item mixed-full">
-						<span className="qsa-legend-dot"></span>
-						{ __( 'Mixed ID x Full', 'qsa-engraving' ) }
-					</span>
-					<span className="qsa-legend-item mixed-partial">
-						<span className="qsa-legend-dot"></span>
-						{ __( 'Mixed ID x Partial', 'qsa-engraving' ) }
-					</span>
-				</div>
-			</div>
+			{ /* Footer removed - group type legend no longer needed */ }
 		</div>
 	);
 }
