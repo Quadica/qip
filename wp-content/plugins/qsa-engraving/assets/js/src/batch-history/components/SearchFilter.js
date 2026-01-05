@@ -11,17 +11,6 @@ import { useState, useEffect } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 
 /**
- * Module type filter options.
- */
-const MODULE_TYPES = [
-	{ value: 'all', label: __( 'All Types', 'qsa-engraving' ) },
-	{ value: 'CORE', label: 'CORE' },
-	{ value: 'SOLO', label: 'SOLO' },
-	{ value: 'EDGE', label: 'EDGE' },
-	{ value: 'STAR', label: 'STAR' },
-];
-
-/**
  * SearchFilter component.
  *
  * @param {Object}   props                Props.
@@ -33,6 +22,35 @@ const MODULE_TYPES = [
 export default function SearchFilter( { filters, onFilterChange, loading } ) {
 	const [ searchInput, setSearchInput ] = useState( filters.search );
 	const [ showFilters, setShowFilters ] = useState( false );
+	const [ moduleTypes, setModuleTypes ] = useState( [] );
+	const [ typesLoading, setTypesLoading ] = useState( true );
+
+	// Fetch available module types on mount.
+	useEffect( () => {
+		const fetchModuleTypes = async () => {
+			try {
+				const formData = new FormData();
+				formData.append( 'action', 'qsa_get_available_module_types' );
+				formData.append( 'nonce', window.qsaEngraving?.nonce || '' );
+
+				const response = await fetch( window.qsaEngraving?.ajaxUrl || '/wp-admin/admin-ajax.php', {
+					method: 'POST',
+					body: formData,
+				} );
+
+				const data = await response.json();
+
+				if ( data.success && data.data.types ) {
+					setModuleTypes( data.data.types );
+				}
+			} catch ( err ) {
+				// Silently fail - filters will just show "All Types" only.
+			}
+			setTypesLoading( false );
+		};
+
+		fetchModuleTypes();
+	}, [] );
 
 	// Debounce search input (500ms delay to avoid triggering on every keystroke).
 	useEffect( () => {
@@ -113,16 +131,29 @@ export default function SearchFilter( { filters, onFilterChange, loading } ) {
 						{ __( 'Module Type:', 'qsa-engraving' ) }
 					</span>
 					<div className="qsa-filter-buttons">
-						{ MODULE_TYPES.map( ( type ) => (
-							<button
-								key={ type.value }
-								onClick={ () => handleFilterTypeChange( type.value ) }
-								className={ `qsa-filter-button ${ filters.filterType === type.value ? 'active' : '' }` }
-								disabled={ loading }
-							>
-								{ type.label }
-							</button>
-						) ) }
+						{ /* All Types button */ }
+						<button
+							onClick={ () => handleFilterTypeChange( 'all' ) }
+							className={ `qsa-filter-button ${ filters.filterType === 'all' ? 'active' : '' }` }
+							disabled={ loading }
+						>
+							{ __( 'All Types', 'qsa-engraving' ) }
+						</button>
+						{ /* Dynamic module type buttons */ }
+						{ typesLoading ? (
+							<span className="qsa-filter-loading">{ __( 'Loading...', 'qsa-engraving' ) }</span>
+						) : (
+							moduleTypes.map( ( type ) => (
+								<button
+									key={ type }
+									onClick={ () => handleFilterTypeChange( type ) }
+									className={ `qsa-filter-button ${ filters.filterType === type ? 'active' : '' }` }
+									disabled={ loading }
+								>
+									{ type }
+								</button>
+							) )
+						) }
 					</div>
 				</div>
 			) }

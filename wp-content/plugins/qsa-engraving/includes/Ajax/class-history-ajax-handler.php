@@ -61,6 +61,7 @@ class History_Ajax_Handler {
         add_action( 'wp_ajax_qsa_get_batch_history', array( $this, 'handle_get_batch_history' ) );
         add_action( 'wp_ajax_qsa_get_batch_details', array( $this, 'handle_get_batch_details' ) );
         add_action( 'wp_ajax_qsa_get_batch_for_reengraving', array( $this, 'handle_get_batch_for_reengraving' ) );
+        add_action( 'wp_ajax_qsa_get_available_module_types', array( $this, 'handle_get_available_module_types' ) );
     }
 
     /**
@@ -565,5 +566,39 @@ class History_Ajax_Handler {
         }
 
         return $result;
+    }
+
+    /**
+     * Handle get available module types request.
+     *
+     * Returns distinct base types (CORE, STAR, etc.) from completed batches.
+     *
+     * @return void
+     */
+    public function handle_get_available_module_types(): void {
+        if ( ! $this->verify_nonce() || ! $this->user_has_access() ) {
+            $this->send_error( __( 'Permission denied.', 'qsa-engraving' ), 'permission_denied' );
+            return;
+        }
+
+        global $wpdb;
+
+        $batches_table = $this->batch_repo->get_batches_table_name();
+        $modules_table = $this->batch_repo->get_modules_table_name();
+
+        // Get distinct base types from modules in completed batches.
+        $types = $wpdb->get_col(
+            "SELECT DISTINCT SUBSTRING(m.module_sku, 1, 4) as base_type
+            FROM {$modules_table} m
+            INNER JOIN {$batches_table} b ON m.engraving_batch_id = b.id
+            WHERE b.status = 'completed'
+            ORDER BY base_type"
+        );
+
+        wp_send_json_success(
+            array(
+                'types' => $types ?: array(),
+            )
+        );
     }
 }
