@@ -527,12 +527,12 @@ class History_Ajax_Handler {
             return array();
         }
 
-        // Group by base type.
-        // Use substr to extract first 4 characters, consistent with Module_Selector.
-        // This ensures "STARa-34924" becomes "STAR" (not "STARa" as strtok would yield).
+        // Group by base type (including revision).
+        // Use strtok to extract everything before the hyphen (e.g., "STARa" from "STARa-34924").
+        // Different revisions have different physical layouts and cannot share arrays.
         $grouped = array();
         foreach ( $results as $row ) {
-            $base_type = substr( $row['module_sku'], 0, 4 );
+            $base_type = strtok( $row['module_sku'], '-' );
 
             if ( ! isset( $grouped[ $base_type ] ) ) {
                 $grouped[ $base_type ] = array(
@@ -586,9 +586,10 @@ class History_Ajax_Handler {
         $batches_table = $this->batch_repo->get_batches_table_name();
         $modules_table = $this->batch_repo->get_modules_table_name();
 
-        // Get distinct base types from modules in completed batches.
+        // Get distinct base types (including revision) from modules in completed batches.
+        // Use SUBSTRING_INDEX to get everything before the hyphen (e.g., "STARa" from "STARa-38546").
         $types = $wpdb->get_col(
-            "SELECT DISTINCT SUBSTRING(m.module_sku, 1, 4) as base_type
+            "SELECT DISTINCT SUBSTRING_INDEX(m.module_sku, '-', 1) as base_type
             FROM {$modules_table} m
             INNER JOIN {$batches_table} b ON m.engraving_batch_id = b.id
             WHERE b.status = 'completed'

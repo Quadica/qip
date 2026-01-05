@@ -234,8 +234,14 @@ run_test(
             }
 
             // Test SKU parsing.
+            // Base type without revision.
             if ( $selector->extract_base_type( 'CORE-91247' ) !== 'CORE' ) {
                 return new WP_Error( 'parse_fail', 'Failed to extract base type from CORE-91247.' );
+            }
+
+            // Base type WITH revision (should include revision letter).
+            if ( $selector->extract_base_type( 'STARa-34924' ) !== 'STARa' ) {
+                return new WP_Error( 'parse_fail', 'Failed to extract base type with revision from STARa-34924.' );
             }
 
             if ( $selector->extract_revision( 'STARa-34924' ) !== 'a' ) {

@@ -497,15 +497,16 @@ None of the the following needs to be considered as part of the plugin developme
 
 ### Row Grouping
 
-1. **Rows are grouped by base type only.** The base type is the 4-letter prefix of the module SKU (e.g., CUBE, STAR, PICO, CORE).
+1. **Rows are grouped by base type AND revision.** The base type includes the 4-letter design prefix plus the revision letter (e.g., STARa, CUBEb, PICO). Different revisions have different physical layouts and cannot share arrays.
 
-2. **All modules of the same base type go in the same row**, regardless of config code or order. For example:
-   - CUBE-88546 and CUBE-98345 are both CUBE type → same row
-   - STAR-10343, STAR-29654, and STAR-39285 are all STAR type → same row
+2. **All modules of the same base type + revision go in the same row**, regardless of config code or order. For example:
+   - CUBEa-88546 and CUBEa-98345 are both CUBEa type → same row
+   - STARa-10343, STARa-29654, and STARa-39285 are all STARa type → same row
+   - STARa-10343 and STARb-10343 are DIFFERENT types → separate rows
 
-3. **Different base types are always in separate rows.** A batch with CUBE and STAR modules will have exactly 2 rows.
+3. **Different base types or revisions are always in separate rows.** A batch with CUBEa and STARa modules will have exactly 2 rows. A batch with STARa and STARb modules will also have 2 rows.
 
-4. **Each base type uses its own SVG configuration** defined in the `lw_quad_qsa_config` table (e.g., CUBEa, STARa). The config code portion of the SKU (e.g., -88546) identifies which LEDs are mounted, not the physical layout.
+4. **Each base type + revision uses its own SVG configuration** defined in the `lw_quad_qsa_config` table (e.g., CUBEa, STARa, STARb). The config code portion of the SKU (e.g., -88546) identifies which LEDs are mounted, not the physical layout.
 
 ### LED Optimization Sorting
 
@@ -538,24 +539,39 @@ None of the the following needs to be considered as part of the plugin developme
 
 ### UI Display
 
-15. **Row labels show only the base type** (e.g., "CUBE", "STAR"). The "Same ID × Full / Mixed ID × Partial" labels are removed.
+15. **Row labels show the base type with revision** (e.g., "CUBEa", "STARb"). The "Same ID × Full / Mixed ID × Partial" labels are removed.
 
-16. **Row details show module count and array count** (e.g., "CUBE — 33 modules, 5 arrays").
+16. **Row details show module count and array count** (e.g., "CUBEa — 33 modules, 5 arrays").
 
 ### Example: Batch 1
 
 If the operator selects:
-- 28× CUBE-88546 (from orders 283469, 283487)
-- 5× CUBE-98345 (from order 283472)
-- 40× STAR-10343 (from orders 283457, 283487)
-- 3× STAR-29654 (from order 283457)
-- 1× STAR-39285 (from order 283457)
+- 28× CUBEa-88546 (from orders 283469, 283487)
+- 5× CUBEa-98345 (from order 283472)
+- 40× STARa-10343 (from orders 283457, 283487)
+- 3× STARa-29654 (from order 283457)
+- 1× STARa-39285 (from order 283457)
 
 The batch should have **exactly 2 rows**:
 
 | Row | Base Type | Modules | Arrays |
 |-----|-----------|---------|--------|
-| 1 | CUBE | 33 (28 + 5) | 5 |
-| 2 | STAR | 44 (40 + 3 + 1) | 6 |
+| 1 | CUBEa | 33 (28 + 5) | 5 |
+| 2 | STARa | 44 (40 + 3 + 1) | 6 |
 
 Within each row, modules are sorted by LED optimization, and different config codes may share the same physical arrays.
+
+### Example: Batch with Multiple Revisions
+
+If the operator selects:
+- 20× STARa-10343
+- 10× STARb-10343 (different physical layout)
+
+The batch should have **exactly 2 rows** (one per revision):
+
+| Row | Base Type | Modules | Arrays |
+|-----|-----------|---------|--------|
+| 1 | STARa | 20 | 3 |
+| 2 | STARb | 10 | 2 |
+
+Even though both are "STAR" modules with the same config code, they have different revisions and cannot share arrays.

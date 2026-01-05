@@ -770,15 +770,16 @@ class Batch_Ajax_Handler {
 	/**
 	 * Extract base type from SKU.
 	 *
-	 * The base type is the 4-letter prefix of the module SKU (e.g., CUBE, STAR, PICO).
-	 * All modules with the same base type use the same SVG configuration and should
-	 * be grouped into the same row.
+	 * The base type includes the 4-letter design prefix AND the revision letter
+	 * (e.g., "STARa", "CUBEb"). Different revisions have different physical layouts
+	 * and SVG configurations, so they cannot share the same row or array.
 	 *
-	 * @param string $sku The module SKU (e.g., "CUBE-88546").
-	 * @return string The base type (e.g., "CUBE").
+	 * @param string $sku The module SKU (e.g., "STARa-38546").
+	 * @return string The base type with revision (e.g., "STARa").
 	 */
 	private function extract_base_type( string $sku ): string {
-		if ( preg_match( '/^([A-Z]{4})/', $sku, $matches ) ) {
+		// Match 4 uppercase letters + optional lowercase revision letter.
+		if ( preg_match( '/^([A-Z]{4}[a-z]?)/', $sku, $matches ) ) {
 			return $matches[1];
 		}
 		return 'UNKNOWN';
