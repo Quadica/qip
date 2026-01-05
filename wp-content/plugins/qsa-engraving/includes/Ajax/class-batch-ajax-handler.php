@@ -241,11 +241,17 @@ class Batch_Ajax_Handler {
 			return;
 		}
 
-		// Expand selections into individual module instances.
-		$expanded = $this->batch_sorter->expand_selections( $modules_with_leds );
-
-		// Sort for LED optimization.
-		$sorted = $this->batch_sorter->sort_modules( $expanded );
+		// Group modules by base type BEFORE sorting.
+		// Each base type forms its own row and uses its own SVG configuration.
+		// Modules of different base types should never share the same QSA array.
+		$by_base_type = array();
+		foreach ( $modules_with_leds as $module ) {
+			$base_type = $this->extract_base_type( $module['module_sku'] );
+			if ( ! isset( $by_base_type[ $base_type ] ) ) {
+				$by_base_type[ $base_type ] = array();
+			}
+			$by_base_type[ $base_type ][] = $module;
+		}
 
 		// Create the batch record.
 		$batch_id = $this->batch_repository->create_batch();
@@ -254,22 +260,30 @@ class Batch_Ajax_Handler {
 			return;
 		}
 
-		// Assign modules to QSA arrays (default start position 1).
-		$qsa_arrays = $this->batch_sorter->assign_to_arrays( $sorted, 1 );
+		// Process each base type separately: expand, sort, and assign to arrays.
+		// This ensures modules of different base types never share the same QSA array.
+		$qsa_arrays                  = array();
+		$base_type_to_original_qsa   = array();
+		$next_qsa_sequence           = 1;
 
-		// Calculate original_qsa_sequence for row grouping.
-		// All modules with the same SKU should have the same original_qsa_sequence
-		// (the minimum qsa_sequence assigned to that SKU). This ensures Same ID rows
-		// display as a single row in the UI even when spanning multiple arrays.
-		$sku_to_original_qsa = array();
-		foreach ( $qsa_arrays as $qsa ) {
-			foreach ( $qsa as $module ) {
-				$sku = $module['module_sku'];
-				$seq = (int) $module['qsa_sequence'];
-				if ( ! isset( $sku_to_original_qsa[ $sku ] ) || $seq < $sku_to_original_qsa[ $sku ] ) {
-					$sku_to_original_qsa[ $sku ] = $seq;
-				}
-			}
+		foreach ( $by_base_type as $base_type => $type_modules ) {
+			// Expand selections for this base type.
+			$expanded = $this->batch_sorter->expand_selections( $type_modules );
+
+			// Sort for LED optimization within this base type.
+			$sorted = $this->batch_sorter->sort_modules( $expanded );
+
+			// Assign to QSA arrays, starting at the next available sequence.
+			$type_qsa_arrays = $this->batch_sorter->assign_to_arrays( $sorted, 1, $next_qsa_sequence );
+
+			// Record the original QSA sequence for this base type (first QSA in the row).
+			$base_type_to_original_qsa[ $base_type ] = $next_qsa_sequence;
+
+			// Update next available sequence for the next base type.
+			$next_qsa_sequence += count( $type_qsa_arrays );
+
+			// Add to combined result.
+			$qsa_arrays = array_merge( $qsa_arrays, $type_qsa_arrays );
 		}
 
 		// Add modules to the batch - track failures.
@@ -280,7 +294,7 @@ class Batch_Ajax_Handler {
 		foreach ( $qsa_arrays as $qsa ) {
 			foreach ( $qsa as $module ) {
 				$total_modules++;
-				$sku = $module['module_sku'];
+				$base_type = $this->extract_base_type( $module['module_sku'] );
 				$result = $this->batch_repository->add_module(
 					array(
 						'engraving_batch_id'    => $batch_id,
@@ -289,7 +303,7 @@ class Batch_Ajax_Handler {
 						'order_id'              => $module['order_id'],
 						'serial_number'         => '', // Serial numbers assigned during engraving.
 						'qsa_sequence'          => $module['qsa_sequence'],
-						'original_qsa_sequence' => $sku_to_original_qsa[ $sku ], // Group by SKU for row display.
+						'original_qsa_sequence' => $base_type_to_original_qsa[ $base_type ], // Group by base type for row display.
 						'array_position'        => $module['array_position'],
 					)
 				);
@@ -480,11 +494,16 @@ class Batch_Ajax_Handler {
 			return;
 		}
 
-		// Expand selections into individual module instances.
-		$expanded = $this->batch_sorter->expand_selections( $modules_with_leds );
-
-		// Sort for LED optimization.
-		$sorted = $this->batch_sorter->sort_modules( $expanded );
+		// Group modules by base type BEFORE sorting.
+		// Each base type forms its own row and uses its own SVG configuration.
+		$by_base_type = array();
+		foreach ( $modules_with_leds as $module ) {
+			$base_type = $this->extract_base_type( $module['module_sku'] );
+			if ( ! isset( $by_base_type[ $base_type ] ) ) {
+				$by_base_type[ $base_type ] = array();
+			}
+			$by_base_type[ $base_type ][] = $module;
+		}
 
 		// Create the new batch record.
 		$batch_id = $this->batch_repository->create_batch();
@@ -493,20 +512,29 @@ class Batch_Ajax_Handler {
 			return;
 		}
 
-		// Assign modules to QSA arrays (default start position 1).
-		$qsa_arrays = $this->batch_sorter->assign_to_arrays( $sorted, 1 );
+		// Process each base type separately: expand, sort, and assign to arrays.
+		$qsa_arrays                  = array();
+		$base_type_to_original_qsa   = array();
+		$next_qsa_sequence           = 1;
 
-		// Calculate original_qsa_sequence for row grouping.
-		// All modules with the same SKU should have the same original_qsa_sequence.
-		$sku_to_original_qsa = array();
-		foreach ( $qsa_arrays as $qsa ) {
-			foreach ( $qsa as $module ) {
-				$sku = $module['module_sku'];
-				$seq = (int) $module['qsa_sequence'];
-				if ( ! isset( $sku_to_original_qsa[ $sku ] ) || $seq < $sku_to_original_qsa[ $sku ] ) {
-					$sku_to_original_qsa[ $sku ] = $seq;
-				}
-			}
+		foreach ( $by_base_type as $base_type => $type_modules ) {
+			// Expand selections for this base type.
+			$expanded = $this->batch_sorter->expand_selections( $type_modules );
+
+			// Sort for LED optimization within this base type.
+			$sorted = $this->batch_sorter->sort_modules( $expanded );
+
+			// Assign to QSA arrays, starting at the next available sequence.
+			$type_qsa_arrays = $this->batch_sorter->assign_to_arrays( $sorted, 1, $next_qsa_sequence );
+
+			// Record the original QSA sequence for this base type.
+			$base_type_to_original_qsa[ $base_type ] = $next_qsa_sequence;
+
+			// Update next available sequence for the next base type.
+			$next_qsa_sequence += count( $type_qsa_arrays );
+
+			// Add to combined result.
+			$qsa_arrays = array_merge( $qsa_arrays, $type_qsa_arrays );
 		}
 
 		// Add modules to the batch - track failures.
@@ -517,7 +545,7 @@ class Batch_Ajax_Handler {
 		foreach ( $qsa_arrays as $qsa ) {
 			foreach ( $qsa as $module ) {
 				$total_modules++;
-				$sku = $module['module_sku'];
+				$base_type = $this->extract_base_type( $module['module_sku'] );
 				$result = $this->batch_repository->add_module(
 					array(
 						'engraving_batch_id'    => $batch_id,
@@ -526,7 +554,7 @@ class Batch_Ajax_Handler {
 						'order_id'              => $module['order_id'],
 						'serial_number'         => '', // Serial numbers assigned during engraving.
 						'qsa_sequence'          => $module['qsa_sequence'],
-						'original_qsa_sequence' => $sku_to_original_qsa[ $sku ], // Group by SKU for row display.
+						'original_qsa_sequence' => $base_type_to_original_qsa[ $base_type ], // Group by base type for row display.
 						'array_position'        => $module['array_position'],
 					)
 				);
@@ -737,5 +765,22 @@ class Batch_Ajax_Handler {
 		}
 
 		return $result;
+	}
+
+	/**
+	 * Extract base type from SKU.
+	 *
+	 * The base type is the 4-letter prefix of the module SKU (e.g., CUBE, STAR, PICO).
+	 * All modules with the same base type use the same SVG configuration and should
+	 * be grouped into the same row.
+	 *
+	 * @param string $sku The module SKU (e.g., "CUBE-88546").
+	 * @return string The base type (e.g., "CUBE").
+	 */
+	private function extract_base_type( string $sku ): string {
+		if ( preg_match( '/^([A-Z]{4})/', $sku, $matches ) ) {
+			return $matches[1];
+		}
+		return 'UNKNOWN';
 	}
 }

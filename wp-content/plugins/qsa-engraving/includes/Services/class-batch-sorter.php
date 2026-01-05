@@ -289,18 +289,19 @@ class Batch_Sorter {
 	 * Divides sorted modules into QSA arrays of up to 8 modules each,
 	 * accounting for the starting position on the first array.
 	 *
-	 * @param array $modules        Sorted array of modules.
-	 * @param int   $start_position Starting position on first QSA (1-8).
+	 * @param array $modules               Sorted array of modules.
+	 * @param int   $start_position        Starting position on first QSA (1-8).
+	 * @param int   $starting_qsa_sequence Starting QSA sequence number (default 1).
 	 * @return array Array of QSA arrays, each containing modules with positions.
 	 */
-	public function assign_to_arrays( array $modules, int $start_position = 1 ): array {
+	public function assign_to_arrays( array $modules, int $start_position = 1, int $starting_qsa_sequence = 1 ): array {
 		// Validate start position.
 		$start_position = max( 1, min( 8, $start_position ) );
 
 		$qsa_arrays     = array();
 		$current_qsa    = array();
 		$current_pos    = $start_position;
-		$qsa_sequence   = 1;
+		$qsa_sequence   = max( 1, $starting_qsa_sequence );
 		$is_first_array = true;
 
 		foreach ( $modules as $module ) {

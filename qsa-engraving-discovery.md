@@ -1,6 +1,6 @@
 # Quadica Standard Array Engraving - Required Functionality
  
-**Last Update:** Jan 4, 2026
+**Last Update:** Jan 4, 2026 (Batch Generation Rules clarified)
 **Author:** Ron Warris  
 
 ## 1. Project Overview
@@ -130,43 +130,31 @@ This is an optimization problem similar to minimizing transitions in a traveling
   | CORE-45946 | 3 |
   | **Total** | **13** |
 
-  Then it will create two QSAs (and two unique SVG files):
+  
+  Since all modules are CORE type (same base type), they form **one row** with 13 modules.
+  After LED optimization sorting, the system creates 2 QSAs:
 
-  **QSA 1** (8 modules - full array)
-  | Module | Quantity |
-  |--------|----------|
-  | CORE-91247 | 2 |
-  | CORE-38455 | 1 |
-  | CORE-98546 | 3 |
-  | CORE-23405 | 2 |
+  - **QSA 1**: 8 modules (positions 1-8)
+  - **QSA 2**: 5 modules (positions 1-5)
 
-  **QSA 2** (5 modules - partial array)
-  | Module | Quantity |
-  |--------|----------|
-  | CORE-23405 | 2 |
-  | CORE-45946 | 3 |
+  The specific mix of config codes on each array depends on LED optimization sorting.
+  See "Batch Generation Rules" section for complete details.
 
 ### Engraving Queue
 After creating an engraving batch, the operator sees an Engraving Queue interface listing all QSAs to be engraved.
 
-#### QSA Grouping
-QSAs are grouped into rows to organize the work for the operator:
+#### Row Organization
+Rows are organized by **base type** (the 4-letter SKU prefix: CUBE, STAR, PICO, etc.):
 
-| Group Type | Description |
-|------------|-------------|
-| **Same ID × Full** | 8 identical modules per QSA |
-| **Same ID × Partial** | <8 identical modules (final QSA) |
-| **Mixed ID × Full** | 8 different module types per QSA |
-| **Mixed ID × Partial** | <8 different module types (final QSA) |
+- All modules of the same base type are grouped into one row
+- Each row displays: base type, module count, array count, and an "Engrave" button
+- Each QSA in the row will have its own unique SVG file (generated with unique serial numbers)
 
-Each row displays: module count, array count, and an "Engrave" button. Each QSA in the row will have its own unique SVG file (generated with unique serial numbers).
+**Example:** A batch with 33 CUBE modules and 44 STAR modules has exactly 2 rows:
+- Row 1: CUBE — 33 modules, 5 arrays
+- Row 2: STAR — 44 modules, 6 arrays
 
-**Status-Based Row Grouping:**
-Rows are grouped by both SKU composition AND workflow status. This means:
-- QSA sequences with the same SKU but different statuses appear as separate rows
-- This prevents workflow contamination (e.g., in_progress sequences from one workflow don't affect pending rows)
-- Example: If a "Same ID" row overflows to a new QSA sequence during redistribution, that overflow sequence maintains its own status and appears as a separate row until completed
-- The row a sequence belongs to is determined at query time based on its current status
+See "Batch Generation Rules" section for complete grouping and sorting rules.
 
 #### QSA Starting Offset
 QSAs may have unused positions from previous batches. The operator can specify a **Starting Position** (1-8) for the first QSA in a run.
@@ -503,3 +491,71 @@ All sample SVGs demonstrate:
 None of the the following needs to be considered as part of the plugin development as they are handled using separate business processes:
 
 1. None
+
+
+## Batch Generation Rules
+
+### Row Grouping
+
+1. **Rows are grouped by base type only.** The base type is the 4-letter prefix of the module SKU (e.g., CUBE, STAR, PICO, CORE).
+
+2. **All modules of the same base type go in the same row**, regardless of config code or order. For example:
+   - CUBE-88546 and CUBE-98345 are both CUBE type → same row
+   - STAR-10343, STAR-29654, and STAR-39285 are all STAR type → same row
+
+3. **Different base types are always in separate rows.** A batch with CUBE and STAR modules will have exactly 2 rows.
+
+4. **Each base type uses its own SVG configuration** defined in the `lw_quad_qsa_config` table (e.g., CUBEa, STARa). The config code portion of the SKU (e.g., -88546) identifies which LEDs are mounted, not the physical layout.
+
+### LED Optimization Sorting
+
+5. **Modules within a row are sorted to minimize LED pick-and-place transitions**, as defined in the "Module Sorting for LED Pick-and-Place Optimization" section.
+
+6. **LED position matters for sorting.** Two modules with the same LED codes but in different PCB socket positions are treated as different configurations:
+   - Module A: [K7P@position1, AF3@position2]
+   - Module B: [AF3@position1, K7P@position2]
+   - These are DIFFERENT configurations and will be in separate sort groups
+
+7. **Sorting can interleave different config codes.** After LED optimization, CUBE-88546 and CUBE-98345 modules may be interleaved if that minimizes LED transitions.
+
+### Array Assignment
+
+8. **Modules of the same base type share physical QSA arrays.** After sorting, arrays are filled sequentially. A single array may contain modules with different config codes (e.g., 4× CUBE-88546 + 4× CUBE-98345).
+
+9. **Each array holds up to 8 modules** at positions 1-8.
+
+### Start Position
+
+10. **Start position defaults to 1** for every row when the batch is created.
+
+11. **Start position only affects the first array** in a row. Subsequent arrays always start at position 1.
+
+12. **Changing start position redistributes modules** across arrays and may add additional arrays to accommodate all modules.
+
+13. **Start position can only be changed when the row status is "Pending."**
+
+14. **Sort order is preserved** when start position changes—modules maintain their LED-optimized sequence.
+
+### UI Display
+
+15. **Row labels show only the base type** (e.g., "CUBE", "STAR"). The "Same ID × Full / Mixed ID × Partial" labels are removed.
+
+16. **Row details show module count and array count** (e.g., "CUBE — 33 modules, 5 arrays").
+
+### Example: Batch 1
+
+If the operator selects:
+- 28× CUBE-88546 (from orders 283469, 283487)
+- 5× CUBE-98345 (from order 283472)
+- 40× STAR-10343 (from orders 283457, 283487)
+- 3× STAR-29654 (from order 283457)
+- 1× STAR-39285 (from order 283457)
+
+The batch should have **exactly 2 rows**:
+
+| Row | Base Type | Modules | Arrays |
+|-----|-----------|---------|--------|
+| 1 | CUBE | 33 (28 + 5) | 5 |
+| 2 | STAR | 44 (40 + 3 + 1) | 6 |
+
+Within each row, modules are sorted by LED optimization, and different config codes may share the same physical arrays.
