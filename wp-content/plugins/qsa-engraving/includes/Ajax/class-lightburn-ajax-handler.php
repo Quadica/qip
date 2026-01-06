@@ -488,6 +488,9 @@ class LightBurn_Ajax_Handler {
 	/**
 	 * Load SVG file in LightBurn.
 	 *
+	 * Uses fire-and-forget mode (no response wait) since the LightBurn machine
+	 * is typically on a different network and responses cannot reach the server.
+	 *
 	 * @param string $lightburn_path The path to load in LightBurn.
 	 * @return array{success: bool, error: string|null}
 	 */
@@ -502,8 +505,8 @@ class LightBurn_Ajax_Handler {
 			);
 		}
 
-		// Load file with retry.
-		$result = $client->load_file_with_retry( $lightburn_path );
+		// Load file in fire-and-forget mode (no response wait).
+		$result = $client->load_file_no_wait( $lightburn_path );
 
 		if ( is_wp_error( $result ) ) {
 			return array(
