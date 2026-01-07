@@ -754,6 +754,16 @@ class LightBurn_Ajax_Handler {
 			$settings['svg_rotation'] = $rotation;
 		}
 
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce already verified.
+		if ( isset( $_POST['svg_top_offset'] ) ) {
+			$offset = (float) $_POST['svg_top_offset'];
+			// Clamp to valid range: -5 to +5 mm.
+			$offset = max( -5.0, min( 5.0, $offset ) );
+			// Round to 0.02mm precision.
+			$offset = round( $offset / 0.02 ) * 0.02;
+			$settings['svg_top_offset'] = $offset;
+		}
+
 		// Save settings.
 		update_option( 'qsa_engraving_settings', $settings );
 

@@ -386,6 +386,7 @@ class Admin_Menu {
             $svg_enabled       = ! empty( $system_settings['lightburn_enabled'] );
             $keep_svg_files    = ! empty( $system_settings['keep_svg_files'] );
             $svg_rotation      = isset( $system_settings['svg_rotation'] ) ? (int) $system_settings['svg_rotation'] : 0;
+            $svg_top_offset    = isset( $system_settings['svg_top_offset'] ) ? (float) $system_settings['svg_top_offset'] : 0.0;
             $file_manager      = new \Quadica\QSA_Engraving\Services\SVG_File_Manager();
             $svg_status        = $file_manager->get_status();
             ?>
@@ -433,6 +434,18 @@ class Admin_Menu {
                                     <option value="270" <?php selected( $svg_rotation, 270 ); ?>>270° Clockwise</option>
                                 </select>
                                 <span class="qsa-toggle-status" id="qsa-rotation-status"></span>
+                            </td>
+                        </tr>
+                        <tr id="qsa-svg-top-offset-row" <?php echo $svg_enabled ? '' : 'style="display:none;"'; ?>>
+                            <td>
+                                <label for="qsa-svg-top-offset"><?php esc_html_e( 'Top Offset', 'qsa-engraving' ); ?></label>
+                            </td>
+                            <td>
+                                <input type="number" id="qsa-svg-top-offset" class="qsa-offset-input"
+                                    value="<?php echo esc_attr( number_format( $svg_top_offset, 2, '.', '' ) ); ?>"
+                                    min="-5" max="5" step="0.02">
+                                <span class="qsa-offset-unit">mm</span>
+                                <span class="qsa-toggle-status" id="qsa-top-offset-status"></span>
                             </td>
                         </tr>
                         <tr id="qsa-svg-directory-row" <?php echo $svg_enabled ? '' : 'style="display:none;"'; ?>>
@@ -545,6 +558,24 @@ class Admin_Menu {
                     box-shadow: 0 0 0 1px #2271b1;
                     outline: none;
                 }
+                .qsa-offset-input {
+                    width: 80px;
+                    padding: 4px 8px;
+                    border: 1px solid #8c8f94;
+                    border-radius: 4px;
+                    font-size: 13px;
+                    text-align: right;
+                }
+                .qsa-offset-input:focus {
+                    border-color: #2271b1;
+                    box-shadow: 0 0 0 1px #2271b1;
+                    outline: none;
+                }
+                .qsa-offset-unit {
+                    margin-left: 4px;
+                    color: #50575e;
+                    font-size: 13px;
+                }
             </style>
             <script>
             jQuery(function($) {
@@ -580,10 +611,12 @@ class Admin_Menu {
                     // Show/hide SVG-related rows
                     if (isEnabled) {
                         $('#qsa-svg-rotation-row').show();
+                        $('#qsa-svg-top-offset-row').show();
                         $('#qsa-svg-directory-row').show();
                         $('#qsa-watcher-info-row').show();
                     } else {
                         $('#qsa-svg-rotation-row').hide();
+                        $('#qsa-svg-top-offset-row').hide();
                         $('#qsa-svg-directory-row').hide();
                         $('#qsa-watcher-info-row').hide();
                     }
@@ -605,6 +638,34 @@ class Admin_Menu {
                         action: 'qsa_save_lightburn_settings',
                         nonce: nonce,
                         svg_rotation: rotation
+                    }, function(response) {
+                        if (response.success) {
+                            $status.removeClass('saving').addClass('saved').text('<?php echo esc_js( __( 'Saved', 'qsa-engraving' ) ); ?>');
+                            setTimeout(function() { $status.text(''); }, 2000);
+                        } else {
+                            $status.removeClass('saving').addClass('error').text('<?php echo esc_js( __( 'Error', 'qsa-engraving' ) ); ?>');
+                        }
+                    }).fail(function() {
+                        $status.removeClass('saving').addClass('error').text('<?php echo esc_js( __( 'Failed', 'qsa-engraving' ) ); ?>');
+                    });
+                });
+
+                // SVG Top Offset input
+                $('#qsa-svg-top-offset').on('change', function() {
+                    var $status = $('#qsa-top-offset-status');
+                    var offset = parseFloat($(this).val()) || 0;
+
+                    // Clamp to valid range
+                    if (offset < -5) offset = -5;
+                    if (offset > 5) offset = 5;
+                    $(this).val(offset.toFixed(2));
+
+                    $status.removeClass('saved error').addClass('saving').text('<?php echo esc_js( __( 'Saving...', 'qsa-engraving' ) ); ?>');
+
+                    $.post(ajaxUrl, {
+                        action: 'qsa_save_lightburn_settings',
+                        nonce: nonce,
+                        svg_top_offset: offset
                     }, function(response) {
                         if (response.success) {
                             $status.removeClass('saving').addClass('saved').text('<?php echo esc_js( __( 'Saved', 'qsa-engraving' ) ); ?>');
