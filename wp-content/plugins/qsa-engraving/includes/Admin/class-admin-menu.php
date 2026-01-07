@@ -387,8 +387,6 @@ class Admin_Menu {
             $keep_svg_files    = ! empty( $system_settings['keep_svg_files'] );
             $svg_rotation      = isset( $system_settings['svg_rotation'] ) ? (int) $system_settings['svg_rotation'] : 0;
             $svg_top_offset    = isset( $system_settings['svg_top_offset'] ) ? (float) $system_settings['svg_top_offset'] : 0.0;
-            $file_manager      = new \Quadica\QSA_Engraving\Services\SVG_File_Manager();
-            $svg_status        = $file_manager->get_status();
             ?>
             <div class="qsa-widget qsa-status-widget">
                 <h2><?php esc_html_e( 'System Status', 'qsa-engraving' ); ?></h2>
@@ -448,34 +446,12 @@ class Admin_Menu {
                                 <span class="qsa-toggle-status" id="qsa-top-offset-status"></span>
                             </td>
                         </tr>
-                        <tr id="qsa-svg-directory-row" <?php echo $svg_enabled ? '' : 'style="display:none;"'; ?>>
-                            <td><?php esc_html_e( 'SVG Directory', 'qsa-engraving' ); ?></td>
-                            <td>
-                                <?php if ( $svg_status['exists'] && $svg_status['writable'] ) : ?>
-                                    <span class="qsa-status-ok">
-                                        <span class="dashicons dashicons-yes-alt" style="color: #00a32a;"></span>
-                                        <?php
-                                        printf(
-                                            /* translators: %d: Number of SVG files */
-                                            esc_html__( 'Ready (%d files)', 'qsa-engraving' ),
-                                            $svg_status['file_count']
-                                        );
-                                        ?>
-                                    </span>
-                                <?php else : ?>
-                                    <span class="qsa-status-warning">
-                                        <span class="dashicons dashicons-warning" style="color: #dba617;"></span>
-                                        <?php esc_html_e( 'Directory not ready', 'qsa-engraving' ); ?>
-                                    </span>
-                                <?php endif; ?>
-                            </td>
-                        </tr>
                         <tr id="qsa-watcher-info-row" <?php echo $svg_enabled ? '' : 'style="display:none;"'; ?>>
-                            <td><?php esc_html_e( 'LightBurn Watcher', 'qsa-engraving' ); ?></td>
+                            <td><?php esc_html_e( 'SVG Delivery', 'qsa-engraving' ); ?></td>
                             <td>
                                 <span class="qsa-watcher-info">
-                                    <span class="dashicons dashicons-info" style="color: #2271b1;"></span>
-                                    <?php esc_html_e( 'SVG files are automatically picked up by the watcher on the production workstation', 'qsa-engraving' ); ?>
+                                    <span class="dashicons dashicons-download" style="color: #2271b1;"></span>
+                                    <code style="font-size: 12px;">C:\Users\Production\LightBurn\Incoming</code>
                                 </span>
                             </td>
                         </tr>
@@ -612,12 +588,10 @@ class Admin_Menu {
                     if (isEnabled) {
                         $('#qsa-svg-rotation-row').show();
                         $('#qsa-svg-top-offset-row').show();
-                        $('#qsa-svg-directory-row').show();
                         $('#qsa-watcher-info-row').show();
                     } else {
                         $('#qsa-svg-rotation-row').hide();
                         $('#qsa-svg-top-offset-row').hide();
-                        $('#qsa-svg-directory-row').hide();
                         $('#qsa-watcher-info-row').hide();
                     }
                 });
