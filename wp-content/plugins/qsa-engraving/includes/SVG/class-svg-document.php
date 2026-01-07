@@ -106,6 +106,13 @@ class SVG_Document {
     private bool $include_crosshair = false;
 
     /**
+     * Rotation angle in degrees (0, 90, 180, 270).
+     *
+     * @var int
+     */
+    private int $rotation = 0;
+
+    /**
      * Coordinate transformer instance.
      *
      * @var Coordinate_Transformer
@@ -158,6 +165,35 @@ class SVG_Document {
     public function set_include_crosshair( bool $include ): self {
         $this->include_crosshair = $include;
         return $this;
+    }
+
+    /**
+     * Set rotation angle for the entire SVG.
+     *
+     * @param int $degrees Rotation in degrees (0, 90, 180, 270).
+     * @return self For method chaining.
+     */
+    public function set_rotation( int $degrees ): self {
+        // Normalize to valid values.
+        $degrees = $degrees % 360;
+        if ( $degrees < 0 ) {
+            $degrees += 360;
+        }
+        // Only accept 0, 90, 180, 270.
+        if ( ! in_array( $degrees, array( 0, 90, 180, 270 ), true ) ) {
+            $degrees = 0;
+        }
+        $this->rotation = $degrees;
+        return $this;
+    }
+
+    /**
+     * Get rotation angle.
+     *
+     * @return int Rotation in degrees.
+     */
+    public function get_rotation(): int {
+        return $this->rotation;
     }
 
     /**
@@ -235,13 +271,20 @@ class SVG_Document {
         // Add defs element (for future use).
         $output .= "\n  <defs/>";
 
+        // Open rotation group if rotation is applied.
+        $indent = '  ';
+        if ( $this->rotation !== 0 ) {
+            $output .= "\n\n  " . $this->render_rotation_group_open();
+            $indent = '    '; // Increase indent for nested content.
+        }
+
         // Add alignment marks.
         if ( $this->include_boundary ) {
-            $output .= "\n\n  " . $this->render_boundary();
+            $output .= "\n\n" . $indent . $this->render_boundary();
         }
 
         if ( $this->include_crosshair ) {
-            $output .= "\n  " . $this->render_crosshair();
+            $output .= "\n" . $indent . $this->render_crosshair();
         }
 
         // Render each module.
@@ -251,7 +294,14 @@ class SVG_Document {
             if ( is_wp_error( $module_svg ) ) {
                 return $module_svg;
             }
-            $output .= "\n\n  " . $module_svg;
+            // Replace base indent with current indent level.
+            $module_svg = str_replace( "\n  ", "\n" . $indent, $module_svg );
+            $output .= "\n\n" . $indent . $module_svg;
+        }
+
+        // Close rotation group if rotation was applied.
+        if ( $this->rotation !== 0 ) {
+            $output .= "\n\n  </g>";
         }
 
         $output .= "\n\n</svg>\n";
@@ -271,18 +321,80 @@ class SVG_Document {
     /**
      * Render SVG opening tag with namespaces.
      *
+     * For 90° and 270° rotations, the canvas dimensions are swapped
+     * so that the rotated content fits within the viewBox.
+     *
      * @return string SVG opening tag.
      */
     private function render_svg_open(): string {
+        // For 90° and 270° rotations, swap width and height.
+        $display_width  = $this->width;
+        $display_height = $this->height;
+
+        if ( $this->rotation === 90 || $this->rotation === 270 ) {
+            $display_width  = $this->height;
+            $display_height = $this->width;
+        }
+
         return sprintf(
             '<svg xmlns="http://www.w3.org/2000/svg"
      width="%smm" height="%smm"
      viewBox="0 0 %s %s">',
-            number_format( $this->width, 1, '.', '' ),
-            number_format( $this->height, 1, '.', '' ),
-            number_format( $this->width, 1, '.', '' ),
-            number_format( $this->height, 1, '.', '' )
+            number_format( $display_width, 1, '.', '' ),
+            number_format( $display_height, 1, '.', '' ),
+            number_format( $display_width, 1, '.', '' ),
+            number_format( $display_height, 1, '.', '' )
         );
+    }
+
+    /**
+     * Render the opening tag for the rotation group.
+     *
+     * Applies a transform to rotate all content around the appropriate
+     * origin point based on the rotation angle.
+     *
+     * Transform explanations:
+     * - 90° CW:  translate(height, 0) rotate(90) - pivot at top-left, then shift right
+     * - 180°:    translate(width, height) rotate(180) - pivot at center
+     * - 270° CW: translate(0, width) rotate(270) - pivot at top-left, then shift down
+     *
+     * @return string Opening <g> tag with transform attribute.
+     */
+    private function render_rotation_group_open(): string {
+        $transform = '';
+
+        switch ( $this->rotation ) {
+            case 90:
+                // Rotate 90° CW: content rotates, then translate to fit in swapped canvas.
+                $transform = sprintf(
+                    'translate(%.1f, 0) rotate(90)',
+                    $this->height
+                );
+                break;
+
+            case 180:
+                // Rotate 180°: translate to opposite corner, then rotate.
+                $transform = sprintf(
+                    'translate(%.1f, %.1f) rotate(180)',
+                    $this->width,
+                    $this->height
+                );
+                break;
+
+            case 270:
+                // Rotate 270° CW (= 90° CCW): rotate, then translate to fit.
+                $transform = sprintf(
+                    'translate(0, %.1f) rotate(270)',
+                    $this->width
+                );
+                break;
+
+            default:
+                // 0° - no transform needed, but this shouldn't be called.
+                return '<g id="content">';
+        }
+
+        return sprintf( '<g id="rotated-content" transform="%s">', $transform );
     }
 
     /**
@@ -594,6 +706,10 @@ class SVG_Document {
                 $options['calibration_x'] ?? 0.0,
                 $options['calibration_y'] ?? 0.0
             );
+        }
+
+        if ( isset( $options['rotation'] ) ) {
+            $doc->set_rotation( (int) $options['rotation'] );
         }
 
         // Add each module.

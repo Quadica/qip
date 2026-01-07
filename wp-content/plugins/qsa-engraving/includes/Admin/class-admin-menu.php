@@ -385,6 +385,7 @@ class Admin_Menu {
             $system_settings   = get_option( 'qsa_engraving_settings', array() );
             $svg_enabled       = ! empty( $system_settings['lightburn_enabled'] );
             $keep_svg_files    = ! empty( $system_settings['keep_svg_files'] );
+            $svg_rotation      = isset( $system_settings['svg_rotation'] ) ? (int) $system_settings['svg_rotation'] : 0;
             $file_manager      = new \Quadica\QSA_Engraving\Services\SVG_File_Manager();
             $svg_status        = $file_manager->get_status();
             ?>
@@ -418,6 +419,20 @@ class Admin_Menu {
                                     <span class="qsa-toggle-slider"></span>
                                 </label>
                                 <span class="qsa-toggle-status" id="qsa-keep-svg-status"></span>
+                            </td>
+                        </tr>
+                        <tr id="qsa-svg-rotation-row" <?php echo $svg_enabled ? '' : 'style="display:none;"'; ?>>
+                            <td>
+                                <label for="qsa-svg-rotation"><?php esc_html_e( 'SVG Rotation', 'qsa-engraving' ); ?></label>
+                            </td>
+                            <td>
+                                <select id="qsa-svg-rotation" class="qsa-rotation-select">
+                                    <option value="0" <?php selected( $svg_rotation, 0 ); ?>>0° (No rotation)</option>
+                                    <option value="90" <?php selected( $svg_rotation, 90 ); ?>>90° Clockwise</option>
+                                    <option value="180" <?php selected( $svg_rotation, 180 ); ?>>180°</option>
+                                    <option value="270" <?php selected( $svg_rotation, 270 ); ?>>270° Clockwise</option>
+                                </select>
+                                <span class="qsa-toggle-status" id="qsa-rotation-status"></span>
                             </td>
                         </tr>
                         <tr id="qsa-svg-directory-row" <?php echo $svg_enabled ? '' : 'style="display:none;"'; ?>>
@@ -516,6 +531,20 @@ class Admin_Menu {
                     font-size: 13px;
                     color: #50575e;
                 }
+                .qsa-rotation-select {
+                    min-width: 160px;
+                    padding: 4px 8px;
+                    border: 1px solid #8c8f94;
+                    border-radius: 4px;
+                    background: #fff;
+                    font-size: 13px;
+                    vertical-align: middle;
+                }
+                .qsa-rotation-select:focus {
+                    border-color: #2271b1;
+                    box-shadow: 0 0 0 1px #2271b1;
+                    outline: none;
+                }
             </style>
             <script>
             jQuery(function($) {
@@ -548,11 +577,13 @@ class Admin_Menu {
                     var isEnabled = $(this).is(':checked');
                     saveToggle('lightburn_enabled', isEnabled, $('#qsa-svg-generation-status'));
 
-                    // Show/hide SVG directory and watcher info rows
+                    // Show/hide SVG-related rows
                     if (isEnabled) {
+                        $('#qsa-svg-rotation-row').show();
                         $('#qsa-svg-directory-row').show();
                         $('#qsa-watcher-info-row').show();
                     } else {
+                        $('#qsa-svg-rotation-row').hide();
                         $('#qsa-svg-directory-row').hide();
                         $('#qsa-watcher-info-row').hide();
                     }
@@ -561,6 +592,29 @@ class Admin_Menu {
                 // Keep SVG Files toggle
                 $('#qsa-toggle-keep-svg').on('change', function() {
                     saveToggle('keep_svg_files', $(this).is(':checked'), $('#qsa-keep-svg-status'));
+                });
+
+                // SVG Rotation dropdown
+                $('#qsa-svg-rotation').on('change', function() {
+                    var $status = $('#qsa-rotation-status');
+                    var rotation = $(this).val();
+
+                    $status.removeClass('saved error').addClass('saving').text('<?php echo esc_js( __( 'Saving...', 'qsa-engraving' ) ); ?>');
+
+                    $.post(ajaxUrl, {
+                        action: 'qsa_save_lightburn_settings',
+                        nonce: nonce,
+                        svg_rotation: rotation
+                    }, function(response) {
+                        if (response.success) {
+                            $status.removeClass('saving').addClass('saved').text('<?php echo esc_js( __( 'Saved', 'qsa-engraving' ) ); ?>');
+                            setTimeout(function() { $status.text(''); }, 2000);
+                        } else {
+                            $status.removeClass('saving').addClass('error').text('<?php echo esc_js( __( 'Error', 'qsa-engraving' ) ); ?>');
+                        }
+                    }).fail(function() {
+                        $status.removeClass('saving').addClass('error').text('<?php echo esc_js( __( 'Failed', 'qsa-engraving' ) ); ?>');
+                    });
                 });
             });
             </script>
