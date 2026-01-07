@@ -128,6 +128,11 @@ class SVG_Generator {
         $options['calibration_x'] = $calibration['x'];
         $options['calibration_y'] = $calibration['y'];
 
+        // Get rotation from settings if not provided in options.
+        if ( ! isset( $options['rotation'] ) ) {
+            $options['rotation'] = $this->get_rotation_setting();
+        }
+
         // Create document from data.
         $doc = SVG_Document::create_from_data( $modules, $config, $qsa_design, $options );
         if ( is_wp_error( $doc ) ) {
@@ -135,6 +140,23 @@ class SVG_Generator {
         }
 
         return $doc->render();
+    }
+
+    /**
+     * Get the SVG rotation setting from WordPress options.
+     *
+     * @return int Rotation in degrees (0, 90, 180, 270).
+     */
+    public function get_rotation_setting(): int {
+        $settings = get_option( 'qsa_engraving_settings', array() );
+        $rotation = isset( $settings['svg_rotation'] ) ? (int) $settings['svg_rotation'] : 0;
+
+        // Validate - only allow 0, 90, 180, 270.
+        if ( ! in_array( $rotation, array( 0, 90, 180, 270 ), true ) ) {
+            return 0;
+        }
+
+        return $rotation;
     }
 
     /**

@@ -743,6 +743,17 @@ class LightBurn_Ajax_Handler {
 			$settings['keep_svg_files'] = filter_var( $_POST['keep_svg_files'], FILTER_VALIDATE_BOOLEAN );
 		}
 
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce already verified.
+		if ( isset( $_POST['svg_rotation'] ) ) {
+			$rotation = absint( $_POST['svg_rotation'] );
+			// Only allow valid rotation values: 0, 90, 180, 270.
+			if ( ! in_array( $rotation, array( 0, 90, 180, 270 ), true ) ) {
+				$this->send_error( __( 'Invalid rotation value. Must be 0, 90, 180, or 270.', 'qsa-engraving' ), 'invalid_rotation' );
+				return;
+			}
+			$settings['svg_rotation'] = $rotation;
+		}
+
 		// Save settings.
 		update_option( 'qsa_engraving_settings', $settings );
 
