@@ -231,6 +231,91 @@ class LightBurn_Client {
 	}
 
 	/**
+	 * Initialize output socket only (for fire-and-forget mode).
+	 *
+	 * @return bool|WP_Error True on success, WP_Error on failure.
+	 */
+	private function init_output_socket(): bool|WP_Error {
+		if ( null !== $this->out_socket ) {
+			return true;
+		}
+
+		// Check if socket extension is available.
+		if ( ! function_exists( 'socket_create' ) ) {
+			$this->last_error = 'PHP sockets extension is not available.';
+			return new WP_Error(
+				'sockets_unavailable',
+				__( 'PHP sockets extension is not available. Please enable it in php.ini.', 'qsa-engraving' )
+			);
+		}
+
+		// Create output socket.
+		$this->out_socket = @socket_create( AF_INET, SOCK_DGRAM, SOL_UDP );
+		if ( false === $this->out_socket ) {
+			$this->last_error = socket_strerror( socket_last_error() );
+			return new WP_Error(
+				'socket_create_failed',
+				sprintf(
+					/* translators: %s: Socket error message */
+					__( 'Failed to create output socket: %s', 'qsa-engraving' ),
+					$this->last_error
+				)
+			);
+		}
+
+		return true;
+	}
+
+	/**
+	 * Send a command to LightBurn without waiting for response (fire-and-forget).
+	 *
+	 * Use this for remote setups where the response cannot reach the server.
+	 *
+	 * @param string $command The command to send.
+	 * @return array{success: bool, response: string, error: string}
+	 */
+	public function send_command_no_wait( string $command ): array {
+		$init = $this->init_output_socket();
+		if ( is_wp_error( $init ) ) {
+			return array(
+				'success'  => false,
+				'response' => '',
+				'error'    => $init->get_error_message(),
+			);
+		}
+
+		// Send command via output socket.
+		$sent = @socket_sendto(
+			$this->out_socket,
+			$command,
+			strlen( $command ),
+			0,
+			$this->host,
+			$this->out_port
+		);
+
+		if ( false === $sent ) {
+			$this->last_error = socket_strerror( socket_last_error( $this->out_socket ) );
+			return array(
+				'success'  => false,
+				'response' => '',
+				'error'    => sprintf(
+					/* translators: %s: Socket error message */
+					__( 'Failed to send command: %s', 'qsa-engraving' ),
+					$this->last_error
+				),
+			);
+		}
+
+		// Fire-and-forget: assume success if send succeeded.
+		return array(
+			'success'  => true,
+			'response' => 'sent',
+			'error'    => '',
+		);
+	}
+
+	/**
 	 * Send a command to LightBurn and wait for response.
 	 *
 	 * @param string $command The command to send.
@@ -344,6 +429,41 @@ class LightBurn_Client {
 		// Send LOADFILE command.
 		$command = "LOADFILE:{$filepath}";
 		$result  = $this->send_command( $command );
+
+		if ( ! $result['success'] ) {
+			return new WP_Error(
+				'loadfile_failed',
+				$result['error']
+			);
+		}
+
+		return true;
+	}
+
+	/**
+	 * Load an SVG file in LightBurn (fire-and-forget mode).
+	 *
+	 * Use this for remote setups where the response cannot reach the server.
+	 * Assumes success if the UDP packet was sent successfully.
+	 *
+	 * @param string $filepath The file path to load (must be accessible from LightBurn).
+	 * @return bool|WP_Error True on success, WP_Error on failure.
+	 */
+	public function load_file_no_wait( string $filepath ): bool|WP_Error {
+		// Validate filepath.
+		if ( empty( $filepath ) ) {
+			return new WP_Error(
+				'empty_filepath',
+				__( 'File path cannot be empty.', 'qsa-engraving' )
+			);
+		}
+
+		// Convert to Windows-style path if needed (LightBurn runs on Windows).
+		$filepath = str_replace( '/', '\\', $filepath );
+
+		// Send LOADFILE command without waiting for response.
+		$command = "LOADFILE:{$filepath}";
+		$result  = $this->send_command_no_wait( $command );
 
 		if ( ! $result['success'] ) {
 			return new WP_Error(
