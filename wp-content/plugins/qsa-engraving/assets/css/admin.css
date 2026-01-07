@@ -2220,16 +2220,21 @@
    ========================================= */
 
 .qsa-panels-row {
+    grid-column: 1 / -1; /* Span all columns of parent grid */
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 20px;
-    margin-top: 20px;
+    margin-top: 0;
 }
 
 @media screen and (max-width: 1200px) {
     .qsa-panels-row {
         grid-template-columns: 1fr;
     }
+}
+
+.qsa-panels-row .qsa-widget {
+    margin: 0;
 }
 
 /* =========================================
