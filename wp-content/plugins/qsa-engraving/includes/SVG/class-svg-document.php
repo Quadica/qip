@@ -113,6 +113,13 @@ class SVG_Document {
     private int $rotation = 0;
 
     /**
+     * Top offset in mm (shifts content down when positive).
+     *
+     * @var float
+     */
+    private float $top_offset = 0.0;
+
+    /**
      * Coordinate transformer instance.
      *
      * @var Coordinate_Transformer
@@ -197,6 +204,29 @@ class SVG_Document {
     }
 
     /**
+     * Set top offset for the SVG content.
+     *
+     * Positive values shift content down, negative values shift up.
+     *
+     * @param float $offset Offset in mm (-5 to +5).
+     * @return self For method chaining.
+     */
+    public function set_top_offset( float $offset ): self {
+        // Clamp to valid range.
+        $this->top_offset = max( -5.0, min( 5.0, $offset ) );
+        return $this;
+    }
+
+    /**
+     * Get top offset.
+     *
+     * @return float Offset in mm.
+     */
+    public function get_top_offset(): float {
+        return $this->top_offset;
+    }
+
+    /**
      * Set calibration offsets.
      *
      * @param float $x_offset X offset in mm.
@@ -271,11 +301,21 @@ class SVG_Document {
         // Add defs element (for future use).
         $output .= "\n  <defs/>";
 
+        // Determine if we need transform groups.
+        $has_rotation = ( $this->rotation !== 0 );
+        $has_offset   = ( abs( $this->top_offset ) > 0.001 ); // Allow for float comparison.
+        $indent       = '  ';
+
         // Open rotation group if rotation is applied.
-        $indent = '  ';
-        if ( $this->rotation !== 0 ) {
+        if ( $has_rotation ) {
             $output .= "\n\n  " . $this->render_rotation_group_open();
-            $indent = '    '; // Increase indent for nested content.
+            $indent = '    ';
+        }
+
+        // Open offset group if offset is applied (nested inside rotation if both).
+        if ( $has_offset ) {
+            $output .= "\n\n" . $indent . $this->render_offset_group_open();
+            $indent .= '  ';
         }
 
         // Add alignment marks.
@@ -299,8 +339,14 @@ class SVG_Document {
             $output .= "\n\n" . $indent . $module_svg;
         }
 
+        // Close offset group if offset was applied.
+        if ( $has_offset ) {
+            $indent = substr( $indent, 0, -2 ); // Decrease indent.
+            $output .= "\n\n" . $indent . '</g>';
+        }
+
         // Close rotation group if rotation was applied.
-        if ( $this->rotation !== 0 ) {
+        if ( $has_rotation ) {
             $output .= "\n\n  </g>";
         }
 
@@ -395,6 +441,20 @@ class SVG_Document {
         }
 
         return sprintf( '<g id="rotated-content" transform="%s">', $transform );
+    }
+
+    /**
+     * Render the opening tag for the offset group.
+     *
+     * Applies a vertical translate to shift content down (positive) or up (negative).
+     *
+     * @return string Opening <g> tag with transform attribute.
+     */
+    private function render_offset_group_open(): string {
+        return sprintf(
+            '<g id="offset-content" transform="translate(0, %.2f)">',
+            $this->top_offset
+        );
     }
 
     /**
@@ -710,6 +770,10 @@ class SVG_Document {
 
         if ( isset( $options['rotation'] ) ) {
             $doc->set_rotation( (int) $options['rotation'] );
+        }
+
+        if ( isset( $options['top_offset'] ) ) {
+            $doc->set_top_offset( (float) $options['top_offset'] );
         }
 
         // Add each module.
