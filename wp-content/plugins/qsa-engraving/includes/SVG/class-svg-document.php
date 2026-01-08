@@ -446,14 +446,45 @@ class SVG_Document {
     /**
      * Render the opening tag for the offset group.
      *
-     * Applies a vertical translate to shift content down (positive) or up (negative).
+     * Applies a translate to shift content down (positive) or up (negative)
+     * relative to the visual top of the canvas, accounting for rotation.
+     *
+     * Since this group is nested inside the rotation group, we must adjust
+     * the translation direction based on rotation so the offset always
+     * moves content in the visual "down" direction:
+     * - 0°:   translate(0, +offset) - down is +Y
+     * - 90°:  translate(+offset, 0) - after 90° CW, down is +X
+     * - 180°: translate(0, -offset) - after 180°, down is -Y
+     * - 270°: translate(-offset, 0) - after 270° CW, down is -X
      *
      * @return string Opening <g> tag with transform attribute.
      */
     private function render_offset_group_open(): string {
+        $translate_x = 0.0;
+        $translate_y = 0.0;
+
+        switch ( $this->rotation ) {
+            case 90:
+                $translate_x = $this->top_offset;
+                break;
+
+            case 180:
+                $translate_y = -$this->top_offset;
+                break;
+
+            case 270:
+                $translate_x = -$this->top_offset;
+                break;
+
+            default: // 0°
+                $translate_y = $this->top_offset;
+                break;
+        }
+
         return sprintf(
-            '<g id="offset-content" transform="translate(0, %.2f)">',
-            $this->top_offset
+            '<g id="offset-content" transform="translate(%.2f, %.2f)">',
+            $translate_x,
+            $translate_y
         );
     }
 
