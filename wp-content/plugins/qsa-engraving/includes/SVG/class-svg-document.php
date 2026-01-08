@@ -312,13 +312,7 @@ class SVG_Document {
             $indent = '    ';
         }
 
-        // Open offset group if offset is applied (nested inside rotation if both).
-        if ( $has_offset ) {
-            $output .= "\n\n" . $indent . $this->render_offset_group_open();
-            $indent .= '  ';
-        }
-
-        // Add alignment marks.
+        // Add alignment marks OUTSIDE the offset group (perimeter should not move).
         if ( $this->include_boundary ) {
             $output .= "\n\n" . $indent . $this->render_boundary();
         }
@@ -327,7 +321,13 @@ class SVG_Document {
             $output .= "\n" . $indent . $this->render_crosshair();
         }
 
-        // Render each module.
+        // Open offset group if offset is applied (only affects engraved content, not alignment marks).
+        if ( $has_offset ) {
+            $output .= "\n\n" . $indent . $this->render_offset_group_open();
+            $indent .= '  ';
+        }
+
+        // Render each module (inside offset group if offset applied).
         ksort( $this->modules );
         foreach ( $this->modules as $position => $module ) {
             $module_svg = $this->render_module( $position, $module['data'], $module['config'] );
