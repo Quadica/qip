@@ -1,0 +1,32 @@
+{
+  "name": "lightburn-watcher",
+  "version": "2.0.0",
+  "description": "SFTP watcher service for LightBurn laser engraving workflow",
+  "main": "lightburn-watcher-service.js",
+  "scripts": {
+    "start": "node lightburn-watcher-service.js",
+    "once": "node lightburn-watcher-service.js --once",
+    "clear": "node lightburn-watcher-service.js --clear",
+    "install-service": "node install-service.js",
+    "uninstall-service": "node uninstall-service.js"
+  },
+  "keywords": [
+    "lightburn",
+    "sftp",
+    "laser",
+    "engraving",
+    "windows-service"
+  ],
+  "author": "Quadica",
+  "license": "UNLICENSED",
+  "private": true,
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "ssh2-sftp-client": "^11.0.0"
+  },
+  "devDependencies": {
+    "node-windows": "^1.0.0-beta.8"
+  }
+}
