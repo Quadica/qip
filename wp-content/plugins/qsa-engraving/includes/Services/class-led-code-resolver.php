@@ -291,6 +291,103 @@ class LED_Code_Resolver {
 	}
 
 	/**
+	 * Get LED codes for a module with position information preserved.
+	 *
+	 * Unlike get_led_codes_for_module(), this method does NOT deduplicate
+	 * the LED codes. Each position in the Order BOM returns its LED shortcode,
+	 * even if multiple positions have the same LED type.
+	 *
+	 * This is used for SVG rendering where we need to render LED codes
+	 * at each physical position on the module.
+	 *
+	 * @param int    $order_id   The WooCommerce order ID.
+	 * @param string $module_sku The module SKU.
+	 * @return array|WP_Error Array of LED codes indexed by position (1-based), or WP_Error.
+	 */
+	public function get_led_codes_by_position( int $order_id, string $module_sku ): array|WP_Error {
+		$cache_key = "{$order_id}-{$module_sku}-by-position";
+
+		if ( isset( $this->cache[ $cache_key ] ) ) {
+			return $this->cache[ $cache_key ];
+		}
+
+		// Find the Order BOM post for this order/module.
+		$bom_post = $this->find_order_bom_post( $order_id, $module_sku );
+
+		if ( is_wp_error( $bom_post ) ) {
+			return $bom_post;
+		}
+
+		if ( null === $bom_post ) {
+			return new WP_Error(
+				'bom_not_found',
+				sprintf(
+					/* translators: 1: Order ID, 2: Module SKU */
+					__( 'No Order BOM record found for order #%1$d, module %2$s. FIX: Create an Order BOM entry linking this order to the module, or verify the order ID and module SKU are correct.', 'qsa-engraving' ),
+					$order_id,
+					$module_sku
+				)
+			);
+		}
+
+		// Get LED SKUs from the BOM with position information.
+		$led_data = $this->get_led_data_from_bom( $bom_post );
+
+		if ( empty( $led_data ) ) {
+			return new WP_Error(
+				'led_data_missing',
+				sprintf(
+					/* translators: 1: Order ID, 2: Module SKU */
+					__( 'Order BOM exists for order #%1$d, module %2$s, but contains no LED component data. FIX: Edit the Order BOM record and add LED SKUs to the LED components field.', 'qsa-engraving' ),
+					$order_id,
+					$module_sku
+				)
+			);
+		}
+
+		// Resolve LED shortcodes for each position - NO deduplication.
+		// Build array indexed by position for SVG rendering.
+		$led_codes_by_position = array();
+		$missing_shortcodes    = array();
+
+		foreach ( $led_data as $led ) {
+			$position  = (int) $led['position'];
+			$shortcode = $this->get_led_shortcode( $led['sku'] );
+
+			if ( ! empty( $shortcode ) ) {
+				$led_codes_by_position[ $position ] = (string) $shortcode;
+			} else {
+				$missing_shortcodes[] = $led['sku'];
+			}
+		}
+
+		if ( empty( $led_codes_by_position ) ) {
+			// BOM has LED SKUs but none resolved to shortcodes.
+			$led_skus_list = implode( ', ', array_unique( $missing_shortcodes ) );
+
+			return new WP_Error(
+				'led_shortcodes_missing',
+				sprintf(
+					/* translators: 1: Order ID, 2: Module SKU, 3: List of LED SKUs */
+					__( 'LED products found for order #%1$d, module %2$s (SKUs: %3$s), but none have the "led_shortcode_3" field set. FIX: Edit each LED product and add a 3-character shortcode (e.g., "K7P") to the led_shortcode_3 custom field.', 'qsa-engraving' ),
+					$order_id,
+					$module_sku,
+					$led_skus_list
+				)
+			);
+		}
+
+		// Sort by position to ensure consistent ordering.
+		ksort( $led_codes_by_position );
+
+		// Convert to 0-indexed array for SVG rendering (led_code_1 = index 0, etc.)
+		$led_codes = array_values( $led_codes_by_position );
+
+		$this->cache[ $cache_key ] = $led_codes;
+		return $led_codes;
+	}
+
+	/**
 	 * Validate that a LED shortcode is properly formatted.
 	 *
 	 * @param string $shortcode The LED shortcode to validate.

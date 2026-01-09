@@ -431,11 +431,17 @@ class LightBurn_Ajax_Handler {
 	 * Uses the LED_Code_Resolver to query Order BOM and product metadata
 	 * for the 3-character LED shortcodes.
 	 *
+	 * For SVG rendering, we use get_led_codes_by_position() which preserves
+	 * position information and does NOT deduplicate LED codes. This ensures
+	 * that modules with multiple LEDs of the same type (e.g., 4x same LED)
+	 * render LED codes at all positions, not just position 1.
+	 *
 	 * @param array $module The module data.
 	 * @return array|WP_Error Array of LED shortcodes or WP_Error if resolution fails.
 	 */
 	private function resolve_led_codes( array $module ): array|WP_Error {
 		// Check if module already has LED codes in its data (from batch sorter).
+		// Note: Pre-populated LED codes should already be position-aware.
 		if ( ! empty( $module['led_codes'] ) ) {
 			if ( is_array( $module['led_codes'] ) ) {
 				$led_codes = array_filter( $module['led_codes'], fn( $code ) => ! empty( $code ) && '---' !== $code );
@@ -452,6 +458,7 @@ class LightBurn_Ajax_Handler {
 		}
 
 		// Use LED_Code_Resolver to query Order BOM for LED shortcodes.
+		// Use get_led_codes_by_position() to preserve all positions for SVG rendering.
 		$order_id   = (int) ( $module['order_id'] ?? 0 );
 		$module_sku = $module['module_sku'] ?? '';
 
@@ -466,7 +473,8 @@ class LightBurn_Ajax_Handler {
 			);
 		}
 
-		$led_codes = $this->led_code_resolver->get_led_codes_for_module( $order_id, $module_sku );
+		// Use position-aware method for SVG rendering (does not deduplicate).
+		$led_codes = $this->led_code_resolver->get_led_codes_by_position( $order_id, $module_sku );
 
 		if ( is_wp_error( $led_codes ) ) {
 			return $led_codes;
