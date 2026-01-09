@@ -24,13 +24,21 @@
 -- Purpose: Store configurable element size in mm (primarily for QR codes)
 --
 -- Placement: After text_height column (related sizing configuration)
--- Default: NULL (only used for elements that require explicit sizing)
--- Usage: QR codes default to 10mm if not specified
+-- Default: NULL - column is shared by multiple element types
+--
+-- IMPORTANT: Repository/renderer code MUST coalesce NULL to type-appropriate default:
+--   - QR codes: COALESCE(element_size, 10.0) for 10mm default
+--   - Other element types may define their own defaults as needed
+--
+-- Rationale for NULL default instead of 10.0:
+--   - This column may be used by element types other than qr_code in future
+--   - A universal default would be semantically incorrect for non-QR elements
+--   - Application layer handles the default via QR_Code_Renderer::DEFAULT_SIZE
 -- -----------------------------------------------------------------------------
 
 ALTER TABLE `lw_quad_qsa_config`
     ADD COLUMN `element_size` DECIMAL(5,2) DEFAULT NULL
-        COMMENT 'Element size in mm (used for qr_code, default 10mm if NULL)'
+        COMMENT 'Element size in mm. NULL = use element-specific default (QR: 10mm)'
     AFTER `text_height`;
 
 
