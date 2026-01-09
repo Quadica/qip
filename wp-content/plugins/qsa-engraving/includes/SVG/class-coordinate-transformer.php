@@ -255,33 +255,6 @@ class Coordinate_Transformer {
     }
 
     /**
-     * Calculate Data Matrix position for SVG placement.
-     *
-     * Data Matrix coordinates from CSV are center-point based.
-     * We need to offset to get the top-left corner for SVG rect placement.
-     *
-     * @param float $cad_x     CAD X coordinate (center of Data Matrix).
-     * @param float $cad_y     CAD Y coordinate (center of Data Matrix).
-     * @param float $dm_width  Data Matrix width in mm (default 14.0).
-     * @param float $dm_height Data Matrix height in mm (default 6.5).
-     * @return array{x: float, y: float} SVG coordinates for rect x,y attributes.
-     */
-    public function get_datamatrix_position(
-        float $cad_x,
-        float $cad_y,
-        float $dm_width = 14.0,
-        float $dm_height = 6.5
-    ): array {
-        $svg = $this->cad_to_svg( $cad_x, $cad_y );
-
-        // Offset from center to top-left corner.
-        return array(
-            'x' => $svg['x'] - ( $dm_width / 2 ),
-            'y' => $svg['y'] - ( $dm_height / 2 ),
-        );
-    }
-
-    /**
      * Create a transformer with calibration from configuration array.
      *
      * @param array $config Configuration with optional 'calibration_x' and 'calibration_y' keys.

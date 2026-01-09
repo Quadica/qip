@@ -3,7 +3,7 @@
  * SVG Document Assembler.
  *
  * Generates complete SVG documents for QSA engraving with all element types:
- * Micro-ID codes, Data Matrix barcodes, and text elements.
+ * Micro-ID codes, QR codes, and text elements.
  *
  * @package QSA_Engraving
  * @since 1.0.0
@@ -576,15 +576,6 @@ class SVG_Document {
             $elements[] = '  ' . $micro_id_svg;
         }
 
-        // Data Matrix.
-        if ( isset( $config['datamatrix'] ) ) {
-            $datamatrix_svg = $this->render_datamatrix( $position, $serial_number, $config['datamatrix'] );
-            if ( is_wp_error( $datamatrix_svg ) ) {
-                return $datamatrix_svg;
-            }
-            $elements[] = '  ' . $datamatrix_svg;
-        }
-
         // Module ID text.
         if ( ! empty( $module_id ) && isset( $config['module_id'] ) ) {
             $elements[] = '  ' . $this->render_text_element(
@@ -663,36 +654,6 @@ class SVG_Document {
             $svg_coords['x'],
             $svg_coords['y'],
             sprintf( 'micro-id-%d', $position )
-        );
-    }
-
-    /**
-     * Render Data Matrix element.
-     *
-     * @param int    $position      Module position.
-     * @param string $serial_number Serial number.
-     * @param array  $config        Element configuration.
-     * @return string|WP_Error SVG markup or error.
-     */
-    private function render_datamatrix( int $position, string $serial_number, array $config ): string|WP_Error {
-        // Transform CAD coordinates to SVG.
-        $svg_coords = $this->transformer->get_datamatrix_position(
-            $config['origin_x'],
-            $config['origin_y']
-        );
-
-        // Validate coordinates are within bounds (clamp if needed).
-        if ( ! $this->transformer->is_within_bounds( $svg_coords['x'], $svg_coords['y'] ) ) {
-            $svg_coords = $this->transformer->clamp_to_bounds( $svg_coords['x'], $svg_coords['y'] );
-        }
-
-        return Datamatrix_Renderer::render_positioned(
-            $serial_number,
-            $svg_coords['x'],
-            $svg_coords['y'],
-            Datamatrix_Renderer::DEFAULT_WIDTH,
-            Datamatrix_Renderer::DEFAULT_HEIGHT,
-            sprintf( 'datamatrix-%d', $position )
         );
     }
 

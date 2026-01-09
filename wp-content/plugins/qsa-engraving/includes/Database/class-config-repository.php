@@ -29,11 +29,14 @@ class Config_Repository {
     /**
      * Valid element types.
      *
+     * Note: 'datamatrix' was removed in Phase 2 of QR code implementation.
+     * 'qr_code' is a design-level element (position=0) added in Phase 4.
+     *
      * @var array
      */
     public const ELEMENT_TYPES = array(
         'micro_id',
-        'datamatrix',
+        'qr_code',
         'module_id',
         'serial_url',
         'led_code_1',

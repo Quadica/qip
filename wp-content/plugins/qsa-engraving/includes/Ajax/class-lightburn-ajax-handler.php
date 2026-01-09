@@ -871,7 +871,7 @@ class LightBurn_Ajax_Handler {
 					   AND revision = %s
 					   AND position = %d
 					   AND is_active = 1
-					 ORDER BY FIELD(element_type, 'micro_id', 'datamatrix', 'module_id', 'serial_url',
+					 ORDER BY FIELD(element_type, 'micro_id', 'qr_code', 'module_id', 'serial_url',
 					                'led_code_1', 'led_code_2', 'led_code_3', 'led_code_4',
 					                'led_code_5', 'led_code_6', 'led_code_7', 'led_code_8')",
 					$design,
@@ -889,7 +889,7 @@ class LightBurn_Ajax_Handler {
 					   AND revision IS NULL
 					   AND position = %d
 					   AND is_active = 1
-					 ORDER BY FIELD(element_type, 'micro_id', 'datamatrix', 'module_id', 'serial_url',
+					 ORDER BY FIELD(element_type, 'micro_id', 'qr_code', 'module_id', 'serial_url',
 					                'led_code_1', 'led_code_2', 'led_code_3', 'led_code_4',
 					                'led_code_5', 'led_code_6', 'led_code_7', 'led_code_8')",
 					$design,

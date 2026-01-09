@@ -1474,33 +1474,7 @@ run_test(
     'Micro-ID position transform converts center to top-left correctly.'
 );
 
-run_test(
-    'TC-SVG-005: Data Matrix position transform',
-    function (): bool {
-        $transformer = new \Quadica\QSA_Engraving\SVG\Coordinate_Transformer();
-
-        // Test Data Matrix position transform.
-        // CAD coords for Data Matrix center, expecting offset for top-left.
-        // Default width=14, height=6.5, so offset is (7, 3.25).
-        $result = $transformer->get_datamatrix_position( 50.0, 50.0 );
-
-        // X should be 50.0 - 7 = 43.0.
-        if ( abs( $result['x'] - 43.0 ) > 0.001 ) {
-            return new WP_Error( 'dm_pos_fail', "X should be 43.0, got {$result['x']}." );
-        }
-
-        // Y should be (113.7 - 50) - 3.25 = 60.45.
-        $expected_y = 113.7 - 50.0 - 3.25;
-        if ( abs( $result['y'] - $expected_y ) > 0.001 ) {
-            return new WP_Error( 'dm_pos_fail', "Y should be {$expected_y}, got {$result['y']}." );
-        }
-
-        echo "  Data Matrix position transform verified (center to top-left offset).\n";
-
-        return true;
-    },
-    'Data Matrix position transform converts center to top-left correctly.'
-);
+// TC-SVG-005: Data Matrix position transform - REMOVED (Phase 2: datamatrix replaced by qr_code)
 
 run_test(
     'TC-SVG-006: Hair-space character spacing',
@@ -1662,111 +1636,7 @@ run_test(
     'LED code validation enforces character set and length.'
 );
 
-run_test(
-    'TC-DM-001: Data Matrix renderer availability check',
-    function (): bool {
-        $renderer = \Quadica\QSA_Engraving\SVG\Datamatrix_Renderer::class;
-
-        // Check library status.
-        $status = $renderer::get_library_status();
-
-        if ( ! is_array( $status ) ) {
-            return new WP_Error( 'status_fail', 'get_library_status() should return array.' );
-        }
-
-        if ( ! array_key_exists( 'available', $status ) ) {
-            return new WP_Error( 'status_fail', 'Status should have available key.' );
-        }
-
-        if ( $status['available'] ) {
-            echo "  tc-lib-barcode library is available.\n";
-        } else {
-            echo "  tc-lib-barcode not installed - using placeholder mode.\n";
-            echo "  Run: composer install in plugin directory.\n";
-        }
-
-        return true;
-    },
-    'Data Matrix renderer checks library availability.'
-);
-
-run_test(
-    'TC-DM-002: Data Matrix placeholder rendering',
-    function (): bool {
-        $renderer = \Quadica\QSA_Engraving\SVG\Datamatrix_Renderer::class;
-
-        // Render Data Matrix (will use placeholder if library not available).
-        $svg = $renderer::render( '00123456' );
-        if ( is_wp_error( $svg ) ) {
-            return $svg;
-        }
-
-        // Should return string.
-        if ( ! is_string( $svg ) ) {
-            return new WP_Error( 'render_fail', 'render() should return string.' );
-        }
-
-        // Should contain group element.
-        if ( strpos( $svg, '<g>' ) === false ) {
-            return new WP_Error( 'render_fail', 'Should contain group element.' );
-        }
-
-        // Test positioned rendering.
-        $positioned = $renderer::render_positioned( '00123456', 10.0, 20.0, 14.0, 6.5, 'dm-1' );
-        if ( is_wp_error( $positioned ) ) {
-            return $positioned;
-        }
-
-        if ( strpos( $positioned, 'id="dm-1"' ) === false ) {
-            return new WP_Error( 'render_fail', 'Positioned should have ID.' );
-        }
-
-        if ( strpos( $positioned, 'translate(10.0000, 20.0000)' ) === false ) {
-            return new WP_Error( 'render_fail', 'Positioned should have translate transform.' );
-        }
-
-        echo "  Data Matrix rendering produces valid output.\n";
-
-        return true;
-    },
-    'Data Matrix renderer generates SVG output.'
-);
-
-run_test(
-    'TC-DM-003: Data Matrix serial validation',
-    function (): bool {
-        $renderer = \Quadica\QSA_Engraving\SVG\Datamatrix_Renderer::class;
-
-        // Valid serial.
-        $result = $renderer::validate_serial( '00123456' );
-        if ( is_wp_error( $result ) ) {
-            return new WP_Error( 'validation_fail', '00123456 should be valid.' );
-        }
-
-        // Invalid: wrong length.
-        $result = $renderer::validate_serial( '123456' );
-        if ( ! is_wp_error( $result ) ) {
-            return new WP_Error( 'validation_fail', '123456 (6 chars) should be invalid.' );
-        }
-
-        // Invalid: contains letters.
-        $result = $renderer::validate_serial( '0012345A' );
-        if ( ! is_wp_error( $result ) ) {
-            return new WP_Error( 'validation_fail', '0012345A should be invalid.' );
-        }
-
-        // Get URL.
-        $url = $renderer::get_url( '00123456' );
-        if ( $url !== 'https://quadi.ca/00123456' ) {
-            return new WP_Error( 'url_fail', "Expected 'https://quadi.ca/00123456', got '{$url}'." );
-        }
-
-        echo "  Data Matrix serial validation and URL generation verified.\n";
-
-        return true;
-    },
-    'Data Matrix validates serial format and generates URLs.'
-);
+// TC-DM-001, TC-DM-002, TC-DM-003: Data Matrix tests - REMOVED (Phase 2: datamatrix class deleted)
 
 run_test(
     'TC-SVG-GEN-001: SVG Document structure',
@@ -4072,10 +3942,11 @@ run_test(
         $config_repo = new \Quadica\QSA_Engraving\Database\Config_Repository();
 
         // Get STARa position 1 config.
+        // Note: datamatrix removed in Phase 2, now testing micro_id and module_id only.
         $micro_id = $config_repo->get_element_config( 'STAR', 1, 'micro_id', 'a' );
-        $datamatrix = $config_repo->get_element_config( 'STAR', 1, 'datamatrix', 'a' );
+        $module_id = $config_repo->get_element_config( 'STAR', 1, 'module_id', 'a' );
 
-        if ( ! $micro_id || ! $datamatrix ) {
+        if ( ! $micro_id || ! $module_id ) {
             return new WP_Error( 'config_missing', 'Position 1 configuration not found.' );
         }
 
@@ -4087,16 +3958,8 @@ run_test(
             return new WP_Error( 'wrong_y', "micro_id Y expected 63.7933, got {$micro_id['origin_y']}" );
         }
 
-        // Verify datamatrix coordinates (from CSV: 29.7215, 95.2849).
-        if ( abs( $datamatrix['origin_x'] - 29.7215 ) > 0.001 ) {
-            return new WP_Error( 'wrong_x', "datamatrix X expected 29.7215, got {$datamatrix['origin_x']}" );
-        }
-        if ( abs( $datamatrix['origin_y'] - 95.2849 ) > 0.001 ) {
-            return new WP_Error( 'wrong_y', "datamatrix Y expected 95.2849, got {$datamatrix['origin_y']}" );
-        }
-
         echo "  STARa position 1 micro_id: ({$micro_id['origin_x']}, {$micro_id['origin_y']})\n";
-        echo "  STARa position 1 datamatrix: ({$datamatrix['origin_x']}, {$datamatrix['origin_y']})\n";
+        echo "  STARa position 1 module_id: ({$module_id['origin_x']}, {$module_id['origin_y']})\n";
         return true;
     },
     'STARa position 1 coordinates match source CSV data.'
@@ -4189,7 +4052,7 @@ run_test(
             return new WP_Error( 'transform_error', "Expected SVG Y {$expected_svg_y_1}, got {$actual_svg_y_1}" );
         }
 
-        // Position 5 datamatrix Y = 18.4151 in CAD.
+        // Position 5 element Y = 18.4151 in CAD.
         // SVG Y should be 113.7 - 18.4151 = 95.2849.
         $cad_y_2 = 18.4151;
         $expected_svg_y_2 = 95.2849;
