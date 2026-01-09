@@ -90,14 +90,13 @@ class QR_Code_Renderer {
      * @return string|WP_Error SVG content (group element) or error.
      */
     public static function render( string $data, float $size = self::DEFAULT_SIZE ): string|WP_Error {
-        // Validate inputs.
-        if ( empty( $data ) ) {
-            return new WP_Error(
-                'empty_data',
-                __( 'QR code data cannot be empty.', 'qsa-engraving' )
-            );
+        // Validate data (checks empty and length limits).
+        $validation = self::validate_data( $data );
+        if ( is_wp_error( $validation ) ) {
+            return $validation;
         }
 
+        // Validate size.
         if ( $size < self::MIN_SIZE || $size > self::MAX_SIZE ) {
             return new WP_Error(
                 'invalid_size',

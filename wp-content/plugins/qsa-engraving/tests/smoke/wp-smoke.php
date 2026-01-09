@@ -2121,29 +2121,29 @@ run_test(
     function (): bool {
         $repo = \Quadica\QSA_Engraving\qsa_engraving()->get_qsa_identifier_repository();
 
-        // Test with https prefix.
+        // Test with https prefix - URLs are lowercase per specification.
         $url = $repo->format_qsa_url( 'CUBE00001', true );
-        if ( $url !== 'https://quadi.ca/CUBE00001' ) {
-            return new WP_Error( 'format_fail', "Expected 'https://quadi.ca/CUBE00001', got '{$url}'." );
+        if ( $url !== 'https://quadi.ca/cube00001' ) {
+            return new WP_Error( 'format_fail', "Expected 'https://quadi.ca/cube00001', got '{$url}'." );
         }
 
         // Test without https prefix (for QR code - shorter is better).
         $url = $repo->format_qsa_url( 'CUBE00001', false );
-        if ( $url !== 'quadi.ca/CUBE00001' ) {
-            return new WP_Error( 'format_fail', "Expected 'quadi.ca/CUBE00001', got '{$url}'." );
+        if ( $url !== 'quadi.ca/cube00001' ) {
+            return new WP_Error( 'format_fail', "Expected 'quadi.ca/cube00001', got '{$url}'." );
         }
 
-        // Test lowercase is uppercased.
-        $url = $repo->format_qsa_url( 'cube00001', false );
-        if ( $url !== 'quadi.ca/CUBE00001' ) {
-            return new WP_Error( 'format_fail', "Expected uppercased 'quadi.ca/CUBE00001', got '{$url}'." );
+        // Test uppercase input is lowercased in URL.
+        $url = $repo->format_qsa_url( 'STAR00042', false );
+        if ( $url !== 'quadi.ca/star00042' ) {
+            return new WP_Error( 'format_fail', "Expected lowercase 'quadi.ca/star00042', got '{$url}'." );
         }
 
-        echo "  QSA Identifier URL formatting working correctly.\n";
+        echo "  QSA Identifier URL formatting working correctly (lowercase URLs).\n";
 
         return true;
     },
-    'QSA_Identifier_Repository formats URLs correctly.'
+    'QSA_Identifier_Repository formats URLs correctly with lowercase.'
 );
 
 run_test(
