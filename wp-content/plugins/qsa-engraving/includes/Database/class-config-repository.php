@@ -51,6 +51,18 @@ class Config_Repository {
     );
 
     /**
+     * Design-level element types that use position 0.
+     *
+     * These elements appear once per SVG at the design level,
+     * not per module position (1-8).
+     *
+     * @var array
+     */
+    public const DESIGN_LEVEL_ELEMENTS = array(
+        'qr_code',
+    );
+
+    /**
      * WordPress database instance.
      *
      * @var \wpdb
@@ -284,7 +296,7 @@ class Config_Repository {
      *
      * @param string      $qsa_design The design name.
      * @param string|null $revision The revision letter or null.
-     * @param int         $position The position (1-8).
+     * @param int         $position The position (0 for design-level elements, 1-8 for module positions).
      * @param string      $element_type The element type.
      * @param float       $origin_x The X coordinate.
      * @param float       $origin_y The Y coordinate.
@@ -314,12 +326,31 @@ class Config_Repository {
             );
         }
 
-        // Validate position.
-        if ( $position < 1 || $position > 8 ) {
-            return new WP_Error(
-                'invalid_position',
-                __( 'Position must be between 1 and 8.', 'qsa-engraving' )
-            );
+        // Validate position based on element type.
+        // Design-level elements (e.g., qr_code) use position 0.
+        // Module-level elements use positions 1-8.
+        $is_design_level = in_array( $element_type, self::DESIGN_LEVEL_ELEMENTS, true );
+
+        if ( $is_design_level ) {
+            // Design-level elements must be at position 0.
+            if ( 0 !== $position ) {
+                return new WP_Error(
+                    'invalid_position',
+                    sprintf(
+                        /* translators: %s: Element type */
+                        __( 'Element type %s must be at position 0 (design-level).', 'qsa-engraving' ),
+                        $element_type
+                    )
+                );
+            }
+        } else {
+            // Module-level elements must be at positions 1-8.
+            if ( $position < 1 || $position > 8 ) {
+                return new WP_Error(
+                    'invalid_position',
+                    __( 'Position must be between 1 and 8 for module-level elements.', 'qsa-engraving' )
+                );
+            }
         }
 
         // Check if exists (upsert).

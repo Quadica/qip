@@ -3835,20 +3835,25 @@ run_test(
             return new WP_Error( 'no_config', 'No STARa configuration found in database.' );
         }
 
-        // Should have 8 positions.
-        if ( count( $config ) !== 8 ) {
-            return new WP_Error( 'wrong_count', 'Expected 8 positions, got ' . count( $config ) );
+        // Filter out position 0 (design-level elements like qr_code) for module position checks.
+        // Position 0 is validated separately in TC-P9-010.
+        $module_positions = array_filter( $config, fn( $pos ) => $pos > 0, ARRAY_FILTER_USE_KEY );
+
+        // Should have 8 module positions (1-8).
+        if ( count( $module_positions ) !== 8 ) {
+            return new WP_Error( 'wrong_count', 'Expected 8 module positions, got ' . count( $module_positions ) );
         }
 
-        // Each position should have 4 elements (micro_id, module_id, serial_url, led_code_1).
+        // Each module position should have 4 elements (micro_id, module_id, serial_url, led_code_1).
         // Note: datamatrix removed in Phase 2, qr_code is design-level (position=0).
-        foreach ( $config as $pos => $elements ) {
+        foreach ( $module_positions as $pos => $elements ) {
             if ( count( $elements ) !== 4 ) {
                 return new WP_Error( 'wrong_elements', "Position {$pos} should have 4 elements, got " . count( $elements ) );
             }
         }
 
-        echo "  STARa: 8 positions × 4 elements = 32 config entries.\n";
+        $qr_config = isset( $config[0] ) ? ' + position 0 (design-level)' : '';
+        echo "  STARa: 8 positions × 4 elements = 32 config entries{$qr_config}.\n";
         return true;
     },
     'STARa design has complete coordinate configuration.'
@@ -3866,20 +3871,25 @@ run_test(
             return new WP_Error( 'no_config', 'No CUBEa configuration found in database.' );
         }
 
-        // Should have 8 positions.
-        if ( count( $config ) !== 8 ) {
-            return new WP_Error( 'wrong_count', 'Expected 8 positions, got ' . count( $config ) );
+        // Filter out position 0 (design-level elements like qr_code) for module position checks.
+        // Position 0 is validated separately in TC-P9-010.
+        $module_positions = array_filter( $config, fn( $pos ) => $pos > 0, ARRAY_FILTER_USE_KEY );
+
+        // Should have 8 module positions (1-8).
+        if ( count( $module_positions ) !== 8 ) {
+            return new WP_Error( 'wrong_count', 'Expected 8 module positions, got ' . count( $module_positions ) );
         }
 
-        // Each position should have 7 elements (micro_id, module_id, serial_url, led_code_1-4).
+        // Each module position should have 7 elements (micro_id, module_id, serial_url, led_code_1-4).
         // Note: datamatrix removed in Phase 2, qr_code is design-level (position=0).
-        foreach ( $config as $pos => $elements ) {
+        foreach ( $module_positions as $pos => $elements ) {
             if ( count( $elements ) !== 7 ) {
                 return new WP_Error( 'wrong_elements', "Position {$pos} should have 7 elements, got " . count( $elements ) );
             }
         }
 
-        echo "  CUBEa: 8 positions × 7 elements = 56 config entries.\n";
+        $qr_config = isset( $config[0] ) ? ' + position 0 (design-level)' : '';
+        echo "  CUBEa: 8 positions × 7 elements = 56 config entries{$qr_config}.\n";
         return true;
     },
     'CUBEa design has complete coordinate configuration with 4 LED codes.'
@@ -3897,20 +3907,25 @@ run_test(
             return new WP_Error( 'no_config', 'No PICOa configuration found in database.' );
         }
 
-        // Should have 8 positions.
-        if ( count( $config ) !== 8 ) {
-            return new WP_Error( 'wrong_count', 'Expected 8 positions, got ' . count( $config ) );
+        // Filter out position 0 (design-level elements like qr_code) for module position checks.
+        // Position 0 is validated separately in TC-P9-010.
+        $module_positions = array_filter( $config, fn( $pos ) => $pos > 0, ARRAY_FILTER_USE_KEY );
+
+        // Should have 8 module positions (1-8).
+        if ( count( $module_positions ) !== 8 ) {
+            return new WP_Error( 'wrong_count', 'Expected 8 module positions, got ' . count( $module_positions ) );
         }
 
-        // Each position should have 4 elements (micro_id, module_id, serial_url, led_code_1).
+        // Each module position should have 4 elements (micro_id, module_id, serial_url, led_code_1).
         // Note: datamatrix removed in Phase 2, qr_code is design-level (position=0).
-        foreach ( $config as $pos => $elements ) {
+        foreach ( $module_positions as $pos => $elements ) {
             if ( count( $elements ) !== 4 ) {
                 return new WP_Error( 'wrong_elements', "Position {$pos} should have 4 elements, got " . count( $elements ) );
             }
         }
 
-        echo "  PICOa: 8 positions × 4 elements = 32 config entries.\n";
+        $qr_config = isset( $config[0] ) ? ' + position 0 (design-level)' : '';
+        echo "  PICOa: 8 positions × 4 elements = 32 config entries{$qr_config}.\n";
         return true;
     },
     'PICOa design has complete coordinate configuration.'
@@ -4070,6 +4085,73 @@ run_test(
         return true;
     },
     'CAD to SVG Y coordinate transformation is correct.'
+);
+
+run_test(
+    'TC-P9-009: set_element_config enforces position constraints',
+    function (): bool {
+        $config_repo = new \Quadica\QSA_Engraving\Database\Config_Repository();
+
+        // Test 1: qr_code should ONLY be allowed at position 0 (design-level).
+        $result_qr_pos1 = $config_repo->set_element_config(
+            'TEST',
+            null,
+            1, // Invalid - qr_code must be position 0.
+            'qr_code',
+            10.0,
+            10.0
+        );
+
+        if ( ! is_wp_error( $result_qr_pos1 ) ) {
+            return new WP_Error( 'constraint_fail', 'qr_code at position 1 should have been rejected.' );
+        }
+        if ( $result_qr_pos1->get_error_code() !== 'invalid_position' ) {
+            return new WP_Error( 'wrong_error', "Expected 'invalid_position', got '{$result_qr_pos1->get_error_code()}'." );
+        }
+
+        echo "  qr_code at position 1 correctly rejected: {$result_qr_pos1->get_error_message()}\n";
+
+        // Test 2: micro_id should NOT be allowed at position 0 (module-level only).
+        $result_micro_pos0 = $config_repo->set_element_config(
+            'TEST',
+            null,
+            0, // Invalid - micro_id must be position 1-8.
+            'micro_id',
+            10.0,
+            10.0
+        );
+
+        if ( ! is_wp_error( $result_micro_pos0 ) ) {
+            return new WP_Error( 'constraint_fail', 'micro_id at position 0 should have been rejected.' );
+        }
+        if ( $result_micro_pos0->get_error_code() !== 'invalid_position' ) {
+            return new WP_Error( 'wrong_error', "Expected 'invalid_position', got '{$result_micro_pos0->get_error_code()}'." );
+        }
+
+        echo "  micro_id at position 0 correctly rejected: {$result_micro_pos0->get_error_message()}\n";
+
+        return true;
+    },
+    'set_element_config enforces position 0 for design-level elements only.'
+);
+
+run_test(
+    'TC-P9-010: DESIGN_LEVEL_ELEMENTS constant exists',
+    function (): bool {
+        $design_level = \Quadica\QSA_Engraving\Database\Config_Repository::DESIGN_LEVEL_ELEMENTS;
+
+        if ( ! is_array( $design_level ) ) {
+            return new WP_Error( 'not_array', 'DESIGN_LEVEL_ELEMENTS should be an array.' );
+        }
+
+        if ( ! in_array( 'qr_code', $design_level, true ) ) {
+            return new WP_Error( 'missing_qr', 'qr_code should be in DESIGN_LEVEL_ELEMENTS.' );
+        }
+
+        echo '  DESIGN_LEVEL_ELEMENTS: ' . implode( ', ', $design_level ) . "\n";
+        return true;
+    },
+    'DESIGN_LEVEL_ELEMENTS constant defines position-0 elements.'
 );
 
 // ============================================
