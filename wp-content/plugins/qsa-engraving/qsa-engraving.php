@@ -141,6 +141,13 @@ final class Plugin {
     private ?Ajax\History_Ajax_Handler $history_ajax_handler = null;
 
     /**
+     * QSA Landing Handler instance.
+     *
+     * @var Frontend\QSA_Landing_Handler|null
+     */
+    private ?Frontend\QSA_Landing_Handler $qsa_landing_handler = null;
+
+    /**
      * Private constructor to prevent direct instantiation.
      */
     private function __construct() {
@@ -437,6 +444,12 @@ final class Plugin {
             $this->serial_repository
         );
         $this->history_ajax_handler->register();
+
+        // Initialize QSA Landing Handler (Frontend - handles quadi.ca redirects).
+        $this->qsa_landing_handler = new Frontend\QSA_Landing_Handler(
+            $this->qsa_identifier_repository
+        );
+        $this->qsa_landing_handler->register();
     }
 
     /**
