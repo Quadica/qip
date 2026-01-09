@@ -4202,34 +4202,74 @@ run_test(
     function (): bool {
         $repo = new \Quadica\QSA_Engraving\Database\QSA_Identifier_Repository();
 
-        // Test normal formatting.
+        // Test normal formatting (now returns string|WP_Error).
         $id1 = $repo->format_qsa_id( 'CUBE', 76 );
+        if ( is_wp_error( $id1 ) ) {
+            return new WP_Error( 'format_error', "format_qsa_id(CUBE, 76) returned error: {$id1->get_error_message()}" );
+        }
         if ( 'CUBE00076' !== $id1 ) {
             return new WP_Error( 'format_error', "Expected CUBE00076, got {$id1}" );
         }
 
         // Test with low number.
         $id2 = $repo->format_qsa_id( 'STAR', 1 );
-        if ( 'STAR00001' !== $id2 ) {
-            return new WP_Error( 'format_error', "Expected STAR00001, got {$id2}" );
+        if ( is_wp_error( $id2 ) || 'STAR00001' !== $id2 ) {
+            return new WP_Error( 'format_error', 'Expected STAR00001.' );
         }
 
         // Test with max number.
         $id3 = $repo->format_qsa_id( 'PICO', 99999 );
-        if ( 'PICO99999' !== $id3 ) {
-            return new WP_Error( 'format_error', "Expected PICO99999, got {$id3}" );
+        if ( is_wp_error( $id3 ) || 'PICO99999' !== $id3 ) {
+            return new WP_Error( 'format_error', 'Expected PICO99999.' );
         }
 
         // Test lowercase conversion.
         $id4 = $repo->format_qsa_id( 'cube', 42 );
-        if ( 'CUBE00042' !== $id4 ) {
-            return new WP_Error( 'format_error', "Expected CUBE00042, got {$id4}" );
+        if ( is_wp_error( $id4 ) || 'CUBE00042' !== $id4 ) {
+            return new WP_Error( 'format_error', 'Expected CUBE00042.' );
         }
 
         echo "  Format tests: CUBE00076, STAR00001, PICO99999, CUBE00042\n";
         return true;
     },
     'format_qsa_id correctly formats QSA IDs.'
+);
+
+run_test(
+    'TC-QSA-003b: format_qsa_id validates sequence range',
+    function (): bool {
+        $repo = new \Quadica\QSA_Engraving\Database\QSA_Identifier_Repository();
+
+        // Test sequence too low (0).
+        $result_zero = $repo->format_qsa_id( 'TEST', 0 );
+        if ( ! is_wp_error( $result_zero ) ) {
+            return new WP_Error( 'validation_fail', 'format_qsa_id should reject sequence=0.' );
+        }
+        if ( 'invalid_sequence' !== $result_zero->get_error_code() ) {
+            return new WP_Error( 'wrong_error', "Expected 'invalid_sequence', got '{$result_zero->get_error_code()}'." );
+        }
+
+        // Test sequence too high (100000).
+        $result_over = $repo->format_qsa_id( 'TEST', 100000 );
+        if ( ! is_wp_error( $result_over ) ) {
+            return new WP_Error( 'validation_fail', 'format_qsa_id should reject sequence=100000.' );
+        }
+        if ( 'sequence_overflow' !== $result_over->get_error_code() ) {
+            return new WP_Error( 'wrong_error', "Expected 'sequence_overflow', got '{$result_over->get_error_code()}'." );
+        }
+
+        // Test negative sequence.
+        $result_neg = $repo->format_qsa_id( 'TEST', -1 );
+        if ( ! is_wp_error( $result_neg ) ) {
+            return new WP_Error( 'validation_fail', 'format_qsa_id should reject sequence=-1.' );
+        }
+
+        echo "  Sequence 0 rejected: {$result_zero->get_error_message()}\n";
+        echo "  Sequence 100000 rejected: {$result_over->get_error_message()}\n";
+        echo "  Negative sequence rejected.\n";
+        return true;
+    },
+    'format_qsa_id validates sequence range (1 to MAX_SEQUENCE).'
 );
 
 run_test(

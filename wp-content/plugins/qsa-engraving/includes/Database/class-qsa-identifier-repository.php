@@ -357,11 +357,35 @@ class QSA_Identifier_Repository {
     /**
      * Format QSA ID from design and sequence number.
      *
-     * @param string $design   The design name (e.g., 'CUBE').
-     * @param int    $sequence The sequence number.
-     * @return string The formatted QSA ID (e.g., 'CUBE00076').
+     * Validates that sequence is within the valid range (1 to MAX_SEQUENCE).
+     * Sequences outside this range cannot produce valid QSA IDs that pass
+     * parse_qsa_id() validation (which requires exactly 5 digits).
+     *
+     * @param string $design   The design name (e.g., 'CUBE'). Will be uppercased.
+     * @param int    $sequence The sequence number (1 to MAX_SEQUENCE).
+     * @return string|WP_Error The formatted QSA ID (e.g., 'CUBE00076') or WP_Error if invalid.
      */
-    public function format_qsa_id( string $design, int $sequence ): string {
+    public function format_qsa_id( string $design, int $sequence ): string|WP_Error {
+        // Validate sequence is within valid range.
+        if ( $sequence < 1 ) {
+            return new WP_Error(
+                'invalid_sequence',
+                __( 'Sequence number must be at least 1.', 'qsa-engraving' )
+            );
+        }
+
+        if ( $sequence > self::MAX_SEQUENCE ) {
+            return new WP_Error(
+                'sequence_overflow',
+                sprintf(
+                    /* translators: 1: Sequence number, 2: Maximum allowed */
+                    __( 'Sequence number %1$d exceeds maximum %2$d.', 'qsa-engraving' ),
+                    $sequence,
+                    self::MAX_SEQUENCE
+                )
+            );
+        }
+
         return strtoupper( $design ) . str_pad( (string) $sequence, self::SEQUENCE_DIGITS, '0', STR_PAD_LEFT );
     }
 
@@ -412,8 +436,11 @@ class QSA_Identifier_Repository {
             return $next_sequence;
         }
 
-        // Format the QSA ID.
+        // Format the QSA ID (validates sequence range).
         $qsa_id = $this->format_qsa_id( $design, $next_sequence );
+        if ( is_wp_error( $qsa_id ) ) {
+            return $qsa_id;
+        }
 
         // Insert the identifier record.
         $result = $this->wpdb->insert(
@@ -470,7 +497,9 @@ class QSA_Identifier_Repository {
     private function get_next_sequence( string $design ): int|WP_Error {
         $design = strtoupper( $design );
 
-        // Check if we've reached the maximum sequence number.
+        // Pre-check: Early return if clearly exhausted.
+        // Note: This is an optimization to avoid unnecessary DB writes.
+        // The definitive check happens AFTER allocation (see below).
         $current = $this->get_current_sequence( $design );
         if ( $current >= self::MAX_SEQUENCE ) {
             return new WP_Error(
@@ -516,6 +545,35 @@ class QSA_Identifier_Repository {
             return new WP_Error(
                 'sequence_retrieval_failed',
                 __( 'Failed to retrieve allocated sequence number.', 'qsa-engraving' )
+            );
+        }
+
+        // POST-ALLOCATION VALIDATION: Critical concurrency safety check.
+        // Under concurrent requests, the pre-check can pass for multiple requests
+        // when current_sequence = MAX_SEQUENCE - 1. One will get MAX_SEQUENCE (valid),
+        // but another could get MAX_SEQUENCE + 1 (invalid). This check catches that case.
+        if ( $next_sequence > self::MAX_SEQUENCE ) {
+            // Roll back the counter to MAX_SEQUENCE to prevent further drift.
+            // This is a best-effort cleanup; the unique constraint on the identifiers
+            // table will also prevent invalid IDs from being inserted.
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name is safe.
+            $this->wpdb->query(
+                $this->wpdb->prepare(
+                    "UPDATE {$this->sequence_table_name} SET current_sequence = %d WHERE design = %s AND current_sequence > %d",
+                    self::MAX_SEQUENCE,
+                    $design,
+                    self::MAX_SEQUENCE
+                )
+            );
+
+            return new WP_Error(
+                'sequence_overflow',
+                sprintf(
+                    /* translators: 1: Design name, 2: Maximum sequence number */
+                    __( 'Sequence numbers exhausted for design %1$s (concurrent allocation exceeded maximum %2$d).', 'qsa-engraving' ),
+                    $design,
+                    self::MAX_SEQUENCE
+                )
             );
         }
 
