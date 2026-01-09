@@ -30,7 +30,7 @@ const CONFIG = {
     // SFTP Settings (Kinsta staging server)
     sftp: {
         host: '34.71.83.227',
-        port: 21264,
+        port: 19039,
         username: 'luxeonstarleds',
         privateKey: fs.readFileSync(path.join(os.homedir(), '.ssh', 'rlux')),
         readyTimeout: 10000,
