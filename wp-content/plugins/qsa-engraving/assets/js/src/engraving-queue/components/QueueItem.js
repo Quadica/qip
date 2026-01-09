@@ -395,6 +395,14 @@ export default function QueueItem( {
 									</span>
 								</div>
 							) }
+
+							{ /* QSA ID Badge - displayed after SVG generation */ }
+							{ item.qsaId && (
+								<div className="qsa-progress-info qsa-id-info">
+									<span className="qsa-info-label">{ __( 'QSA ID:', 'qsa-engraving' ) }</span>
+									<span className="qsa-id-badge">{ item.qsaId }</span>
+								</div>
+							) }
 						</div>
 
 						{ /* Progress Dots - one per QSA sequence */ }
