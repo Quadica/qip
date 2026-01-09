@@ -85,6 +85,13 @@ final class Plugin {
     private ?Database\Config_Repository $config_repository = null;
 
     /**
+     * QSA Identifier Repository instance.
+     *
+     * @var Database\QSA_Identifier_Repository|null
+     */
+    private ?Database\QSA_Identifier_Repository $qsa_identifier_repository = null;
+
+    /**
      * Module Selector Service instance.
      *
      * @var Services\Module_Selector|null
@@ -381,9 +388,10 @@ final class Plugin {
      * @return void
      */
     private function init_repositories(): void {
-        $this->serial_repository = new Database\Serial_Repository();
-        $this->batch_repository  = new Database\Batch_Repository();
-        $this->config_repository = new Database\Config_Repository();
+        $this->serial_repository         = new Database\Serial_Repository();
+        $this->batch_repository          = new Database\Batch_Repository();
+        $this->config_repository         = new Database\Config_Repository();
+        $this->qsa_identifier_repository = new Database\QSA_Identifier_Repository();
     }
 
     /**
@@ -418,7 +426,8 @@ final class Plugin {
         $this->lightburn_ajax_handler = new Ajax\LightBurn_Ajax_Handler(
             $this->batch_repository,
             $this->serial_repository,
-            $this->led_code_resolver
+            $this->led_code_resolver,
+            $this->qsa_identifier_repository
         );
         $this->lightburn_ajax_handler->register();
 
@@ -627,6 +636,15 @@ final class Plugin {
      */
     public function get_config_repository(): Database\Config_Repository {
         return $this->config_repository;
+    }
+
+    /**
+     * Get the QSA Identifier Repository instance.
+     *
+     * @return Database\QSA_Identifier_Repository
+     */
+    public function get_qsa_identifier_repository(): Database\QSA_Identifier_Repository {
+        return $this->qsa_identifier_repository;
     }
 
     /**

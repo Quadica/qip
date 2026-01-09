@@ -4155,6 +4155,489 @@ run_test(
 );
 
 // ============================================
+// Phase 3: QSA Identifier Repository Tests
+// ============================================
+
+run_test(
+    'TC-QSA-001: QSA_Identifier_Repository class exists',
+    function (): bool {
+        $repo = new \Quadica\QSA_Engraving\Database\QSA_Identifier_Repository();
+
+        if ( ! method_exists( $repo, 'get_or_create' ) ) {
+            return new WP_Error( 'method_missing', 'get_or_create method not found.' );
+        }
+        if ( ! method_exists( $repo, 'get_by_batch' ) ) {
+            return new WP_Error( 'method_missing', 'get_by_batch method not found.' );
+        }
+        if ( ! method_exists( $repo, 'format_qsa_id' ) ) {
+            return new WP_Error( 'method_missing', 'format_qsa_id method not found.' );
+        }
+
+        echo "  QSA_Identifier_Repository instantiated with all required methods.\n";
+        return true;
+    },
+    'QSA Identifier Repository class exists and has required methods.'
+);
+
+run_test(
+    'TC-QSA-002: Tables exist with correct structure',
+    function (): bool {
+        $repo = new \Quadica\QSA_Engraving\Database\QSA_Identifier_Repository();
+
+        if ( ! $repo->table_exists() ) {
+            return new WP_Error( 'table_missing', 'lw_quad_qsa_identifiers table not found.' );
+        }
+        if ( ! $repo->sequence_table_exists() ) {
+            return new WP_Error( 'table_missing', 'lw_quad_qsa_design_sequences table not found.' );
+        }
+
+        echo "  Both QSA identifier tables exist.\n";
+        return true;
+    },
+    'QSA identifier and sequence tables exist.'
+);
+
+run_test(
+    'TC-QSA-003: format_qsa_id formats correctly',
+    function (): bool {
+        $repo = new \Quadica\QSA_Engraving\Database\QSA_Identifier_Repository();
+
+        // Test normal formatting.
+        $id1 = $repo->format_qsa_id( 'CUBE', 76 );
+        if ( 'CUBE00076' !== $id1 ) {
+            return new WP_Error( 'format_error', "Expected CUBE00076, got {$id1}" );
+        }
+
+        // Test with low number.
+        $id2 = $repo->format_qsa_id( 'STAR', 1 );
+        if ( 'STAR00001' !== $id2 ) {
+            return new WP_Error( 'format_error', "Expected STAR00001, got {$id2}" );
+        }
+
+        // Test with max number.
+        $id3 = $repo->format_qsa_id( 'PICO', 99999 );
+        if ( 'PICO99999' !== $id3 ) {
+            return new WP_Error( 'format_error', "Expected PICO99999, got {$id3}" );
+        }
+
+        // Test lowercase conversion.
+        $id4 = $repo->format_qsa_id( 'cube', 42 );
+        if ( 'CUBE00042' !== $id4 ) {
+            return new WP_Error( 'format_error', "Expected CUBE00042, got {$id4}" );
+        }
+
+        echo "  Format tests: CUBE00076, STAR00001, PICO99999, CUBE00042\n";
+        return true;
+    },
+    'format_qsa_id correctly formats QSA IDs.'
+);
+
+run_test(
+    'TC-QSA-004: parse_qsa_id parses correctly',
+    function (): bool {
+        $repo = new \Quadica\QSA_Engraving\Database\QSA_Identifier_Repository();
+
+        // Test valid ID.
+        $parsed = $repo->parse_qsa_id( 'CUBE00076' );
+        if ( null === $parsed ) {
+            return new WP_Error( 'parse_error', 'Failed to parse CUBE00076' );
+        }
+        if ( 'CUBE' !== $parsed['design'] || 76 !== $parsed['sequence'] ) {
+            return new WP_Error( 'parse_error', 'Parsed values incorrect.' );
+        }
+
+        // Test lowercase conversion.
+        $parsed2 = $repo->parse_qsa_id( 'star00001' );
+        if ( null === $parsed2 || 'STAR' !== $parsed2['design'] ) {
+            return new WP_Error( 'parse_error', 'Failed to parse lowercase star00001' );
+        }
+
+        // Test invalid formats.
+        if ( null !== $repo->parse_qsa_id( 'CUBE0076' ) ) { // Only 4 digits.
+            return new WP_Error( 'validation_error', 'Should reject CUBE0076 (4 digits).' );
+        }
+        if ( null !== $repo->parse_qsa_id( 'CUBE000076' ) ) { // 6 digits.
+            return new WP_Error( 'validation_error', 'Should reject CUBE000076 (6 digits).' );
+        }
+        if ( null !== $repo->parse_qsa_id( '12345' ) ) { // No letters.
+            return new WP_Error( 'validation_error', 'Should reject 12345 (no letters).' );
+        }
+
+        echo "  Parse tests passed: CUBE00076 -> CUBE/76, validation working.\n";
+        return true;
+    },
+    'parse_qsa_id correctly parses and validates QSA IDs.'
+);
+
+run_test(
+    'TC-QSA-005: is_valid_qsa_id validates correctly',
+    function (): bool {
+        $repo = new \Quadica\QSA_Engraving\Database\QSA_Identifier_Repository();
+
+        // Valid IDs.
+        if ( ! $repo->is_valid_qsa_id( 'CUBE00076' ) ) {
+            return new WP_Error( 'validation_error', 'CUBE00076 should be valid.' );
+        }
+        if ( ! $repo->is_valid_qsa_id( 'A00001' ) ) {
+            return new WP_Error( 'validation_error', 'A00001 should be valid (1 letter).' );
+        }
+        if ( ! $repo->is_valid_qsa_id( 'ABCDEFGHIJ99999' ) ) {
+            return new WP_Error( 'validation_error', 'ABCDEFGHIJ99999 should be valid (10 letters).' );
+        }
+
+        // Invalid IDs.
+        if ( $repo->is_valid_qsa_id( '' ) ) {
+            return new WP_Error( 'validation_error', 'Empty string should be invalid.' );
+        }
+        if ( $repo->is_valid_qsa_id( 'CUBE' ) ) {
+            return new WP_Error( 'validation_error', 'CUBE (no digits) should be invalid.' );
+        }
+        if ( $repo->is_valid_qsa_id( 'CUBE123456' ) ) {
+            return new WP_Error( 'validation_error', 'CUBE123456 (6 digits) should be invalid.' );
+        }
+
+        echo "  Validation tests passed for valid and invalid QSA IDs.\n";
+        return true;
+    },
+    'is_valid_qsa_id validates QSA ID format correctly.'
+);
+
+run_test(
+    'TC-QSA-006: Input validation rejects invalid parameters',
+    function (): bool {
+        $repo = new \Quadica\QSA_Engraving\Database\QSA_Identifier_Repository();
+
+        // Test invalid batch_id.
+        $result1 = $repo->get_or_create( 0, 1, 'CUBE' );
+        if ( ! is_wp_error( $result1 ) || 'invalid_batch_id' !== $result1->get_error_code() ) {
+            return new WP_Error( 'validation_fail', 'Should reject batch_id=0.' );
+        }
+
+        // Test invalid qsa_sequence.
+        $result2 = $repo->get_or_create( 1, 0, 'CUBE' );
+        if ( ! is_wp_error( $result2 ) || 'invalid_qsa_sequence' !== $result2->get_error_code() ) {
+            return new WP_Error( 'validation_fail', 'Should reject qsa_sequence=0.' );
+        }
+
+        // Test invalid design (numbers).
+        $result3 = $repo->get_or_create( 1, 1, 'CUBE123' );
+        if ( ! is_wp_error( $result3 ) || 'invalid_design' !== $result3->get_error_code() ) {
+            return new WP_Error( 'validation_fail', 'Should reject design with numbers.' );
+        }
+
+        // Test invalid design (too long).
+        $result4 = $repo->get_or_create( 1, 1, 'ABCDEFGHIJK' );
+        if ( ! is_wp_error( $result4 ) || 'invalid_design_length' !== $result4->get_error_code() ) {
+            return new WP_Error( 'validation_fail', 'Should reject design > 10 chars.' );
+        }
+
+        echo "  Input validation correctly rejects: batch_id=0, qsa_sequence=0, CUBE123, 11-char design.\n";
+        return true;
+    },
+    'get_or_create validates inputs and rejects invalid parameters.'
+);
+
+run_test(
+    'TC-QSA-007: get_or_create creates and retrieves QSA ID',
+    function (): bool {
+        global $wpdb;
+
+        $repo = new \Quadica\QSA_Engraving\Database\QSA_Identifier_Repository();
+
+        // Create a test batch first.
+        $batch_table = $wpdb->prefix . 'quad_engraving_batches';
+        $wpdb->insert(
+            $batch_table,
+            array(
+                'created_by' => 1,
+                'status'     => 'draft',
+            ),
+            array( '%d', '%s' )
+        );
+        $test_batch_id = (int) $wpdb->insert_id;
+
+        if ( $test_batch_id < 1 ) {
+            return new WP_Error( 'setup_failed', 'Failed to create test batch.' );
+        }
+
+        // Create a new QSA ID.
+        $qsa_id_1 = $repo->get_or_create( $test_batch_id, 1, 'TEST' );
+        if ( is_wp_error( $qsa_id_1 ) ) {
+            // Cleanup.
+            $wpdb->delete( $batch_table, array( 'id' => $test_batch_id ), array( '%d' ) );
+            return new WP_Error( 'create_failed', "Failed to create QSA ID: {$qsa_id_1->get_error_message()}" );
+        }
+
+        // Verify format.
+        if ( ! preg_match( '/^TEST[0-9]{5}$/', $qsa_id_1 ) ) {
+            $wpdb->delete( $batch_table, array( 'id' => $test_batch_id ), array( '%d' ) );
+            return new WP_Error( 'format_error', "QSA ID format incorrect: {$qsa_id_1}" );
+        }
+
+        // Retrieve the same ID again (should return existing).
+        $qsa_id_2 = $repo->get_or_create( $test_batch_id, 1, 'TEST' );
+        if ( is_wp_error( $qsa_id_2 ) ) {
+            $wpdb->delete( $batch_table, array( 'id' => $test_batch_id ), array( '%d' ) );
+            return new WP_Error( 'retrieve_failed', 'Failed to retrieve existing QSA ID.' );
+        }
+
+        if ( $qsa_id_1 !== $qsa_id_2 ) {
+            $wpdb->delete( $batch_table, array( 'id' => $test_batch_id ), array( '%d' ) );
+            return new WP_Error( 'mismatch', "QSA IDs should match: {$qsa_id_1} vs {$qsa_id_2}" );
+        }
+
+        echo "  Created QSA ID: {$qsa_id_1}\n";
+        echo "  Re-fetched same ID: {$qsa_id_2} (matches)\n";
+
+        // Cleanup.
+        $repo->delete_for_batch( $test_batch_id );
+        $wpdb->delete( $batch_table, array( 'id' => $test_batch_id ), array( '%d' ) );
+
+        return true;
+    },
+    'get_or_create creates new QSA ID and returns existing on re-call.'
+);
+
+run_test(
+    'TC-QSA-008: get_by_batch returns correct record',
+    function (): bool {
+        global $wpdb;
+
+        $repo = new \Quadica\QSA_Engraving\Database\QSA_Identifier_Repository();
+
+        // Create a test batch.
+        $batch_table = $wpdb->prefix . 'quad_engraving_batches';
+        $wpdb->insert(
+            $batch_table,
+            array(
+                'created_by' => 1,
+                'status'     => 'draft',
+            ),
+            array( '%d', '%s' )
+        );
+        $test_batch_id = (int) $wpdb->insert_id;
+
+        // Create a QSA ID.
+        $qsa_id = $repo->get_or_create( $test_batch_id, 2, 'DEMO' );
+        if ( is_wp_error( $qsa_id ) ) {
+            $wpdb->delete( $batch_table, array( 'id' => $test_batch_id ), array( '%d' ) );
+            return new WP_Error( 'setup_failed', 'Failed to create test QSA ID.' );
+        }
+
+        // Retrieve by batch.
+        $record = $repo->get_by_batch( $test_batch_id, 2 );
+        if ( null === $record ) {
+            $repo->delete_for_batch( $test_batch_id );
+            $wpdb->delete( $batch_table, array( 'id' => $test_batch_id ), array( '%d' ) );
+            return new WP_Error( 'retrieve_failed', 'get_by_batch returned null.' );
+        }
+
+        // Verify record structure.
+        if ( $record['qsa_id'] !== $qsa_id ) {
+            $repo->delete_for_batch( $test_batch_id );
+            $wpdb->delete( $batch_table, array( 'id' => $test_batch_id ), array( '%d' ) );
+            return new WP_Error( 'mismatch', 'QSA ID mismatch.' );
+        }
+        if ( 'DEMO' !== $record['design'] ) {
+            $repo->delete_for_batch( $test_batch_id );
+            $wpdb->delete( $batch_table, array( 'id' => $test_batch_id ), array( '%d' ) );
+            return new WP_Error( 'mismatch', 'Design mismatch.' );
+        }
+        if ( $test_batch_id !== $record['batch_id'] ) {
+            $repo->delete_for_batch( $test_batch_id );
+            $wpdb->delete( $batch_table, array( 'id' => $test_batch_id ), array( '%d' ) );
+            return new WP_Error( 'mismatch', 'Batch ID mismatch.' );
+        }
+        if ( 2 !== $record['qsa_sequence'] ) {
+            $repo->delete_for_batch( $test_batch_id );
+            $wpdb->delete( $batch_table, array( 'id' => $test_batch_id ), array( '%d' ) );
+            return new WP_Error( 'mismatch', 'QSA sequence mismatch.' );
+        }
+
+        echo "  Retrieved record: qsa_id={$record['qsa_id']}, design={$record['design']}, seq={$record['qsa_sequence']}\n";
+
+        // Cleanup.
+        $repo->delete_for_batch( $test_batch_id );
+        $wpdb->delete( $batch_table, array( 'id' => $test_batch_id ), array( '%d' ) );
+
+        return true;
+    },
+    'get_by_batch returns correct QSA ID record.'
+);
+
+run_test(
+    'TC-QSA-009: get_by_qsa_id returns correct record',
+    function (): bool {
+        global $wpdb;
+
+        $repo = new \Quadica\QSA_Engraving\Database\QSA_Identifier_Repository();
+
+        // Create a test batch.
+        $batch_table = $wpdb->prefix . 'quad_engraving_batches';
+        $wpdb->insert(
+            $batch_table,
+            array(
+                'created_by' => 1,
+                'status'     => 'draft',
+            ),
+            array( '%d', '%s' )
+        );
+        $test_batch_id = (int) $wpdb->insert_id;
+
+        // Create a QSA ID.
+        $qsa_id = $repo->get_or_create( $test_batch_id, 1, 'LOOK' );
+        if ( is_wp_error( $qsa_id ) ) {
+            $wpdb->delete( $batch_table, array( 'id' => $test_batch_id ), array( '%d' ) );
+            return new WP_Error( 'setup_failed', 'Failed to create test QSA ID.' );
+        }
+
+        // Retrieve by QSA ID string.
+        $record = $repo->get_by_qsa_id( $qsa_id );
+        if ( null === $record ) {
+            $repo->delete_for_batch( $test_batch_id );
+            $wpdb->delete( $batch_table, array( 'id' => $test_batch_id ), array( '%d' ) );
+            return new WP_Error( 'retrieve_failed', 'get_by_qsa_id returned null.' );
+        }
+
+        // Verify record.
+        if ( $record['batch_id'] !== $test_batch_id ) {
+            $repo->delete_for_batch( $test_batch_id );
+            $wpdb->delete( $batch_table, array( 'id' => $test_batch_id ), array( '%d' ) );
+            return new WP_Error( 'mismatch', 'Batch ID mismatch.' );
+        }
+
+        // Test lowercase lookup.
+        $record2 = $repo->get_by_qsa_id( strtolower( $qsa_id ) );
+        if ( null === $record2 ) {
+            $repo->delete_for_batch( $test_batch_id );
+            $wpdb->delete( $batch_table, array( 'id' => $test_batch_id ), array( '%d' ) );
+            return new WP_Error( 'case_fail', 'Lowercase lookup failed.' );
+        }
+
+        echo "  Retrieved by QSA ID: {$qsa_id} -> batch_id={$record['batch_id']}\n";
+        echo "  Lowercase lookup works.\n";
+
+        // Cleanup.
+        $repo->delete_for_batch( $test_batch_id );
+        $wpdb->delete( $batch_table, array( 'id' => $test_batch_id ), array( '%d' ) );
+
+        return true;
+    },
+    'get_by_qsa_id returns correct record with case-insensitive lookup.'
+);
+
+run_test(
+    'TC-QSA-010: Sequence numbers increment per design',
+    function (): bool {
+        global $wpdb;
+
+        $repo = new \Quadica\QSA_Engraving\Database\QSA_Identifier_Repository();
+
+        // Create test batches.
+        $batch_table = $wpdb->prefix . 'quad_engraving_batches';
+        $test_batch_ids = array();
+
+        for ( $i = 0; $i < 3; $i++ ) {
+            $wpdb->insert(
+                $batch_table,
+                array(
+                    'created_by' => 1,
+                    'status'     => 'draft',
+                ),
+                array( '%d', '%s' )
+            );
+            $test_batch_ids[] = (int) $wpdb->insert_id;
+        }
+
+        // Create multiple QSA IDs for same design.
+        $qsa_ids = array();
+        foreach ( $test_batch_ids as $idx => $batch_id ) {
+            $qsa_id = $repo->get_or_create( $batch_id, 1, 'SEQT' );
+            if ( is_wp_error( $qsa_id ) ) {
+                // Cleanup.
+                foreach ( $test_batch_ids as $b_id ) {
+                    $repo->delete_for_batch( $b_id );
+                    $wpdb->delete( $batch_table, array( 'id' => $b_id ), array( '%d' ) );
+                }
+                return new WP_Error( 'create_failed', "Failed to create QSA ID {$idx}." );
+            }
+            $qsa_ids[] = $qsa_id;
+        }
+
+        // Parse and verify sequences are incrementing.
+        $sequences = array();
+        foreach ( $qsa_ids as $qsa_id ) {
+            $parsed = $repo->parse_qsa_id( $qsa_id );
+            $sequences[] = $parsed['sequence'];
+        }
+
+        // Verify strictly increasing.
+        for ( $i = 1; $i < count( $sequences ); $i++ ) {
+            if ( $sequences[ $i ] <= $sequences[ $i - 1 ] ) {
+                // Cleanup.
+                foreach ( $test_batch_ids as $b_id ) {
+                    $repo->delete_for_batch( $b_id );
+                    $wpdb->delete( $batch_table, array( 'id' => $b_id ), array( '%d' ) );
+                }
+                return new WP_Error( 'sequence_error', 'Sequence numbers not strictly increasing.' );
+            }
+        }
+
+        echo '  QSA IDs created: ' . implode( ', ', $qsa_ids ) . "\n";
+        echo '  Sequences: ' . implode( ', ', $sequences ) . ' (strictly increasing)\n';
+
+        // Cleanup.
+        foreach ( $test_batch_ids as $b_id ) {
+            $repo->delete_for_batch( $b_id );
+            $wpdb->delete( $batch_table, array( 'id' => $b_id ), array( '%d' ) );
+        }
+
+        return true;
+    },
+    'Sequence numbers increment correctly for each new QSA ID in a design.'
+);
+
+run_test(
+    'TC-QSA-011: Constants are correctly defined',
+    function (): bool {
+        $max_seq = \Quadica\QSA_Engraving\Database\QSA_Identifier_Repository::MAX_SEQUENCE;
+        $digits = \Quadica\QSA_Engraving\Database\QSA_Identifier_Repository::SEQUENCE_DIGITS;
+
+        if ( 99999 !== $max_seq ) {
+            return new WP_Error( 'constant_error', "MAX_SEQUENCE should be 99999, got {$max_seq}" );
+        }
+        if ( 5 !== $digits ) {
+            return new WP_Error( 'constant_error', "SEQUENCE_DIGITS should be 5, got {$digits}" );
+        }
+
+        echo "  MAX_SEQUENCE: {$max_seq}\n";
+        echo "  SEQUENCE_DIGITS: {$digits}\n";
+        return true;
+    },
+    'QSA Identifier Repository constants are correctly defined.'
+);
+
+run_test(
+    'TC-QSA-012: Plugin getter returns repository instance',
+    function (): bool {
+        $plugin = \Quadica\QSA_Engraving\Plugin::get_instance();
+
+        if ( ! method_exists( $plugin, 'get_qsa_identifier_repository' ) ) {
+            return new WP_Error( 'method_missing', 'get_qsa_identifier_repository method not found.' );
+        }
+
+        $repo = $plugin->get_qsa_identifier_repository();
+        if ( ! $repo instanceof \Quadica\QSA_Engraving\Database\QSA_Identifier_Repository ) {
+            return new WP_Error( 'type_error', 'Returned object is not QSA_Identifier_Repository.' );
+        }
+
+        echo "  Plugin::get_qsa_identifier_repository() returns valid instance.\n";
+        return true;
+    },
+    'Plugin provides getter for QSA Identifier Repository.'
+);
+
+// ============================================
 // Summary
 // ============================================
 // Re-declare global to ensure PHP 8.1 recognizes the variables in eval-file context.
