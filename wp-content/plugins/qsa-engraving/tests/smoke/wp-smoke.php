@@ -1997,6 +1997,7 @@ run_test(
         $renderer = \Quadica\QSA_Engraving\SVG\QR_Code_Renderer::class;
 
         // Test rendering with position.
+        // Coordinates are CENTER of QR code, not top-left.
         $result = $renderer::render_positioned(
             'quadi.ca/CUBE00001',
             74.0,  // center X.
@@ -2009,9 +2010,10 @@ run_test(
             return $result;
         }
 
-        // Should contain translate transform.
-        if ( strpos( $result, 'translate(74' ) === false ) {
-            return new WP_Error( 'position_fail', 'Missing X translate in output.' );
+        // Should contain translate transform at top-left position.
+        // Center X=74, size=10, so top-left X = 74 - 5 = 69.
+        if ( strpos( $result, 'translate(69' ) === false ) {
+            return new WP_Error( 'position_fail', 'Missing/incorrect X translate in output (expected 69 for centered position).' );
         }
 
         // Should contain ID attribute.
@@ -2019,12 +2021,12 @@ run_test(
             return new WP_Error( 'position_fail', 'Missing ID attribute in output.' );
         }
 
-        // Should contain QR code comment.
-        if ( strpos( $result, '<!-- QR Code:' ) === false ) {
-            return new WP_Error( 'position_fail', 'Missing QR code comment in output.' );
+        // Should contain QR code comment showing center coordinates.
+        if ( strpos( $result, 'centered at 74' ) === false ) {
+            return new WP_Error( 'position_fail', 'Missing QR code center comment in output.' );
         }
 
-        echo "  Positioned QR code rendered correctly.\n";
+        echo "  Positioned QR code rendered correctly (centered at 74,56.85 -> translate 69,51.85).\n";
 
         return true;
     },
