@@ -5028,7 +5028,7 @@ run_test(
 // ============================================
 run_test(
     'TC-LAND-003: QSA ID pattern matches valid IDs',
-    function (): bool {
+    function (): bool|WP_Error {
         $pattern = '/^' . \Quadica\QSA_Engraving\Frontend\QSA_Landing_Handler::QSA_ID_PATTERN . '$/';
 
         $valid_ids = array(
