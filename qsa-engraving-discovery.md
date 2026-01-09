@@ -570,7 +570,125 @@ The batch should have **exactly 2 rows** (one per revision):
 
 Even though both are "STAR" modules with the same config code, they have different revisions and cannot share arrays.
 
-## 4. Out of Band Functions
+## 5. Dashboard Information Panel
+
+The QSA Engraving dashboard includes an Information Panel on the left side (below the existing System Status panel) to help operators and technical staff understand and troubleshoot the system.
+
+### Panel Layout
+- Three sections displayed vertically (always visible, stacked)
+- Located below the existing "System Status" panel on the left side
+
+### 5.1 Process Summary
+A non-technical overview of the engraving workflow for operators:
+
+1. **Select Modules** - Use the Batch Creator to select modules from the "Awaiting Engraving" list
+2. **Create Batch** - Click "Create Batch" to assign serial numbers and group modules into arrays
+3. **Go to Engraving Queue** - Navigate to the queue to see your batch ready for engraving
+4. **Start Engraving** - Click "Engrave" to load the first SVG file into LightBurn
+5. **Engrave Array** - Use the foot switch to start the laser engraving
+6. **Advance** - Press Spacebar (or click "Next Array") to load the next SVG
+7. **Complete** - After the final array, click "Complete" to finish the batch
+
+### 5.2 Troubleshooting Guide
+Common issues and solutions for operators:
+
+**SVG Not Appearing in LightBurn**
+- Check that LightBurn is running on the production computer
+- Verify the LightBurn Watcher script is running (green icon in system tray)
+- Try clicking "Resend" to re-send the current SVG file
+
+**No Modules Available to Engrave**
+- Verify modules exist in active production batches
+- Check that the modules haven't already been engraved
+- Refresh the module list using the refresh button
+
+**LED Code Errors**
+- Ensure the Order BOM has LED information populated
+- Verify LED products have the `led_shortcode_3` field set
+- Contact a manager if data is missing
+
+**Batch Creation Fails**
+- Check for validation errors in the error message
+- Ensure all selected modules have valid configurations
+- Verify the QSA design has coordinate data configured
+
+### 5.3 Setup Guide (Technical)
+Technical configuration details for administrators:
+
+**Plugin Overview**
+- The QSA Engraving plugin generates SVG files for UV laser engraving
+- SVG files are delivered to LightBurn via SFTP file watcher (not direct network connection)
+- Serial numbers are stored in WordPress database tables
+
+**LightBurn Watcher Configuration**
+- Location: `C:\Users\Production\LightBurn\lightburn-watcher.js`
+- Runs via PM2 on the production Windows machine
+- Polls the staging server via SFTP for new SVG files
+- Delivers files to: `C:\Users\Production\LightBurn\Incoming`
+
+**Watcher Parameters (in lightburn-watcher.js):**
+- `POLL_INTERVAL_MS`: How often to check for new files (default: 5000ms)
+- `REMOTE_SVG_DIR`: Path on staging server for SVG files
+- `LOCAL_DELIVERY_DIR`: Where files are placed for LightBurn
+- `SFTP_HOST`, `SFTP_PORT`, `SFTP_USER`: Connection details
+
+**Restarting the Watcher:**
+- Open PowerShell as Administrator
+- Run: `pm2 restart lightburn-watcher`
+- Or use Task Scheduler to restart the service
+
+**Database Tables:**
+- `lw_quad_serial_numbers` - Serial number lifecycle tracking
+- `lw_quad_engraving_batches` - Batch metadata
+- `lw_quad_engraved_modules` - Module-to-batch linkage
+- `lw_quad_qsa_config` - Element coordinates per QSA design
+
+---
+
+## 6. Dashboard Tweaker Panel
+
+The QSA Engraving dashboard includes a "Tweaker" panel on the right side (below the existing panel) for fine-tuning element coordinates.
+
+### Purpose
+Allows technical staff to adjust engraving element positions for calibrating laser alignment. Changes affect all future SVG files generated for the selected QSA design.
+
+### Panel Layout
+
+**QSA Selection**
+- Dropdown listing all QSA designs/revisions (e.g., "STARa", "CUBEa", "PICOa")
+- Values sourced from `CONCAT(qsa_design, COALESCE(revision, ''))` in `lw_quad_qsa_config`
+
+**Position Selection**
+- Dropdown showing positions 1-8
+- Selecting a position displays all elements for that position
+
+**Element Configuration**
+For each element at the selected position, display:
+
+| Field | Description | Precision | Spinner Step |
+|-------|-------------|-----------|--------------|
+| Element Type | Read-only label (e.g., "datamatrix", "led_code_1") | - | - |
+| X Position | `origin_x` value in mm | 3 decimal places | 0.001 mm |
+| Y Position | `origin_y` value in mm | 3 decimal places | 0.001 mm |
+| Rotation | `rotation` value in degrees | 1 decimal place | 0.1° |
+| Text Height | `text_height` value in mm | 2 decimal places | 0.01 mm |
+
+**Field Visibility:**
+- `micro_id`, `datamatrix`: Show X, Y, Rotation only (no Text Height)
+- `module_id`, `serial_url`, `led_code_*`: Show X, Y, Rotation, and Text Height
+
+**Save Behavior:**
+- Changes require clicking a "Save" button to commit to database
+- No auto-save on spinner change (prevents accidental modifications)
+- No reset/undo functionality
+
+### Data Source
+- Table: `lw_quad_qsa_config`
+- Key fields: `qsa_design`, `revision`, `position`, `element_type`, `origin_x`, `origin_y`, `rotation`, `text_height`
+
+---
+
+## 7. Out of Band Functions
 None of the the following needs to be considered as part of the plugin development as they are handled using separate business processes:
 
 1. None

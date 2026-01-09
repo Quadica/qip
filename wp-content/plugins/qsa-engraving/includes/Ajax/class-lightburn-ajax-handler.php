@@ -132,6 +132,8 @@ class LightBurn_Ajax_Handler {
 		add_action( 'wp_ajax_qsa_get_lightburn_status', array( $this, 'handle_get_status' ) );
 		add_action( 'wp_ajax_qsa_save_lightburn_settings', array( $this, 'handle_save_settings' ) );
 		add_action( 'wp_ajax_qsa_clear_test_data', array( $this, 'handle_clear_test_data' ) );
+		add_action( 'wp_ajax_qsa_get_tweaker_elements', array( $this, 'handle_get_tweaker_elements' ) );
+		add_action( 'wp_ajax_qsa_save_tweaker_elements', array( $this, 'handle_save_tweaker_elements' ) );
 	}
 
 	/**
@@ -488,6 +490,9 @@ class LightBurn_Ajax_Handler {
 	/**
 	 * Load SVG file in LightBurn.
 	 *
+	 * Uses fire-and-forget mode (no response wait) since the LightBurn machine
+	 * is typically on a different network and responses cannot reach the server.
+	 *
 	 * @param string $lightburn_path The path to load in LightBurn.
 	 * @return array{success: bool, error: string|null}
 	 */
@@ -502,8 +507,8 @@ class LightBurn_Ajax_Handler {
 			);
 		}
 
-		// Load file with retry.
-		$result = $client->load_file_with_retry( $lightburn_path );
+		// Load file in fire-and-forget mode (no response wait).
+		$result = $client->load_file_no_wait( $lightburn_path );
 
 		if ( is_wp_error( $result ) ) {
 			return array(
@@ -740,6 +745,27 @@ class LightBurn_Ajax_Handler {
 			$settings['keep_svg_files'] = filter_var( $_POST['keep_svg_files'], FILTER_VALIDATE_BOOLEAN );
 		}
 
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce already verified.
+		if ( isset( $_POST['svg_rotation'] ) ) {
+			$rotation = absint( $_POST['svg_rotation'] );
+			// Only allow valid rotation values: 0, 90, 180, 270.
+			if ( ! in_array( $rotation, array( 0, 90, 180, 270 ), true ) ) {
+				$this->send_error( __( 'Invalid rotation value. Must be 0, 90, 180, or 270.', 'qsa-engraving' ), 'invalid_rotation' );
+				return;
+			}
+			$settings['svg_rotation'] = $rotation;
+		}
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce already verified.
+		if ( isset( $_POST['svg_top_offset'] ) ) {
+			$offset = (float) $_POST['svg_top_offset'];
+			// Clamp to valid range: -5 to +5 mm.
+			$offset = max( -5.0, min( 5.0, $offset ) );
+			// Round to 0.02mm precision.
+			$offset = round( $offset / 0.02 ) * 0.02;
+			$settings['svg_top_offset'] = $offset;
+		}
+
 		// Save settings.
 		update_option( 'qsa_engraving_settings', $settings );
 
@@ -791,6 +817,194 @@ class LightBurn_Ajax_Handler {
 		$this->send_success(
 			null,
 			__( 'All test data cleared successfully.', 'qsa-engraving' )
+		);
+	}
+
+	/**
+	 * Handle get Tweaker elements request.
+	 *
+	 * Returns all element configurations for a specific QSA design/position.
+	 *
+	 * @return void
+	 */
+	public function handle_get_tweaker_elements(): void {
+		$verify = $this->verify_request();
+		if ( is_wp_error( $verify ) ) {
+			$this->send_error( $verify->get_error_message(), $verify->get_error_code(), 403 );
+			return;
+		}
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce already verified.
+		$design   = isset( $_POST['design'] ) ? sanitize_text_field( wp_unslash( $_POST['design'] ) ) : '';
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce already verified.
+		$revision = isset( $_POST['revision'] ) ? sanitize_text_field( wp_unslash( $_POST['revision'] ) ) : '';
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce already verified.
+		$position = isset( $_POST['position'] ) ? absint( $_POST['position'] ) : 0;
+
+		if ( empty( $design ) || $position < 1 || $position > 8 ) {
+			$this->send_error( __( 'Invalid design or position.', 'qsa-engraving' ), 'invalid_params' );
+			return;
+		}
+
+		// Get Config Repository.
+		$plugin      = \Quadica\QSA_Engraving\qsa_engraving();
+		$config_repo = $plugin->get_config_repository();
+
+		// Query elements for this design/revision/position directly.
+		global $wpdb;
+		$table_name = $config_repo->get_table_name();
+
+		if ( ! empty( $revision ) ) {
+			$results = $wpdb->get_results(
+				$wpdb->prepare(
+					"SELECT element_type, origin_x, origin_y, rotation, text_height
+					 FROM {$table_name}
+					 WHERE qsa_design = %s
+					   AND revision = %s
+					   AND position = %d
+					   AND is_active = 1
+					 ORDER BY FIELD(element_type, 'micro_id', 'datamatrix', 'module_id', 'serial_url',
+					                'led_code_1', 'led_code_2', 'led_code_3', 'led_code_4',
+					                'led_code_5', 'led_code_6', 'led_code_7', 'led_code_8')",
+					$design,
+					$revision,
+					$position
+				),
+				ARRAY_A
+			);
+		} else {
+			$results = $wpdb->get_results(
+				$wpdb->prepare(
+					"SELECT element_type, origin_x, origin_y, rotation, text_height
+					 FROM {$table_name}
+					 WHERE qsa_design = %s
+					   AND revision IS NULL
+					   AND position = %d
+					   AND is_active = 1
+					 ORDER BY FIELD(element_type, 'micro_id', 'datamatrix', 'module_id', 'serial_url',
+					                'led_code_1', 'led_code_2', 'led_code_3', 'led_code_4',
+					                'led_code_5', 'led_code_6', 'led_code_7', 'led_code_8')",
+					$design,
+					$position
+				),
+				ARRAY_A
+			);
+		}
+
+		if ( empty( $results ) ) {
+			$this->send_error( __( 'No configuration found for this design/position.', 'qsa-engraving' ), 'not_found' );
+			return;
+		}
+
+		// Format elements for frontend.
+		$elements = array();
+		foreach ( $results as $row ) {
+			$elements[] = array(
+				'element_type' => $row['element_type'],
+				'origin_x'     => (float) $row['origin_x'],
+				'origin_y'     => (float) $row['origin_y'],
+				'rotation'     => (float) $row['rotation'],
+				'text_height'  => null !== $row['text_height'] ? (float) $row['text_height'] : null,
+			);
+		}
+
+		$this->send_success( array( 'elements' => $elements ) );
+	}
+
+	/**
+	 * Handle save Tweaker elements request.
+	 *
+	 * Saves element configurations for a specific QSA design/position.
+	 *
+	 * @return void
+	 */
+	public function handle_save_tweaker_elements(): void {
+		$verify = $this->verify_request();
+		if ( is_wp_error( $verify ) ) {
+			$this->send_error( $verify->get_error_message(), $verify->get_error_code(), 403 );
+			return;
+		}
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce already verified.
+		$design   = isset( $_POST['design'] ) ? sanitize_text_field( wp_unslash( $_POST['design'] ) ) : '';
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce already verified.
+		$revision = isset( $_POST['revision'] ) ? sanitize_text_field( wp_unslash( $_POST['revision'] ) ) : '';
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce already verified.
+		$position = isset( $_POST['position'] ) ? absint( $_POST['position'] ) : 0;
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce already verified.
+		$elements_json = isset( $_POST['elements'] ) ? sanitize_text_field( wp_unslash( $_POST['elements'] ) ) : '';
+
+		if ( empty( $design ) || $position < 1 || $position > 8 ) {
+			$this->send_error( __( 'Invalid design or position.', 'qsa-engraving' ), 'invalid_params' );
+			return;
+		}
+
+		$elements = json_decode( $elements_json, true );
+		if ( ! is_array( $elements ) || empty( $elements ) ) {
+			$this->send_error( __( 'Invalid elements data.', 'qsa-engraving' ), 'invalid_elements' );
+			return;
+		}
+
+		// Get Config Repository.
+		$plugin      = \Quadica\QSA_Engraving\qsa_engraving();
+		$config_repo = $plugin->get_config_repository();
+
+		// Update each element.
+		$errors  = array();
+		$updated = 0;
+
+		foreach ( $elements as $element ) {
+			$element_type = sanitize_text_field( $element['element_type'] ?? '' );
+			$origin_x     = (float) ( $element['origin_x'] ?? 0 );
+			$origin_y     = (float) ( $element['origin_y'] ?? 0 );
+			$rotation     = (int) ( $element['rotation'] ?? 0 );
+			$text_height  = isset( $element['text_height'] ) ? (float) $element['text_height'] : null;
+
+			// Validate element type.
+			if ( empty( $element_type ) ) {
+				$errors[] = __( 'Missing element type.', 'qsa-engraving' );
+				continue;
+			}
+
+			// Save using repository.
+			$result = $config_repo->set_element_config(
+				$design,
+				! empty( $revision ) ? $revision : null,
+				$position,
+				$element_type,
+				$origin_x,
+				$origin_y,
+				$rotation,
+				$text_height
+			);
+
+			if ( is_wp_error( $result ) ) {
+				$errors[] = sprintf(
+					/* translators: 1: Element type, 2: Error message */
+					__( '%1$s: %2$s', 'qsa-engraving' ),
+					$element_type,
+					$result->get_error_message()
+				);
+			} else {
+				++$updated;
+			}
+		}
+
+		if ( ! empty( $errors ) ) {
+			$this->send_error(
+				implode( ', ', $errors ),
+				'save_errors'
+			);
+			return;
+		}
+
+		$this->send_success(
+			array( 'updated' => $updated ),
+			sprintf(
+				/* translators: %d: Number of elements updated */
+				__( '%d element(s) updated successfully.', 'qsa-engraving' ),
+				$updated
+			)
 		);
 	}
 }
