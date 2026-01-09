@@ -93,18 +93,24 @@ export default function BatchCreator() {
 			credentials: 'same-origin',
 		} );
 
-		// Check if response is OK before parsing JSON.
-		if ( ! response.ok ) {
-			throw new Error( `HTTP error ${ response.status }: ${ response.statusText }` );
-		}
-
 		const text = await response.text();
+		let jsonData;
+
 		try {
-			return JSON.parse( text );
+			jsonData = JSON.parse( text );
 		} catch ( e ) {
 			// If JSON parsing fails, throw an error with the response text (truncated).
 			throw new Error( `Invalid response: ${ text.substring( 0, 200 ) }` );
 		}
+
+		// For non-OK responses, extract the detailed error message from the JSON body.
+		// The backend sends meaningful error messages that should be displayed to the user.
+		if ( ! response.ok ) {
+			const errorMessage = jsonData.message || jsonData.data?.message || `HTTP error ${ response.status }`;
+			throw new Error( errorMessage );
+		}
+
+		return jsonData;
 	};
 
 	/**
