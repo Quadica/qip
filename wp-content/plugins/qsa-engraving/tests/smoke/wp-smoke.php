@@ -4423,6 +4423,38 @@ run_test(
     'DESIGN_LEVEL_ELEMENTS constant defines position-0 elements.'
 );
 
+run_test(
+    'TC-P9-011: QR code config includes element_size',
+    function (): bool {
+        $config_repo = new \Quadica\QSA_Engraving\Database\Config_Repository();
+
+        $designs_to_check = array( 'STAR', 'CUBE', 'PICO' );
+        foreach ( $designs_to_check as $design ) {
+            $config = $config_repo->get_config( $design, 'a' );
+
+            if ( ! isset( $config[0]['qr_code'] ) ) {
+                return new WP_Error( 'no_qr', "{$design}a has no QR code config at position 0." );
+            }
+
+            $qr = $config[0]['qr_code'];
+
+            // Verify element_size is present and correct (10.0mm).
+            if ( ! isset( $qr['element_size'] ) ) {
+                return new WP_Error( 'no_size', "{$design}a QR code config missing element_size." );
+            }
+
+            if ( abs( (float) $qr['element_size'] - 10.0 ) > 0.01 ) {
+                return new WP_Error( 'wrong_size', "{$design}a QR code element_size is {$qr['element_size']}, expected 10.0." );
+            }
+
+            echo "  {$design}a QR: x={$qr['origin_x']} y={$qr['origin_y']} size={$qr['element_size']}mm\n";
+        }
+
+        return true;
+    },
+    'QR code config entries have element_size loaded from database.'
+);
+
 // ============================================
 // Phase 3: QSA Identifier Repository Tests
 // ============================================
