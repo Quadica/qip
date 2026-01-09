@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 echo "\n";
 echo "================================================================\n";
-echo "QSA Engraving Plugin - Phase 1-9 Smoke Tests\n";
+echo "QSA Engraving Plugin - Phase 1-9 + Landing Handler Smoke Tests\n";
 echo "================================================================\n\n";
 
 $tests_passed = 0;
@@ -4978,6 +4978,122 @@ run_test(
         return true;
     },
     'Plugin provides getter for QSA Identifier Repository.'
+);
+
+// ============================================
+// TC-LAND-001: QSA Landing Handler Class Exists
+// ============================================
+run_test(
+    'TC-LAND-001: QSA Landing Handler class exists',
+    function (): bool {
+        if ( ! class_exists( '\Quadica\QSA_Engraving\Frontend\QSA_Landing_Handler' ) ) {
+            return new WP_Error( 'class_missing', 'QSA_Landing_Handler class not found.' );
+        }
+
+        echo "  Class: Quadica\\QSA_Engraving\\Frontend\\QSA_Landing_Handler exists.\n";
+        return true;
+    },
+    'QSA Landing Handler class is available for routing QSA ID URLs.'
+);
+
+// ============================================
+// TC-LAND-002: Landing Handler Constants Defined
+// ============================================
+run_test(
+    'TC-LAND-002: Landing Handler constants defined',
+    function (): bool {
+        $handler_class = '\Quadica\QSA_Engraving\Frontend\QSA_Landing_Handler';
+
+        if ( ! defined( "{$handler_class}::QUERY_VAR" ) ) {
+            return new WP_Error( 'missing_constant', 'QUERY_VAR constant not defined.' );
+        }
+
+        if ( ! defined( "{$handler_class}::QSA_ID_PATTERN" ) ) {
+            return new WP_Error( 'missing_constant', 'QSA_ID_PATTERN constant not defined.' );
+        }
+
+        $query_var = $handler_class::QUERY_VAR;
+        $pattern   = $handler_class::QSA_ID_PATTERN;
+
+        echo "  QUERY_VAR: {$query_var}\n";
+        echo "  QSA_ID_PATTERN: {$pattern}\n";
+
+        return true;
+    },
+    'Landing Handler has required constants for URL routing.'
+);
+
+// ============================================
+// TC-LAND-003: QSA ID Pattern Matches Valid IDs
+// ============================================
+run_test(
+    'TC-LAND-003: QSA ID pattern matches valid IDs',
+    function (): bool {
+        $pattern = '/^' . \Quadica\QSA_Engraving\Frontend\QSA_Landing_Handler::QSA_ID_PATTERN . '$/';
+
+        $valid_ids = array(
+            'CUBE00001',
+            'STAR12345',
+            'PICOa00042',
+            'TESTb99999',
+            'cube00001', // lowercase should also match
+        );
+
+        $invalid_ids = array(
+            'CUB00001',   // Only 3 letters
+            'CUBES00001', // 5 letters without revision
+            'CUBE0001',   // Only 4 digits
+            'CUBE000001', // 6 digits
+            '12345CUBE',  // Reversed
+            'CUBE-00001', // Has hyphen
+        );
+
+        foreach ( $valid_ids as $id ) {
+            if ( ! preg_match( $pattern, $id ) ) {
+                return new WP_Error( 'pattern_fail', "Valid ID '{$id}' did not match pattern." );
+            }
+        }
+
+        foreach ( $invalid_ids as $id ) {
+            if ( preg_match( $pattern, $id ) ) {
+                return new WP_Error( 'pattern_fail', "Invalid ID '{$id}' incorrectly matched pattern." );
+            }
+        }
+
+        echo "  Valid IDs correctly matched: " . implode( ', ', $valid_ids ) . "\n";
+        echo "  Invalid IDs correctly rejected.\n";
+        return true;
+    },
+    'QSA ID regex pattern correctly validates ID format.'
+);
+
+// ============================================
+// TC-LAND-004: Query Variable Registered
+// ============================================
+run_test(
+    'TC-LAND-004: Query variable registered',
+    function (): bool {
+        global $wp;
+
+        $query_var = \Quadica\QSA_Engraving\Frontend\QSA_Landing_Handler::QUERY_VAR;
+
+        // Check if our query var is in the public query vars.
+        // Note: This requires the handler to have run its add_query_vars filter.
+        $handler = new \Quadica\QSA_Engraving\Frontend\QSA_Landing_Handler(
+            \Quadica\QSA_Engraving\qsa_engraving()->get_qsa_identifier_repository()
+        );
+
+        $vars    = $handler->add_query_vars( array() );
+        $has_var = in_array( $query_var, $vars, true );
+
+        if ( ! $has_var ) {
+            return new WP_Error( 'missing_var', "Query variable '{$query_var}' not registered." );
+        }
+
+        echo "  Query variable '{$query_var}' is registered.\n";
+        return true;
+    },
+    'Landing Handler registers the qsa_lookup query variable.'
 );
 
 // ============================================
