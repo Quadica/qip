@@ -376,9 +376,9 @@ class SVG_Generator {
     public function check_dependencies(): array {
         $issues = array();
 
-        // Check tc-lib-barcode.
+        // Check tc-lib-barcode (required for QR code generation).
         if ( ! class_exists( '\Com\Tecnick\Barcode\Barcode' ) ) {
-            $issues[] = __( 'tc-lib-barcode library not installed. Data Matrix barcodes will use placeholders.', 'qsa-engraving' );
+            $issues[] = __( 'tc-lib-barcode library not installed. QR codes require this library.', 'qsa-engraving' );
         }
 
         return array(

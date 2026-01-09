@@ -254,7 +254,8 @@ class Config_Loader {
         $missing = array();
 
         // Required elements for each position.
-        $required = array( 'micro_id', 'datamatrix', 'module_id', 'serial_url', 'led_code_1' );
+        // Note: 'datamatrix' removed in Phase 2 - QR code is at position=0 (design-level).
+        $required = array( 'micro_id', 'module_id', 'serial_url', 'led_code_1' );
 
         for ( $pos = 1; $pos <= $positions; $pos++ ) {
             if ( ! isset( $config[ $pos ] ) ) {

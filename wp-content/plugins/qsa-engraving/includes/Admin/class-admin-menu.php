@@ -983,7 +983,7 @@ class Admin_Menu {
                 $container.empty();
 
                 elements.forEach(function(el) {
-                    var hasTextHeight = (el.element_type !== 'micro_id' && el.element_type !== 'datamatrix');
+                    var hasTextHeight = (el.element_type !== 'micro_id' && el.element_type !== 'qr_code');
                     var elementLabel = el.element_type.replace(/_/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
 
                     var html = '<div class="qsa-element-group" data-element="' + el.element_type + '">';
