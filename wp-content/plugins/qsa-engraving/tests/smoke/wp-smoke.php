@@ -1958,7 +1958,7 @@ run_test(
 
 run_test(
     'TC-QR-003: QR code render basic',
-    function (): bool {
+    function (): bool|WP_Error {
         $renderer = \Quadica\QSA_Engraving\SVG\QR_Code_Renderer::class;
 
         // Test rendering a basic QR code.
