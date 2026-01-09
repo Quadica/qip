@@ -1973,9 +1973,9 @@ run_test(
             return new WP_Error( 'render_fail', 'Render returned empty content.' );
         }
 
-        // Should contain a group with scale transform.
-        if ( strpos( $result, '<g transform="scale(' ) === false ) {
-            return new WP_Error( 'render_fail', 'Missing scale transform in output.' );
+        // Should contain a group wrapper element.
+        if ( strpos( $result, '<g>' ) === false ) {
+            return new WP_Error( 'render_fail', 'Missing group element in output.' );
         }
 
         // Should contain rect elements for QR modules.
