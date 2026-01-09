@@ -1900,6 +1900,275 @@ run_test(
 );
 
 // ============================================
+// PHASE 4: QR Code Renderer Tests
+// ============================================
+
+echo "-------------------------------------------\n";
+echo "Phase 4: QR Code Renderer Tests\n";
+echo "-------------------------------------------\n\n";
+
+run_test(
+    'TC-QR-001: QR_Code_Renderer class exists',
+    function (): bool {
+        if ( ! class_exists( 'Quadica\\QSA_Engraving\\SVG\\QR_Code_Renderer' ) ) {
+            return new WP_Error( 'missing_class', 'QR_Code_Renderer class not found.' );
+        }
+
+        // Check required methods.
+        $renderer = \Quadica\QSA_Engraving\SVG\QR_Code_Renderer::class;
+
+        if ( ! method_exists( $renderer, 'is_library_available' ) ) {
+            return new WP_Error( 'missing_method', 'is_library_available() method not found.' );
+        }
+        if ( ! method_exists( $renderer, 'render' ) ) {
+            return new WP_Error( 'missing_method', 'render() method not found.' );
+        }
+        if ( ! method_exists( $renderer, 'render_positioned' ) ) {
+            return new WP_Error( 'missing_method', 'render_positioned() method not found.' );
+        }
+        if ( ! method_exists( $renderer, 'validate_data' ) ) {
+            return new WP_Error( 'missing_method', 'validate_data() method not found.' );
+        }
+
+        echo "  QR_Code_Renderer class found with required methods.\n";
+
+        return true;
+    },
+    'QR_Code_Renderer class exists with required methods.'
+);
+
+run_test(
+    'TC-QR-002: tc-lib-barcode library available',
+    function (): bool {
+        $renderer = \Quadica\QSA_Engraving\SVG\QR_Code_Renderer::class;
+
+        if ( ! $renderer::is_library_available() ) {
+            return new WP_Error(
+                'library_missing',
+                'tc-lib-barcode library not available. Ensure vendor directory is deployed.'
+            );
+        }
+
+        echo "  tc-lib-barcode library is available.\n";
+
+        return true;
+    },
+    'tc-lib-barcode library is available for QR code generation.'
+);
+
+run_test(
+    'TC-QR-003: QR code render basic',
+    function (): bool {
+        $renderer = \Quadica\QSA_Engraving\SVG\QR_Code_Renderer::class;
+
+        // Test rendering a basic QR code.
+        $result = $renderer::render( 'quadi.ca/CUBE00001', 10.0 );
+
+        if ( is_wp_error( $result ) ) {
+            return $result;
+        }
+
+        // Should return SVG content.
+        if ( empty( $result ) ) {
+            return new WP_Error( 'render_fail', 'Render returned empty content.' );
+        }
+
+        // Should contain a group with scale transform.
+        if ( strpos( $result, '<g transform="scale(' ) === false ) {
+            return new WP_Error( 'render_fail', 'Missing scale transform in output.' );
+        }
+
+        // Should contain rect elements for QR modules.
+        if ( strpos( $result, '<rect' ) === false ) {
+            return new WP_Error( 'render_fail', 'Missing rect elements in output.' );
+        }
+
+        echo "  Basic QR code rendered successfully.\n";
+        echo "  Output length: " . strlen( $result ) . " chars.\n";
+
+        return true;
+    },
+    'QR_Code_Renderer renders basic QR codes correctly.'
+);
+
+run_test(
+    'TC-QR-004: QR code render positioned',
+    function (): bool {
+        $renderer = \Quadica\QSA_Engraving\SVG\QR_Code_Renderer::class;
+
+        // Test rendering with position.
+        $result = $renderer::render_positioned(
+            'quadi.ca/CUBE00001',
+            74.0,  // center X.
+            56.85, // center Y.
+            10.0,  // 10mm size.
+            'qr-test-id'
+        );
+
+        if ( is_wp_error( $result ) ) {
+            return $result;
+        }
+
+        // Should contain translate transform.
+        if ( strpos( $result, 'translate(74' ) === false ) {
+            return new WP_Error( 'position_fail', 'Missing X translate in output.' );
+        }
+
+        // Should contain ID attribute.
+        if ( strpos( $result, 'id="qr-test-id"' ) === false ) {
+            return new WP_Error( 'position_fail', 'Missing ID attribute in output.' );
+        }
+
+        // Should contain QR code comment.
+        if ( strpos( $result, '<!-- QR Code:' ) === false ) {
+            return new WP_Error( 'position_fail', 'Missing QR code comment in output.' );
+        }
+
+        echo "  Positioned QR code rendered correctly.\n";
+
+        return true;
+    },
+    'QR_Code_Renderer renders positioned QR codes with translate transform.'
+);
+
+run_test(
+    'TC-QR-005: QR code validation',
+    function (): bool {
+        $renderer = \Quadica\QSA_Engraving\SVG\QR_Code_Renderer::class;
+
+        // Empty data should fail.
+        $result = $renderer::validate_data( '' );
+        if ( ! is_wp_error( $result ) ) {
+            return new WP_Error( 'validation_fail', 'Empty data should be invalid.' );
+        }
+
+        // Valid QSA URL should pass.
+        $result = $renderer::validate_data( 'quadi.ca/CUBE00001' );
+        if ( is_wp_error( $result ) ) {
+            return new WP_Error( 'validation_fail', 'Valid URL should pass validation.' );
+        }
+
+        echo "  QR code data validation works correctly.\n";
+
+        return true;
+    },
+    'QR_Code_Renderer validates data correctly.'
+);
+
+run_test(
+    'TC-QR-006: QR code size bounds',
+    function (): bool {
+        $renderer = \Quadica\QSA_Engraving\SVG\QR_Code_Renderer::class;
+
+        // Size below minimum (3mm) should fail.
+        $result = $renderer::render( 'test', 2.0 );
+        if ( ! is_wp_error( $result ) ) {
+            return new WP_Error( 'bounds_fail', 'Size 2mm should be rejected (min is 3mm).' );
+        }
+
+        // Size above maximum (50mm) should fail.
+        $result = $renderer::render( 'test', 60.0 );
+        if ( ! is_wp_error( $result ) ) {
+            return new WP_Error( 'bounds_fail', 'Size 60mm should be rejected (max is 50mm).' );
+        }
+
+        // Valid size (10mm) should work.
+        $result = $renderer::render( 'test', 10.0 );
+        if ( is_wp_error( $result ) ) {
+            return $result;
+        }
+
+        echo "  Size bounds validation working correctly.\n";
+
+        return true;
+    },
+    'QR_Code_Renderer enforces size limits (3mm-50mm).'
+);
+
+run_test(
+    'TC-QR-007: SVG_Document QR code integration',
+    function (): bool {
+        // Create an SVG document with QR code.
+        $doc = new \Quadica\QSA_Engraving\SVG\SVG_Document();
+
+        // Set QR code data.
+        $doc->set_qr_code(
+            'quadi.ca/STAR00042',
+            array(
+                'origin_x'     => 74.0,
+                'origin_y'     => 10.0,
+                'element_size' => 10.0,
+            )
+        );
+
+        // Verify QR code is set.
+        if ( ! $doc->has_qr_code() ) {
+            return new WP_Error( 'integration_fail', 'has_qr_code() should return true.' );
+        }
+
+        // Note: Full render test requires module data which we can't easily mock here.
+        // Just verify the method chain works.
+
+        echo "  SVG_Document QR code integration working.\n";
+
+        return true;
+    },
+    'SVG_Document accepts QR code configuration.'
+);
+
+run_test(
+    'TC-QR-008: QSA Identifier Repository URL formatting',
+    function (): bool {
+        $repo = \Quadica\QSA_Engraving\qsa_engraving()->get_qsa_identifier_repository();
+
+        // Test with https prefix.
+        $url = $repo->format_qsa_url( 'CUBE00001', true );
+        if ( $url !== 'https://quadi.ca/CUBE00001' ) {
+            return new WP_Error( 'format_fail', "Expected 'https://quadi.ca/CUBE00001', got '{$url}'." );
+        }
+
+        // Test without https prefix (for QR code - shorter is better).
+        $url = $repo->format_qsa_url( 'CUBE00001', false );
+        if ( $url !== 'quadi.ca/CUBE00001' ) {
+            return new WP_Error( 'format_fail', "Expected 'quadi.ca/CUBE00001', got '{$url}'." );
+        }
+
+        // Test lowercase is uppercased.
+        $url = $repo->format_qsa_url( 'cube00001', false );
+        if ( $url !== 'quadi.ca/CUBE00001' ) {
+            return new WP_Error( 'format_fail', "Expected uppercased 'quadi.ca/CUBE00001', got '{$url}'." );
+        }
+
+        echo "  QSA Identifier URL formatting working correctly.\n";
+
+        return true;
+    },
+    'QSA_Identifier_Repository formats URLs correctly.'
+);
+
+run_test(
+    'TC-QR-009: Config_Loader default QR code size',
+    function (): bool {
+        // Verify the default QR code size constant exists.
+        $loader_class = \Quadica\QSA_Engraving\Services\Config_Loader::class;
+
+        if ( ! defined( $loader_class . '::DEFAULT_QR_CODE_SIZE' ) ) {
+            return new WP_Error( 'constant_fail', 'DEFAULT_QR_CODE_SIZE constant not found.' );
+        }
+
+        $default_size = $loader_class::DEFAULT_QR_CODE_SIZE;
+        if ( $default_size !== 10.0 ) {
+            return new WP_Error( 'constant_fail', "Expected 10.0, got {$default_size}." );
+        }
+
+        echo "  Config_Loader QR code defaults verified.\n";
+
+        return true;
+    },
+    'Config_Loader has correct QR code default size.'
+);
+
+// ============================================
 // PHASE 5: Batch Creator UI Tests
 // ============================================
 
