@@ -42,11 +42,19 @@ class QR_Code_Renderer {
     public const DEFAULT_SIZE = 10.0;
 
     /**
-     * QR code module fill color (black for engraving).
+     * QR code module stroke color (black for engraving).
      *
      * @var string
      */
-    public const MODULE_FILL = '#000000';
+    public const MODULE_STROKE = '#000000';
+
+    /**
+     * QR code module stroke width as fraction of module size.
+     * 0.1 = 10% of module size for visible outlines.
+     *
+     * @var float
+     */
+    public const STROKE_WIDTH_RATIO = 0.1;
 
     /**
      * QR code type with High error correction.
@@ -129,18 +137,14 @@ class QR_Code_Renderer {
                 $data,
                 -1,       // Width multiplier (1 unit per module).
                 -1,       // Height multiplier (1 unit per module).
-                self::MODULE_FILL,
+                self::MODULE_STROKE,
                 array( 0, 0, 0, 0 ) // No padding.
             );
 
             // Get the barcode array to determine actual dimensions.
             $barcode_array = $bobj->getArray();
-            $native_width  = $barcode_array['width'];
-            $native_height = $barcode_array['height'];
+            $native_size   = (int) $barcode_array['ncols']; // QR codes are square.
 
-            // Calculate scale factor to achieve target size.
-            // QR codes are always square, so use the larger dimension.
-            $native_size = max( $native_width, $native_height );
             if ( $native_size <= 0 ) {
                 return new WP_Error(
                     'generation_failed',
@@ -148,29 +152,35 @@ class QR_Code_Renderer {
                 );
             }
 
-            $scale = $size / $native_size;
+            // Calculate module size in mm.
+            $module_size  = $size / $native_size;
+            $stroke_width = $module_size * self::STROKE_WIDTH_RATIO;
 
-            // Get inline SVG code (without XML declaration and outer SVG tags).
-            // We need to extract just the rect elements from the full SVG.
-            $inline_svg = $bobj->getInlineSvgCode();
+            // Get the bars array and expand to individual modules.
+            $bars    = $barcode_array['bars'];
+            $modules = self::expand_bars_to_modules( $bars );
 
-            // The inline SVG contains rect elements for each module.
-            // We need to wrap them in a group with a scale transform.
-            // Extract the inner content (everything between <svg> and </svg>).
-            $inner_content = self::extract_svg_inner_content( $inline_svg );
+            // Generate SVG rect elements for each module (outline squares).
+            $rects = array();
+            foreach ( $modules as $module ) {
+                $x = $module[0] * $module_size;
+                $y = $module[1] * $module_size;
 
-            if ( empty( $inner_content ) ) {
-                return new WP_Error(
-                    'parsing_failed',
-                    __( 'Failed to parse QR code SVG output.', 'qsa-engraving' )
+                $rects[] = sprintf(
+                    '<rect x="%.4f" y="%.4f" width="%.4f" height="%.4f" fill="none" stroke="%s" stroke-width="%.4f"/>',
+                    $x,
+                    $y,
+                    $module_size,
+                    $module_size,
+                    self::MODULE_STROKE,
+                    $stroke_width
                 );
             }
 
-            // Build output group with scale transform.
+            // Build output group.
             $output = sprintf(
-                '<g transform="scale(%.6f)">%s</g>',
-                $scale,
-                "\n" . $inner_content . "\n"
+                '<g>%s</g>',
+                "\n\t\t" . implode( "\n\t\t", $rects ) . "\n\t"
             );
 
             return $output;
@@ -267,31 +277,33 @@ class QR_Code_Renderer {
     }
 
     /**
-     * Extract inner content from SVG markup.
+     * Expand horizontal bars into individual 1x1 module positions.
      *
-     * Removes the outer <svg> tags and returns just the inner elements.
+     * The tc-lib-barcode library outputs bars as merged horizontal runs.
+     * This method expands each bar into individual module coordinates
+     * for outline rendering.
      *
-     * @param string $svg Full SVG markup.
-     * @return string Inner content (rect elements, etc.).
+     * @param array $bars Array of bars, each as [x, y, width, height].
+     * @return array Array of module positions, each as [x, y].
      */
-    private static function extract_svg_inner_content( string $svg ): string {
-        // Remove XML declaration if present.
-        $svg = preg_replace( '/<\?xml[^>]*\?>/', '', $svg );
+    private static function expand_bars_to_modules( array $bars ): array {
+        $modules = array();
 
-        // Extract content between <svg...> and </svg>.
-        // Use a regex that handles attributes in the svg tag.
-        if ( preg_match( '/<svg[^>]*>(.*)<\/svg>/s', $svg, $matches ) ) {
-            $content = trim( $matches[1] );
+        foreach ( $bars as $bar ) {
+            $x      = (int) $bar[0];
+            $y      = (int) $bar[1];
+            $width  = (int) $bar[2];
+            $height = (int) $bar[3];
 
-            // Clean up any style or defs elements that might interfere.
-            // We only want the rect elements for the QR modules.
-            $content = preg_replace( '/<style[^>]*>.*?<\/style>/s', '', $content );
-            $content = preg_replace( '/<defs[^>]*>.*?<\/defs>/s', '', $content );
-
-            return trim( $content );
+            // Expand the bar into individual 1x1 modules.
+            for ( $dy = 0; $dy < $height; $dy++ ) {
+                for ( $dx = 0; $dx < $width; $dx++ ) {
+                    $modules[] = array( $x + $dx, $y + $dy );
+                }
+            }
         }
 
-        return '';
+        return $modules;
     }
 
     /**
@@ -324,7 +336,7 @@ class QR_Code_Renderer {
                 $data,
                 -1,
                 -1,
-                self::MODULE_FILL,
+                self::MODULE_STROKE,
                 array( 0, 0, 0, 0 )
             );
 
