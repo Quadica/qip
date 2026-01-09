@@ -3840,14 +3840,15 @@ run_test(
             return new WP_Error( 'wrong_count', 'Expected 8 positions, got ' . count( $config ) );
         }
 
-        // Each position should have 5 elements.
+        // Each position should have 4 elements (micro_id, module_id, serial_url, led_code_1).
+        // Note: datamatrix removed in Phase 2, qr_code is design-level (position=0).
         foreach ( $config as $pos => $elements ) {
-            if ( count( $elements ) !== 5 ) {
-                return new WP_Error( 'wrong_elements', "Position {$pos} should have 5 elements, got " . count( $elements ) );
+            if ( count( $elements ) !== 4 ) {
+                return new WP_Error( 'wrong_elements', "Position {$pos} should have 4 elements, got " . count( $elements ) );
             }
         }
 
-        echo "  STARa: 8 positions × 5 elements = 40 config entries.\n";
+        echo "  STARa: 8 positions × 4 elements = 32 config entries.\n";
         return true;
     },
     'STARa design has complete coordinate configuration.'
@@ -3870,14 +3871,15 @@ run_test(
             return new WP_Error( 'wrong_count', 'Expected 8 positions, got ' . count( $config ) );
         }
 
-        // Each position should have 8 elements (4 LED codes).
+        // Each position should have 7 elements (micro_id, module_id, serial_url, led_code_1-4).
+        // Note: datamatrix removed in Phase 2, qr_code is design-level (position=0).
         foreach ( $config as $pos => $elements ) {
-            if ( count( $elements ) !== 8 ) {
-                return new WP_Error( 'wrong_elements', "Position {$pos} should have 8 elements, got " . count( $elements ) );
+            if ( count( $elements ) !== 7 ) {
+                return new WP_Error( 'wrong_elements', "Position {$pos} should have 7 elements, got " . count( $elements ) );
             }
         }
 
-        echo "  CUBEa: 8 positions × 8 elements = 64 config entries.\n";
+        echo "  CUBEa: 8 positions × 7 elements = 56 config entries.\n";
         return true;
     },
     'CUBEa design has complete coordinate configuration with 4 LED codes.'
@@ -3900,14 +3902,15 @@ run_test(
             return new WP_Error( 'wrong_count', 'Expected 8 positions, got ' . count( $config ) );
         }
 
-        // Each position should have 5 elements.
+        // Each position should have 4 elements (micro_id, module_id, serial_url, led_code_1).
+        // Note: datamatrix removed in Phase 2, qr_code is design-level (position=0).
         foreach ( $config as $pos => $elements ) {
-            if ( count( $elements ) !== 5 ) {
-                return new WP_Error( 'wrong_elements', "Position {$pos} should have 5 elements, got " . count( $elements ) );
+            if ( count( $elements ) !== 4 ) {
+                return new WP_Error( 'wrong_elements', "Position {$pos} should have 4 elements, got " . count( $elements ) );
             }
         }
 
-        echo "  PICOa: 8 positions × 5 elements = 40 config entries.\n";
+        echo "  PICOa: 8 positions × 4 elements = 32 config entries.\n";
         return true;
     },
     'PICOa design has complete coordinate configuration.'
