@@ -378,13 +378,12 @@ class LED_Code_Resolver {
 		}
 
 		// Sort by position to ensure consistent ordering.
+		// Keep position keys (1, 2, 3, 4) - do NOT convert to sequential array.
+		// The SVG renderer needs actual position numbers for led_code_1, led_code_4, etc.
 		ksort( $led_codes_by_position );
 
-		// Convert to 0-indexed array for SVG rendering (led_code_1 = index 0, etc.)
-		$led_codes = array_values( $led_codes_by_position );
-
-		$this->cache[ $cache_key ] = $led_codes;
-		return $led_codes;
+		$this->cache[ $cache_key ] = $led_codes_by_position;
+		return $led_codes_by_position;
 	}
 
 	/**
