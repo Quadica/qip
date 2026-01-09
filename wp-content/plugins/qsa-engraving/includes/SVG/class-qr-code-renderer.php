@@ -193,9 +193,12 @@ class QR_Code_Renderer {
      * Generates SVG group element with QR code positioned using translate transform.
      * This is the main method for embedding QR codes in array SVG documents.
      *
+     * Note: Coordinates specify the CENTER of the QR code, not the top-left corner.
+     * The translate transform is adjusted by half the size to center the QR code.
+     *
      * @param string $data Data to encode in the QR code.
-     * @param float  $x    X coordinate in millimeters.
-     * @param float  $y    Y coordinate in millimeters.
+     * @param float  $x    X coordinate of QR code CENTER in millimeters.
+     * @param float  $y    Y coordinate of QR code CENTER in millimeters.
      * @param float  $size Target size in millimeters.
      * @param string $id   Optional group ID attribute.
      * @return string|WP_Error SVG group element or error.
@@ -233,16 +236,21 @@ class QR_Code_Renderer {
             $id_attr = sprintf( ' id="%s"', esc_attr( $id ) );
         }
 
-        // Build comment with data for debugging.
+        // Calculate top-left position from center coordinates.
+        $half_size = $size / 2.0;
+        $top_left_x = $x - $half_size;
+        $top_left_y = $y - $half_size;
+
+        // Build comment with data for debugging (shows center coordinates).
         $data_comment = sprintf(
-            '<!-- QR Code: %s (%.1fmm at %.4f, %.4f) -->',
+            '<!-- QR Code: %s (%.1fmm centered at %.4f, %.4f) -->',
             esc_html( substr( $data, 0, 50 ) ), // Truncate long data.
             $size,
             $x,
             $y
         );
 
-        // Wrap in positioned group.
+        // Wrap in positioned group (translate to top-left corner).
         $output = sprintf(
             '%s
 <g%s transform="translate(%.4f, %.4f)">
@@ -250,8 +258,8 @@ class QR_Code_Renderer {
 </g>',
             $data_comment,
             $id_attr,
-            $x,
-            $y,
+            $top_left_x,
+            $top_left_y,
             $qr_content
         );
 
