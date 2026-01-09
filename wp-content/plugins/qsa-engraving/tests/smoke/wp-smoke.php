@@ -5036,16 +5036,17 @@ run_test(
             'STAR12345',
             'PICOa00042',
             'TESTb99999',
-            'cube00001', // lowercase should also match
+            'CUBES00001', // 4 letters + revision 'S' + 5 digits
+            'cube00001',  // lowercase should also match
         );
 
         $invalid_ids = array(
-            'CUB00001',   // Only 3 letters
-            'CUBES00001', // 5 letters without revision
-            'CUBE0001',   // Only 4 digits
-            'CUBE000001', // 6 digits
-            '12345CUBE',  // Reversed
-            'CUBE-00001', // Has hyphen
+            'CUB00001',    // Only 3 letters
+            'CUBESS00001', // 6 letters (4 + 2, too many revision letters)
+            'CUBE0001',    // Only 4 digits
+            'CUBE000001',  // 6 digits
+            '12345CUBE',   // Reversed
+            'CUBE-00001',  // Has hyphen
         );
 
         foreach ( $valid_ids as $id ) {
