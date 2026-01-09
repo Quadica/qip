@@ -626,6 +626,44 @@ class QSA_Identifier_Repository {
     }
 
     /**
+     * Get the QSA ID string for a batch/array combination.
+     *
+     * Convenience method for retrieving just the QSA ID string (e.g., 'CUBE00076')
+     * without the full record array. Returns null if no QSA ID exists.
+     *
+     * @param int $batch_id     The engraving batch ID.
+     * @param int $qsa_sequence The QSA sequence within the batch.
+     * @return string|null The QSA ID string or null if not found.
+     */
+    public function get_qsa_id_for_batch_array( int $batch_id, int $qsa_sequence ): ?string {
+        $record = $this->get_by_batch( $batch_id, $qsa_sequence );
+
+        if ( null === $record ) {
+            return null;
+        }
+
+        return $record['qsa_id'];
+    }
+
+    /**
+     * Format a QSA ID as a URL.
+     *
+     * @param string $qsa_id        The QSA ID (e.g., 'CUBE00076').
+     * @param bool   $include_https Whether to include 'https://' prefix (default true).
+     * @return string The formatted URL (e.g., 'quadi.ca/CUBE00076' or 'https://quadi.ca/CUBE00076').
+     */
+    public function format_qsa_url( string $qsa_id, bool $include_https = true ): string {
+        $base_domain = 'quadi.ca';
+        $qsa_id      = strtoupper( $qsa_id );
+
+        if ( $include_https ) {
+            return 'https://' . $base_domain . '/' . $qsa_id;
+        }
+
+        return $base_domain . '/' . $qsa_id;
+    }
+
+    /**
      * Delete all QSA IDs for a batch.
      *
      * WARNING: This permanently deletes QSA ID records. Use only for cleanup

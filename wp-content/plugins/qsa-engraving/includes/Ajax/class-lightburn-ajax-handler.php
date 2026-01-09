@@ -362,6 +362,18 @@ class LightBurn_Ajax_Handler {
 			return $parsed;
 		}
 
+		// Get QSA ID for this array (if QSA Identifier Repository is available).
+		$qsa_id_url = null;
+		if ( null !== $this->qsa_identifier_repository ) {
+			$qsa_sequence = (int) ( $modules[0]['qsa_sequence'] ?? 0 );
+			$qsa_id       = $this->qsa_identifier_repository->get_qsa_id_for_batch_array( $batch_id, $qsa_sequence );
+
+			if ( ! is_wp_error( $qsa_id ) && ! empty( $qsa_id ) ) {
+				// Format as short URL for QR code (without https://).
+				$qsa_id_url = $this->qsa_identifier_repository->format_qsa_url( $qsa_id, false );
+			}
+		}
+
 		// Build serial map by position.
 		$serial_map = array();
 		foreach ( $serials as $serial ) {
@@ -418,11 +430,18 @@ class LightBurn_Ajax_Handler {
 			return new WP_Error( 'no_module_data', __( 'No module data could be built.', 'qsa-engraving' ) );
 		}
 
+		// Build options array with QR code data if available.
+		$options = array();
+		if ( ! empty( $qsa_id_url ) ) {
+			$options['qr_code_data'] = $qsa_id_url;
+		}
+
 		// Generate SVG.
 		$svg = $this->svg_generator->generate_array(
 			$module_data,
 			$parsed['design'],
-			$parsed['revision']
+			$parsed['revision'],
+			$options
 		);
 
 		if ( is_wp_error( $svg ) ) {

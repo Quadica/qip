@@ -127,6 +127,20 @@ class SVG_Document {
     private Coordinate_Transformer $transformer;
 
     /**
+     * QR code data to encode.
+     *
+     * @var string|null
+     */
+    private ?string $qr_code_data = null;
+
+    /**
+     * QR code configuration (position and size).
+     *
+     * @var array|null
+     */
+    private ?array $qr_code_config = null;
+
+    /**
      * Constructor.
      *
      * @param float $width  Canvas width in mm.
@@ -248,6 +262,31 @@ class SVG_Document {
     }
 
     /**
+     * Set QR code data and configuration.
+     *
+     * The QR code is rendered at the design level (position 0), after alignment marks
+     * but before per-module elements. It encodes a URL linking to the QSA ID.
+     *
+     * @param string $data   Data to encode (e.g., "quadi.ca/cube00076").
+     * @param array  $config Configuration with origin_x, origin_y, element_size keys.
+     * @return self For method chaining.
+     */
+    public function set_qr_code( string $data, array $config ): self {
+        $this->qr_code_data   = $data;
+        $this->qr_code_config = $config;
+        return $this;
+    }
+
+    /**
+     * Check if QR code is configured.
+     *
+     * @return bool True if QR code data and config are set.
+     */
+    public function has_qr_code(): bool {
+        return ! empty( $this->qr_code_data ) && ! empty( $this->qr_code_config );
+    }
+
+    /**
      * Add a module to the document.
      *
      * @param int   $position      Module position (1-8).
@@ -319,6 +358,18 @@ class SVG_Document {
 
         if ( $this->include_crosshair ) {
             $output .= "\n" . $indent . $this->render_crosshair();
+        }
+
+        // Render QR code at design level (position 0) - after alignment marks, before modules.
+        // QR code is affected by offset group like other engraved content.
+        if ( $this->has_qr_code() ) {
+            $qr_svg = $this->render_qr_code();
+            if ( is_wp_error( $qr_svg ) ) {
+                return $qr_svg;
+            }
+            // Add QR code with proper indentation.
+            $qr_svg = str_replace( "\n", "\n" . $indent, $qr_svg );
+            $output .= "\n\n" . $indent . $qr_svg;
         }
 
         // Open offset group if offset is applied (only affects engraved content, not alignment marks).
@@ -534,6 +585,60 @@ class SVG_Document {
         );
 
         return $h_line . "\n  " . $v_line;
+    }
+
+    /**
+     * Render QR code element.
+     *
+     * Renders a single QR code at the design level (position 0).
+     * The QR code encodes a URL with the QSA ID for array identification.
+     *
+     * @return string|WP_Error SVG group element or error.
+     */
+    private function render_qr_code(): string|WP_Error {
+        if ( ! $this->has_qr_code() ) {
+            return new WP_Error(
+                'no_qr_code',
+                __( 'QR code data not configured.', 'qsa-engraving' )
+            );
+        }
+
+        $config = $this->qr_code_config;
+
+        // Get coordinates from config (CAD format).
+        $cad_x = (float) ( $config['origin_x'] ?? 0 );
+        $cad_y = (float) ( $config['origin_y'] ?? 0 );
+        $size  = (float) ( $config['element_size'] ?? QR_Code_Renderer::DEFAULT_SIZE );
+
+        // Transform CAD coordinates to SVG coordinates.
+        $svg_coords = $this->transformer->cad_to_svg( $cad_x, $cad_y );
+
+        // Validate coordinates are within bounds (clamp if needed).
+        if ( ! $this->transformer->is_within_bounds( $svg_coords['x'], $svg_coords['y'] ) ) {
+            $svg_coords = $this->transformer->clamp_to_bounds( $svg_coords['x'], $svg_coords['y'] );
+        }
+
+        // Render the QR code at the calculated position.
+        $qr_svg = QR_Code_Renderer::render_positioned(
+            $this->qr_code_data,
+            $svg_coords['x'],
+            $svg_coords['y'],
+            $size,
+            'qr-code-design'
+        );
+
+        if ( is_wp_error( $qr_svg ) ) {
+            return $qr_svg;
+        }
+
+        // Add section comment for the design-level element.
+        $comment = sprintf(
+            '<!-- ========== DESIGN LEVEL QR CODE ========== -->
+<!-- QSA ID: %s -->',
+            esc_html( $this->qr_code_data )
+        );
+
+        return $comment . "\n" . $qr_svg;
     }
 
     /**
@@ -768,6 +873,12 @@ class SVG_Document {
 
         if ( isset( $options['top_offset'] ) ) {
             $doc->set_top_offset( (float) $options['top_offset'] );
+        }
+
+        // Set QR code if data and config provided.
+        // QR code data is in options['qr_code_data'], config is in the position 0 config.
+        if ( ! empty( $options['qr_code_data'] ) && isset( $config[0]['qr_code'] ) ) {
+            $doc->set_qr_code( $options['qr_code_data'], $config[0]['qr_code'] );
         }
 
         // Add each module.
