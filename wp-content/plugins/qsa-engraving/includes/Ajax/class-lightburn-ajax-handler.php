@@ -370,13 +370,20 @@ class LightBurn_Ajax_Handler {
 			$qsa_sequence = (int) ( $modules[0]['qsa_sequence'] ?? 0 );
 
 			// Create QSA ID if it doesn't exist, or retrieve existing one.
-			$qsa_id = $this->qsa_identifier_repository->get_or_create(
+			$qsa_id_result = $this->qsa_identifier_repository->get_or_create(
 				$batch_id,
 				$qsa_sequence,
 				$parsed['design']
 			);
 
-			if ( ! is_wp_error( $qsa_id ) && ! empty( $qsa_id ) ) {
+			// Return error immediately if QSA ID creation failed.
+			// WP_Error is not JSON-serializable and would break the response.
+			if ( is_wp_error( $qsa_id_result ) ) {
+				return $qsa_id_result;
+			}
+
+			if ( ! empty( $qsa_id_result ) ) {
+				$qsa_id = $qsa_id_result;
 				// Format as short URL for QR code (without https://).
 				$qsa_id_url = $this->qsa_identifier_repository->format_qsa_url( $qsa_id, false );
 			}
