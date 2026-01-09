@@ -1957,6 +1957,28 @@
     border-radius: 4px;
 }
 
+/* QSA ID Badge */
+.qsa-id-info {
+    margin-left: auto;
+    padding-left: 12px;
+    border-left: 1px solid rgba(219, 166, 23, 0.2);
+}
+
+.qsa-id-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-family: 'SF Mono', 'Consolas', 'Monaco', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 4px 10px;
+    background: linear-gradient(135deg, var(--qsa-success) 0%, #00875a 100%);
+    color: #fff;
+    border-radius: 4px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
 .qsa-keyboard-hint {
     display: flex;
     align-items: center;
