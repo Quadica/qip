@@ -326,15 +326,16 @@ class LightBurn_Ajax_Handler {
 
 		$this->send_success(
 			array(
-				'batch_id'        => $batch_id,
-				'qsa_sequence'    => $qsa_sequence,
-				'filename'        => $file_result['filename'],
-				'path'            => $file_result['path'],
-				'lightburn_path'  => $file_result['lightburn_path'],
-				'size'            => $file_result['size'],
-				'module_count'    => count( $qsa_modules ),
+				'batch_id'         => $batch_id,
+				'qsa_sequence'     => $qsa_sequence,
+				'qsa_id'           => $svg_result['qsa_id'] ?? null,
+				'filename'         => $file_result['filename'],
+				'path'             => $file_result['path'],
+				'lightburn_path'   => $file_result['lightburn_path'],
+				'size'             => $file_result['size'],
+				'module_count'     => count( $qsa_modules ),
 				'lightburn_loaded' => $lightburn_result['success'] ?? false,
-				'lightburn_error' => $lightburn_result['error'] ?? null,
+				'lightburn_error'  => $lightburn_result['error'] ?? null,
 			),
 			__( 'SVG generated successfully.', 'qsa-engraving' )
 		);
@@ -346,7 +347,7 @@ class LightBurn_Ajax_Handler {
 	 * @param array $modules    The modules for this QSA.
 	 * @param array $serials    The reserved serials.
 	 * @param int   $batch_id   The batch ID.
-	 * @return array{svg: string, design: string}|WP_Error
+	 * @return array{svg: string, design: string, revision: string, qsa_id: string|null}|WP_Error
 	 */
 	private function generate_svg_for_qsa( array $modules, array $serials, int $batch_id ): array|WP_Error {
 		// Get QSA design from first module SKU.
@@ -362,11 +363,18 @@ class LightBurn_Ajax_Handler {
 			return $parsed;
 		}
 
-		// Get QSA ID for this array (if QSA Identifier Repository is available).
+		// Get or create QSA ID for this array (if QSA Identifier Repository is available).
 		$qsa_id_url = null;
+		$qsa_id     = null;
 		if ( null !== $this->qsa_identifier_repository ) {
 			$qsa_sequence = (int) ( $modules[0]['qsa_sequence'] ?? 0 );
-			$qsa_id       = $this->qsa_identifier_repository->get_qsa_id_for_batch_array( $batch_id, $qsa_sequence );
+
+			// Create QSA ID if it doesn't exist, or retrieve existing one.
+			$qsa_id = $this->qsa_identifier_repository->get_or_create(
+				$batch_id,
+				$qsa_sequence,
+				$parsed['design']
+			);
 
 			if ( ! is_wp_error( $qsa_id ) && ! empty( $qsa_id ) ) {
 				// Format as short URL for QR code (without https://).
@@ -452,6 +460,7 @@ class LightBurn_Ajax_Handler {
 			'svg'      => $svg,
 			'design'   => $parsed['design'],
 			'revision' => $parsed['revision'],
+			'qsa_id'   => $qsa_id,
 		);
 	}
 
