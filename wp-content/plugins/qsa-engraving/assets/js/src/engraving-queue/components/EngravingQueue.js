@@ -376,11 +376,11 @@ export default function EngravingQueue() {
 				setActiveItemId( itemId );
 				// Initialize current array to the starting array (1 for pending, completedArrays+1 for partial).
 				setCurrentArrays( ( prev ) => ( { ...prev, [ itemId ]: startingArray } ) );
-				// Update the queue item status.
+				// Update the queue item status and clear any stale QSA ID from previous array.
 				setQueueItems( ( prev ) =>
 					prev.map( ( i ) =>
 						i.id === itemId
-							? { ...i, status: 'in_progress', serials: data.data.serials }
+							? { ...i, status: 'in_progress', serials: data.data.serials, qsaId: null }
 							: i
 					)
 				);
@@ -529,11 +529,11 @@ export default function EngravingQueue() {
 				// Advance the current array counter.
 				setCurrentArrays( ( prev ) => ( { ...prev, [ itemId ]: nextArray } ) );
 
-				// Update serials with new ones from next QSA.
+				// Update serials with new ones from next QSA and clear stale QSA ID from previous array.
 				setQueueItems( ( prev ) =>
 					prev.map( ( i ) =>
 						i.id === itemId
-							? { ...i, serials: startData.data.serials }
+							? { ...i, serials: startData.data.serials, qsaId: null }
 							: i
 					)
 				);
