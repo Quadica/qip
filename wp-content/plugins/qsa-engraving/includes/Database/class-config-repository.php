@@ -144,7 +144,7 @@ class Config_Repository {
         // Priority: exact revision match > null revision > any revision (alphabetically first).
         if ( null !== $revision && '' !== $revision ) {
             // Specific revision requested.
-            $sql = "SELECT position, element_type, origin_x, origin_y, rotation, text_height
+            $sql = "SELECT position, element_type, origin_x, origin_y, rotation, text_height, element_size
                     FROM {$this->table_name}
                     WHERE qsa_design = %s
                       AND revision = %s
@@ -157,7 +157,7 @@ class Config_Repository {
 
             // If specific revision not found, fall back to any available revision.
             if ( empty( $results ) ) {
-                $sql = "SELECT position, element_type, origin_x, origin_y, rotation, text_height, revision
+                $sql = "SELECT position, element_type, origin_x, origin_y, rotation, text_height, element_size, revision
                         FROM {$this->table_name}
                         WHERE qsa_design = %s
                           AND is_active = 1
@@ -174,7 +174,7 @@ class Config_Repository {
             }
         } else {
             // No specific revision - try NULL first, then fall back to first available.
-            $sql = "SELECT position, element_type, origin_x, origin_y, rotation, text_height
+            $sql = "SELECT position, element_type, origin_x, origin_y, rotation, text_height, element_size
                     FROM {$this->table_name}
                     WHERE qsa_design = %s
                       AND revision IS NULL
@@ -187,7 +187,7 @@ class Config_Repository {
 
             // Fall back to first available revision if no NULL revision config.
             if ( empty( $results ) ) {
-                $sql = "SELECT position, element_type, origin_x, origin_y, rotation, text_height, revision
+                $sql = "SELECT position, element_type, origin_x, origin_y, rotation, text_height, element_size, revision
                         FROM {$this->table_name}
                         WHERE qsa_design = %s
                           AND is_active = 1
@@ -226,10 +226,11 @@ class Config_Repository {
             // Only set if not already set (revision-specific comes first).
             if ( ! isset( $config[ $pos ][ $type ] ) ) {
                 $config[ $pos ][ $type ] = array(
-                    'origin_x'    => (float) $row['origin_x'],
-                    'origin_y'    => (float) $row['origin_y'],
-                    'rotation'    => (int) $row['rotation'],
-                    'text_height' => $row['text_height'] !== null ? (float) $row['text_height'] : null,
+                    'origin_x'     => (float) $row['origin_x'],
+                    'origin_y'     => (float) $row['origin_y'],
+                    'rotation'     => (int) $row['rotation'],
+                    'text_height'  => $row['text_height'] !== null ? (float) $row['text_height'] : null,
+                    'element_size' => $row['element_size'] !== null ? (float) $row['element_size'] : null,
                 );
             }
         }
