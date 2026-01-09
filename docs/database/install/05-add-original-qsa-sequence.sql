@@ -11,9 +11,7 @@
 -- Execution:   Run manually via phpMyAdmin or MySQL CLI
 -- Environment: Both staging and production
 --
--- Table Prefix: Replace {prefix} with actual prefix before execution:
---               - luxeonstar.com: lw_
---               - handlaidtrack.com: fwp_
+-- Table Prefix: lw_ (luxeonstar.com only - this plugin is not used on handlaidtrack.com)
 --
 -- IMPORTANT: Review and test on staging before production deployment
 -- =============================================================================
@@ -31,7 +29,7 @@
 -- modules belonging to the same logical row.
 -- -----------------------------------------------------------------------------
 
-ALTER TABLE `{prefix}quad_engraved_modules`
+ALTER TABLE `lw_quad_engraved_modules`
     ADD COLUMN `original_qsa_sequence` SMALLINT UNSIGNED NOT NULL DEFAULT 0
         COMMENT 'Original QSA sequence assigned at batch creation (for row grouping)'
     AFTER `qsa_sequence`;
@@ -43,7 +41,7 @@ ALTER TABLE `{prefix}quad_engraved_modules`
 -- equal to their current qsa_sequence.
 -- -----------------------------------------------------------------------------
 
-UPDATE `{prefix}quad_engraved_modules`
+UPDATE `lw_quad_engraved_modules`
 SET `original_qsa_sequence` = `qsa_sequence`
 WHERE `original_qsa_sequence` = 0;
 
@@ -54,7 +52,7 @@ WHERE `original_qsa_sequence` = 0;
 -- modules by original_qsa_sequence.
 -- -----------------------------------------------------------------------------
 
-ALTER TABLE `{prefix}quad_engraved_modules`
+ALTER TABLE `lw_quad_engraved_modules`
     ADD KEY `idx_original_qsa` (`engraving_batch_id`, `original_qsa_sequence`);
 
 -- =============================================================================

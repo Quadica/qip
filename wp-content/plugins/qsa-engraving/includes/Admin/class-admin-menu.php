@@ -382,9 +382,11 @@ class Admin_Menu {
 
             <!-- System Status -->
             <?php
-            $system_settings = get_option( 'qsa_engraving_settings', array() );
-            $lightburn_enabled = ! empty( $system_settings['lightburn_enabled'] );
-            $keep_svg_files = ! empty( $system_settings['keep_svg_files'] );
+            $system_settings   = get_option( 'qsa_engraving_settings', array() );
+            $svg_enabled       = ! empty( $system_settings['lightburn_enabled'] );
+            $keep_svg_files    = ! empty( $system_settings['keep_svg_files'] );
+            $svg_rotation      = isset( $system_settings['svg_rotation'] ) ? (int) $system_settings['svg_rotation'] : 0;
+            $svg_top_offset    = isset( $system_settings['svg_top_offset'] ) ? (float) $system_settings['svg_top_offset'] : 0.0;
             ?>
             <div class="qsa-widget qsa-status-widget">
                 <h2><?php esc_html_e( 'System Status', 'qsa-engraving' ); ?></h2>
@@ -396,14 +398,14 @@ class Admin_Menu {
                         </tr>
                         <tr>
                             <td>
-                                <label for="qsa-toggle-lightburn"><?php esc_html_e( 'LightBurn Integration', 'qsa-engraving' ); ?></label>
+                                <label for="qsa-toggle-svg-generation"><?php esc_html_e( 'SVG Generation', 'qsa-engraving' ); ?></label>
                             </td>
                             <td>
                                 <label class="qsa-toggle-switch">
-                                    <input type="checkbox" id="qsa-toggle-lightburn" <?php checked( $lightburn_enabled ); ?>>
+                                    <input type="checkbox" id="qsa-toggle-svg-generation" <?php checked( $svg_enabled ); ?>>
                                     <span class="qsa-toggle-slider"></span>
                                 </label>
-                                <span class="qsa-toggle-status" id="qsa-lightburn-status"></span>
+                                <span class="qsa-toggle-status" id="qsa-svg-generation-status"></span>
                             </td>
                         </tr>
                         <tr>
@@ -418,94 +420,39 @@ class Admin_Menu {
                                 <span class="qsa-toggle-status" id="qsa-keep-svg-status"></span>
                             </td>
                         </tr>
-                        <tr id="qsa-lightburn-connection-row" <?php echo $lightburn_enabled ? '' : 'style="display:none;"'; ?>>
-                            <td><?php esc_html_e( 'LightBurn Connection', 'qsa-engraving' ); ?></td>
+                        <tr id="qsa-svg-rotation-row" <?php echo $svg_enabled ? '' : 'style="display:none;"'; ?>>
                             <td>
-                                <span id="qsa-connection-status" class="qsa-connection-indicator">
-                                    <span class="qsa-connection-dot checking"></span>
-                                    <span class="qsa-connection-text"><?php esc_html_e( 'Checking...', 'qsa-engraving' ); ?></span>
+                                <label for="qsa-svg-rotation"><?php esc_html_e( 'SVG Rotation', 'qsa-engraving' ); ?></label>
+                            </td>
+                            <td>
+                                <select id="qsa-svg-rotation" class="qsa-rotation-select">
+                                    <option value="0" <?php selected( $svg_rotation, 0 ); ?>>0° (No rotation)</option>
+                                    <option value="90" <?php selected( $svg_rotation, 90 ); ?>>90° Clockwise</option>
+                                    <option value="180" <?php selected( $svg_rotation, 180 ); ?>>180°</option>
+                                    <option value="270" <?php selected( $svg_rotation, 270 ); ?>>270° Clockwise</option>
+                                </select>
+                                <span class="qsa-toggle-status" id="qsa-rotation-status"></span>
+                            </td>
+                        </tr>
+                        <tr id="qsa-svg-top-offset-row" <?php echo $svg_enabled ? '' : 'style="display:none;"'; ?>>
+                            <td>
+                                <label for="qsa-svg-top-offset"><?php esc_html_e( 'Top Offset', 'qsa-engraving' ); ?></label>
+                            </td>
+                            <td>
+                                <input type="number" id="qsa-svg-top-offset" class="qsa-offset-input"
+                                    value="<?php echo esc_attr( number_format( $svg_top_offset, 2, '.', '' ) ); ?>"
+                                    min="-5" max="5" step="0.02">
+                                <span class="qsa-offset-unit">mm</span>
+                                <span class="qsa-toggle-status" id="qsa-top-offset-status"></span>
+                            </td>
+                        </tr>
+                        <tr id="qsa-watcher-info-row" <?php echo $svg_enabled ? '' : 'style="display:none;"'; ?>>
+                            <td><?php esc_html_e( 'SVG Delivery', 'qsa-engraving' ); ?></td>
+                            <td>
+                                <span class="qsa-watcher-info">
+                                    <span class="dashicons dashicons-download" style="color: #2271b1;"></span>
+                                    <code style="font-size: 12px;">C:\Users\Production\LightBurn\Incoming</code>
                                 </span>
-                                <button type="button" id="qsa-check-connection" class="button button-small" style="margin-left: 10px;">
-                                    <?php esc_html_e( 'Check', 'qsa-engraving' ); ?>
-                                </button>
-                            </td>
-                        </tr>
-                        <tr id="qsa-lightburn-configure-row" <?php echo $lightburn_enabled ? '' : 'style="display:none;"'; ?>>
-                            <td><?php esc_html_e( 'LightBurn Configure', 'qsa-engraving' ); ?></td>
-                            <td>
-                                <button type="button" id="qsa-toggle-config" class="button button-small">
-                                    <span class="dashicons dashicons-admin-generic" style="font-size: 16px; width: 16px; height: 16px; vertical-align: text-bottom;"></span>
-                                    <?php esc_html_e( 'Configure', 'qsa-engraving' ); ?>
-                                </button>
-                            </td>
-                        </tr>
-                        <?php
-                        // Get current settings with defaults for configuration panel.
-                        $lb_defaults = array(
-                            'lightburn_host'        => '127.0.0.1',
-                            'lightburn_out_port'    => 19840,
-                            'lightburn_in_port'     => 19841,
-                            'lightburn_timeout'     => 2,
-                            'lightburn_auto_load'   => true,
-                            'svg_output_dir'        => '',
-                            'lightburn_path_prefix' => '',
-                        );
-                        $lb_settings = wp_parse_args( $system_settings, $lb_defaults );
-                        ?>
-                        <tr id="qsa-lightburn-config-row" style="display: none;">
-                            <td colspan="2" style="padding: 15px; background: #f9f9f9;">
-                                <div class="qsa-config-panel">
-                                    <h4 style="margin: 0 0 15px; padding-bottom: 10px; border-bottom: 1px solid #ddd;">
-                                        <?php esc_html_e( 'LightBurn Connection Settings', 'qsa-engraving' ); ?>
-                                    </h4>
-                                    <div class="qsa-config-grid">
-                                        <div class="qsa-config-field">
-                                            <label for="qsa-lb-host"><?php esc_html_e( 'Host IP Address', 'qsa-engraving' ); ?></label>
-                                            <input type="text" id="qsa-lb-host" value="<?php echo esc_attr( $lb_settings['lightburn_host'] ); ?>" placeholder="127.0.0.1" class="regular-text">
-                                            <p class="description"><?php esc_html_e( 'IP address of the LightBurn workstation', 'qsa-engraving' ); ?></p>
-                                        </div>
-                                        <div class="qsa-config-field">
-                                            <label for="qsa-lb-out-port"><?php esc_html_e( 'Output Port', 'qsa-engraving' ); ?></label>
-                                            <input type="number" id="qsa-lb-out-port" value="<?php echo esc_attr( $lb_settings['lightburn_out_port'] ); ?>" min="1" max="65535" class="small-text">
-                                            <p class="description"><?php esc_html_e( 'Default: 19840', 'qsa-engraving' ); ?></p>
-                                        </div>
-                                        <div class="qsa-config-field">
-                                            <label for="qsa-lb-in-port"><?php esc_html_e( 'Input Port', 'qsa-engraving' ); ?></label>
-                                            <input type="number" id="qsa-lb-in-port" value="<?php echo esc_attr( $lb_settings['lightburn_in_port'] ); ?>" min="1" max="65535" class="small-text">
-                                            <p class="description"><?php esc_html_e( 'Default: 19841', 'qsa-engraving' ); ?></p>
-                                        </div>
-                                        <div class="qsa-config-field">
-                                            <label for="qsa-lb-timeout"><?php esc_html_e( 'Timeout (seconds)', 'qsa-engraving' ); ?></label>
-                                            <input type="number" id="qsa-lb-timeout" value="<?php echo esc_attr( $lb_settings['lightburn_timeout'] ); ?>" min="1" max="30" class="small-text">
-                                            <p class="description"><?php esc_html_e( 'Default: 2', 'qsa-engraving' ); ?></p>
-                                        </div>
-                                        <div class="qsa-config-field qsa-config-full-width">
-                                            <label>
-                                                <input type="checkbox" id="qsa-lb-auto-load" <?php checked( $lb_settings['lightburn_auto_load'] ); ?>>
-                                                <?php esc_html_e( 'Auto-load SVG when starting a row', 'qsa-engraving' ); ?>
-                                            </label>
-                                        </div>
-                                        <div class="qsa-config-field qsa-config-full-width">
-                                            <label for="qsa-lb-svg-dir"><?php esc_html_e( 'SVG Output Directory', 'qsa-engraving' ); ?></label>
-                                            <input type="text" id="qsa-lb-svg-dir" value="<?php echo esc_attr( $lb_settings['svg_output_dir'] ); ?>" placeholder="<?php esc_attr_e( 'Leave empty for WordPress uploads', 'qsa-engraving' ); ?>" class="large-text">
-                                            <p class="description"><?php esc_html_e( 'Absolute path where SVG files are saved (e.g., Q:\\Production\\SVG)', 'qsa-engraving' ); ?></p>
-                                        </div>
-                                        <div class="qsa-config-field qsa-config-full-width">
-                                            <label for="qsa-lb-path-prefix"><?php esc_html_e( 'LightBurn Path Prefix', 'qsa-engraving' ); ?></label>
-                                            <input type="text" id="qsa-lb-path-prefix" value="<?php echo esc_attr( $lb_settings['lightburn_path_prefix'] ); ?>" placeholder="<?php esc_attr_e( 'Leave empty if same machine', 'qsa-engraving' ); ?>" class="large-text">
-                                            <p class="description"><?php esc_html_e( 'How LightBurn accesses the SVG directory (if different from server path)', 'qsa-engraving' ); ?></p>
-                                        </div>
-                                    </div>
-                                    <div class="qsa-config-actions" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #ddd;">
-                                        <button type="button" id="qsa-save-lb-config" class="button button-primary">
-                                            <?php esc_html_e( 'Save Settings', 'qsa-engraving' ); ?>
-                                        </button>
-                                        <button type="button" id="qsa-cancel-lb-config" class="button" style="margin-left: 10px;">
-                                            <?php esc_html_e( 'Cancel', 'qsa-engraving' ); ?>
-                                        </button>
-                                        <span id="qsa-config-save-status" style="margin-left: 10px;"></span>
-                                    </div>
-                                </div>
                             </td>
                         </tr>
                     </tbody>
@@ -566,86 +513,44 @@ class Admin_Menu {
                 .qsa-toggle-status.error {
                     color: #d63638;
                 }
-                /* Connection status indicator */
-                .qsa-connection-indicator {
+                .qsa-watcher-info {
                     display: inline-flex;
                     align-items: center;
                     gap: 6px;
-                }
-                .qsa-connection-dot {
-                    display: inline-block;
-                    width: 10px;
-                    height: 10px;
-                    border-radius: 50%;
-                    background-color: #ccc;
-                }
-                .qsa-connection-dot.checking {
-                    background-color: #dba617;
-                    animation: pulse 1s infinite;
-                }
-                .qsa-connection-dot.connected {
-                    background-color: #00a32a;
-                }
-                .qsa-connection-dot.disconnected {
-                    background-color: #d63638;
-                }
-                .qsa-connection-text {
                     font-size: 13px;
+                    color: #50575e;
                 }
-                .qsa-connection-text.connected {
-                    color: #00a32a;
-                }
-                .qsa-connection-text.disconnected {
-                    color: #d63638;
-                }
-                @keyframes pulse {
-                    0%, 100% { opacity: 1; }
-                    50% { opacity: 0.5; }
-                }
-                /* Configuration panel */
-                .qsa-config-panel {
-                    max-width: 600px;
-                }
-                .qsa-config-grid {
-                    display: grid;
-                    grid-template-columns: 1fr 1fr;
-                    gap: 15px;
-                }
-                .qsa-config-field {
-                    display: flex;
-                    flex-direction: column;
-                }
-                .qsa-config-field label {
-                    font-weight: 600;
-                    margin-bottom: 4px;
-                }
-                .qsa-config-field .description {
-                    margin: 4px 0 0;
-                    font-size: 11px;
-                    color: #666;
-                }
-                .qsa-config-field input[type="text"],
-                .qsa-config-field input[type="number"] {
-                    width: 100%;
-                    max-width: 100%;
-                }
-                .qsa-config-field.qsa-config-full-width {
-                    grid-column: 1 / -1;
-                }
-                .qsa-config-field input.large-text {
-                    width: 100%;
-                }
-                #qsa-config-save-status {
+                .qsa-rotation-select {
+                    min-width: 160px;
+                    padding: 4px 8px;
+                    border: 1px solid #8c8f94;
+                    border-radius: 4px;
+                    background: #fff;
                     font-size: 13px;
+                    vertical-align: middle;
                 }
-                #qsa-config-save-status.saving {
-                    color: #666;
+                .qsa-rotation-select:focus {
+                    border-color: #2271b1;
+                    box-shadow: 0 0 0 1px #2271b1;
+                    outline: none;
                 }
-                #qsa-config-save-status.saved {
-                    color: #00a32a;
+                .qsa-offset-input {
+                    width: 80px;
+                    padding: 4px 8px;
+                    border: 1px solid #8c8f94;
+                    border-radius: 4px;
+                    font-size: 13px;
+                    text-align: right;
                 }
-                #qsa-config-save-status.error {
-                    color: #d63638;
+                .qsa-offset-input:focus {
+                    border-color: #2271b1;
+                    box-shadow: 0 0 0 1px #2271b1;
+                    outline: none;
+                }
+                .qsa-offset-unit {
+                    margin-left: 4px;
+                    color: #50575e;
+                    font-size: 13px;
                 }
             </style>
             <script>
@@ -674,136 +579,507 @@ class Admin_Menu {
                     });
                 }
 
-                // LightBurn connection status check
-                function checkLightBurnConnection() {
-                    var $dot = $('.qsa-connection-dot');
-                    var $text = $('.qsa-connection-text');
-                    var $btn = $('#qsa-check-connection');
-
-                    // Set checking state
-                    $dot.removeClass('connected disconnected').addClass('checking');
-                    $text.removeClass('connected disconnected').text('<?php echo esc_js( __( 'Checking...', 'qsa-engraving' ) ); ?>');
-                    $btn.prop('disabled', true);
-
-                    $.post(ajaxUrl, {
-                        action: 'qsa_get_lightburn_status',
-                        nonce: nonce
-                    }, function(response) {
-                        $btn.prop('disabled', false);
-                        $dot.removeClass('checking');
-
-                        if (response.success && response.data) {
-                            if (response.data.connected) {
-                                $dot.addClass('connected');
-                                $text.addClass('connected').text('<?php echo esc_js( __( 'Connected', 'qsa-engraving' ) ); ?>');
-                            } else {
-                                $dot.addClass('disconnected');
-                                $text.addClass('disconnected').text('<?php echo esc_js( __( 'Not Connected', 'qsa-engraving' ) ); ?>');
-                            }
-                        } else {
-                            $dot.addClass('disconnected');
-                            $text.addClass('disconnected').text('<?php echo esc_js( __( 'Check Failed', 'qsa-engraving' ) ); ?>');
-                        }
-                    }).fail(function() {
-                        $btn.prop('disabled', false);
-                        $dot.removeClass('checking').addClass('disconnected');
-                        $text.addClass('disconnected').text('<?php echo esc_js( __( 'Check Failed', 'qsa-engraving' ) ); ?>');
-                    });
-                }
-
-                $('#qsa-toggle-lightburn').on('change', function() {
+                // SVG Generation toggle
+                $('#qsa-toggle-svg-generation').on('change', function() {
                     var isEnabled = $(this).is(':checked');
-                    saveToggle('lightburn_enabled', isEnabled, $('#qsa-lightburn-status'));
+                    saveToggle('lightburn_enabled', isEnabled, $('#qsa-svg-generation-status'));
 
-                    // Show/hide connection row, configure row, and config panel
+                    // Show/hide SVG-related rows
                     if (isEnabled) {
-                        $('#qsa-lightburn-connection-row').show();
-                        $('#qsa-lightburn-configure-row').show();
-                        // Check connection after enabling
-                        setTimeout(checkLightBurnConnection, 500);
+                        $('#qsa-svg-rotation-row').show();
+                        $('#qsa-svg-top-offset-row').show();
+                        $('#qsa-watcher-info-row').show();
                     } else {
-                        $('#qsa-lightburn-connection-row').hide();
-                        $('#qsa-lightburn-configure-row').hide();
-                        $('#qsa-lightburn-config-row').hide();
+                        $('#qsa-svg-rotation-row').hide();
+                        $('#qsa-svg-top-offset-row').hide();
+                        $('#qsa-watcher-info-row').hide();
                     }
                 });
 
+                // Keep SVG Files toggle
                 $('#qsa-toggle-keep-svg').on('change', function() {
                     saveToggle('keep_svg_files', $(this).is(':checked'), $('#qsa-keep-svg-status'));
                 });
 
-                // Manual check button
-                $('#qsa-check-connection').on('click', function() {
-                    checkLightBurnConnection();
-                });
+                // SVG Rotation dropdown
+                $('#qsa-svg-rotation').on('change', function() {
+                    var $status = $('#qsa-rotation-status');
+                    var rotation = $(this).val();
 
-                // Toggle configuration panel
-                $('#qsa-toggle-config').on('click', function() {
-                    var $row = $('#qsa-lightburn-config-row');
-                    if ($row.is(':visible')) {
-                        $row.slideUp(200);
-                    } else {
-                        $row.slideDown(200);
-                    }
-                });
-
-                // Cancel configuration
-                $('#qsa-cancel-lb-config').on('click', function() {
-                    $('#qsa-lightburn-config-row').slideUp(200);
-                });
-
-                // Save configuration
-                $('#qsa-save-lb-config').on('click', function() {
-                    var $btn = $(this);
-                    var $status = $('#qsa-config-save-status');
-
-                    $btn.prop('disabled', true);
                     $status.removeClass('saved error').addClass('saving').text('<?php echo esc_js( __( 'Saving...', 'qsa-engraving' ) ); ?>');
 
-                    var data = {
+                    $.post(ajaxUrl, {
                         action: 'qsa_save_lightburn_settings',
                         nonce: nonce,
-                        lightburn_host: $('#qsa-lb-host').val(),
-                        lightburn_out_port: $('#qsa-lb-out-port').val(),
-                        lightburn_in_port: $('#qsa-lb-in-port').val(),
-                        lightburn_timeout: $('#qsa-lb-timeout').val(),
-                        lightburn_auto_load: $('#qsa-lb-auto-load').is(':checked') ? 1 : 0,
-                        svg_output_dir: $('#qsa-lb-svg-dir').val(),
-                        lightburn_path_prefix: $('#qsa-lb-path-prefix').val()
-                    };
-
-                    $.post(ajaxUrl, data, function(response) {
-                        $btn.prop('disabled', false);
+                        svg_rotation: rotation
+                    }, function(response) {
                         if (response.success) {
-                            $status.removeClass('saving').addClass('saved').text('<?php echo esc_js( __( 'Saved!', 'qsa-engraving' ) ); ?>');
-
-                            // Update the host display
-                            $('#qsa-target-host-display').text($('#qsa-lb-host').val() || '127.0.0.1');
-
-                            // Re-check connection with new settings
-                            setTimeout(checkLightBurnConnection, 500);
-
-                            // Hide config panel after brief delay
-                            setTimeout(function() {
-                                $('#qsa-lightburn-config-row').slideUp(200);
-                                $status.text('');
-                            }, 1500);
+                            $status.removeClass('saving').addClass('saved').text('<?php echo esc_js( __( 'Saved', 'qsa-engraving' ) ); ?>');
+                            setTimeout(function() { $status.text(''); }, 2000);
                         } else {
-                            $status.removeClass('saving').addClass('error').text(response.message || '<?php echo esc_js( __( 'Save failed', 'qsa-engraving' ) ); ?>');
+                            $status.removeClass('saving').addClass('error').text('<?php echo esc_js( __( 'Error', 'qsa-engraving' ) ); ?>');
                         }
                     }).fail(function() {
-                        $btn.prop('disabled', false);
-                        $status.removeClass('saving').addClass('error').text('<?php echo esc_js( __( 'Request failed', 'qsa-engraving' ) ); ?>');
+                        $status.removeClass('saving').addClass('error').text('<?php echo esc_js( __( 'Failed', 'qsa-engraving' ) ); ?>');
                     });
                 });
 
-                // Auto-check on page load if LightBurn is enabled
-                <?php if ( $lightburn_enabled ) : ?>
-                setTimeout(checkLightBurnConnection, 1000);
-                <?php endif; ?>
+                // SVG Top Offset input
+                $('#qsa-svg-top-offset').on('change', function() {
+                    var $status = $('#qsa-top-offset-status');
+                    var offset = parseFloat($(this).val()) || 0;
+
+                    // Clamp to valid range
+                    if (offset < -5) offset = -5;
+                    if (offset > 5) offset = 5;
+                    $(this).val(offset.toFixed(2));
+
+                    $status.removeClass('saved error').addClass('saving').text('<?php echo esc_js( __( 'Saving...', 'qsa-engraving' ) ); ?>');
+
+                    $.post(ajaxUrl, {
+                        action: 'qsa_save_lightburn_settings',
+                        nonce: nonce,
+                        svg_top_offset: offset
+                    }, function(response) {
+                        if (response.success) {
+                            $status.removeClass('saving').addClass('saved').text('<?php echo esc_js( __( 'Saved', 'qsa-engraving' ) ); ?>');
+                            setTimeout(function() { $status.text(''); }, 2000);
+                        } else {
+                            $status.removeClass('saving').addClass('error').text('<?php echo esc_js( __( 'Error', 'qsa-engraving' ) ); ?>');
+                        }
+                    }).fail(function() {
+                        $status.removeClass('saving').addClass('error').text('<?php echo esc_js( __( 'Failed', 'qsa-engraving' ) ); ?>');
+                    });
+                });
             });
             </script>
+
+            <!-- Information & Tweaker Panels Row -->
+            <div class="qsa-panels-row">
+                <?php $this->render_information_panel(); ?>
+                <?php $this->render_tweaker_panel(); ?>
+            </div>
         </div>
+        <?php
+    }
+
+    /**
+     * Render the Information Panel.
+     *
+     * @return void
+     */
+    private function render_information_panel(): void {
+        ?>
+        <div class="qsa-widget qsa-info-panel">
+            <h2><?php esc_html_e( 'Help & Information', 'qsa-engraving' ); ?></h2>
+
+            <!-- Process Summary -->
+            <div class="qsa-info-section">
+                <h3 class="qsa-info-section-title">
+                    <span class="dashicons dashicons-info-outline"></span>
+                    <?php esc_html_e( 'Process Summary', 'qsa-engraving' ); ?>
+                </h3>
+                <ol class="qsa-process-steps">
+                    <li><strong><?php esc_html_e( 'Select Modules', 'qsa-engraving' ); ?></strong> &ndash; <?php esc_html_e( 'Use the Batch Creator to select modules from the "Awaiting Engraving" list.', 'qsa-engraving' ); ?></li>
+                    <li><strong><?php esc_html_e( 'Create Batch', 'qsa-engraving' ); ?></strong> &ndash; <?php esc_html_e( 'Click "Create Batch" to assign serial numbers and group modules into arrays.', 'qsa-engraving' ); ?></li>
+                    <li><strong><?php esc_html_e( 'Go to Engraving Queue', 'qsa-engraving' ); ?></strong> &ndash; <?php esc_html_e( 'Navigate to the queue to see your batch ready for engraving.', 'qsa-engraving' ); ?></li>
+                    <li><strong><?php esc_html_e( 'Start Engraving', 'qsa-engraving' ); ?></strong> &ndash; <?php esc_html_e( 'Click "Engrave" to generate the SVG and send it to LightBurn.', 'qsa-engraving' ); ?></li>
+                    <li><strong><?php esc_html_e( 'Engrave Array', 'qsa-engraving' ); ?></strong> &ndash; <?php esc_html_e( 'Use the foot switch on the laser to engrave the array.', 'qsa-engraving' ); ?></li>
+                    <li><strong><?php esc_html_e( 'Advance', 'qsa-engraving' ); ?></strong> &ndash; <?php esc_html_e( 'Press Spacebar (or click "Next Array") to load the next SVG.', 'qsa-engraving' ); ?></li>
+                    <li><strong><?php esc_html_e( 'Complete', 'qsa-engraving' ); ?></strong> &ndash; <?php esc_html_e( 'After the final array, click "Complete" to finish the batch.', 'qsa-engraving' ); ?></li>
+                </ol>
+            </div>
+
+            <!-- Troubleshooting Guide -->
+            <div class="qsa-info-section">
+                <h3 class="qsa-info-section-title">
+                    <span class="dashicons dashicons-warning"></span>
+                    <?php esc_html_e( 'Troubleshooting Guide', 'qsa-engraving' ); ?>
+                </h3>
+
+                <div class="qsa-troubleshoot-item">
+                    <h4><?php esc_html_e( 'SVG Not Appearing in LightBurn', 'qsa-engraving' ); ?></h4>
+                    <ul>
+                        <li><?php esc_html_e( 'Check that LightBurn is running on the production computer.', 'qsa-engraving' ); ?></li>
+                        <li><?php esc_html_e( 'Verify the "LightBurn SFTP Watcher" service is running (open services.msc).', 'qsa-engraving' ); ?></li>
+                        <li><?php esc_html_e( 'Check the log file at C:\\Users\\Production\\lightburn-watcher.log for errors.', 'qsa-engraving' ); ?></li>
+                        <li><?php esc_html_e( 'Try clicking "Resend" to re-send the current SVG file.', 'qsa-engraving' ); ?></li>
+                    </ul>
+                </div>
+
+                <div class="qsa-troubleshoot-item">
+                    <h4><?php esc_html_e( 'No Modules Available to Engrave', 'qsa-engraving' ); ?></h4>
+                    <ul>
+                        <li><?php esc_html_e( 'Verify modules exist in active production batches.', 'qsa-engraving' ); ?></li>
+                        <li><?php esc_html_e( 'Check that the modules haven\'t already been engraved.', 'qsa-engraving' ); ?></li>
+                        <li><?php esc_html_e( 'Refresh the module list using the refresh button.', 'qsa-engraving' ); ?></li>
+                    </ul>
+                </div>
+
+                <div class="qsa-troubleshoot-item">
+                    <h4><?php esc_html_e( 'LED Code Errors', 'qsa-engraving' ); ?></h4>
+                    <ul>
+                        <li><?php esc_html_e( 'Ensure the Order BOM has LED information populated.', 'qsa-engraving' ); ?></li>
+                        <li><?php esc_html_e( 'Verify LED products have the led_shortcode_3 field set.', 'qsa-engraving' ); ?></li>
+                        <li><?php esc_html_e( 'Contact a manager if data is missing.', 'qsa-engraving' ); ?></li>
+                    </ul>
+                </div>
+
+                <div class="qsa-troubleshoot-item">
+                    <h4><?php esc_html_e( 'Batch Creation Fails', 'qsa-engraving' ); ?></h4>
+                    <ul>
+                        <li><?php esc_html_e( 'Check for validation errors in the error message.', 'qsa-engraving' ); ?></li>
+                        <li><?php esc_html_e( 'Ensure all selected modules have valid configurations.', 'qsa-engraving' ); ?></li>
+                        <li><?php esc_html_e( 'Verify the QSA design has coordinate data configured.', 'qsa-engraving' ); ?></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Setup Guide -->
+            <div class="qsa-info-section">
+                <h3 class="qsa-info-section-title">
+                    <span class="dashicons dashicons-admin-tools"></span>
+                    <?php esc_html_e( 'Setup Guide (Technical)', 'qsa-engraving' ); ?>
+                </h3>
+
+                <div class="qsa-setup-item">
+                    <h4><?php esc_html_e( 'System Overview', 'qsa-engraving' ); ?></h4>
+                    <ul>
+                        <li><?php esc_html_e( 'The QSA Engraving plugin generates SVG files for UV laser engraving.', 'qsa-engraving' ); ?></li>
+                        <li><?php esc_html_e( 'SVG files are saved to the server and delivered to LightBurn via an SFTP watcher service.', 'qsa-engraving' ); ?></li>
+                        <li><?php esc_html_e( 'The watcher runs as a Windows Service on the production workstation.', 'qsa-engraving' ); ?></li>
+                        <li><?php esc_html_e( 'Serial numbers are stored in WordPress database tables.', 'qsa-engraving' ); ?></li>
+                    </ul>
+                </div>
+
+                <div class="qsa-setup-item">
+                    <h4><?php esc_html_e( 'LightBurn Watcher Service', 'qsa-engraving' ); ?></h4>
+                    <table class="qsa-setup-table">
+                        <tr>
+                            <td><strong><?php esc_html_e( 'Service Name:', 'qsa-engraving' ); ?></strong></td>
+                            <td><code>LightBurn SFTP Watcher</code></td>
+                        </tr>
+                        <tr>
+                            <td><strong><?php esc_html_e( 'Install Location:', 'qsa-engraving' ); ?></strong></td>
+                            <td><code>C:\Users\Production\LightBurn\lightburn-watcher\</code></td>
+                        </tr>
+                        <tr>
+                            <td><strong><?php esc_html_e( 'Delivery Path:', 'qsa-engraving' ); ?></strong></td>
+                            <td><code>C:\Users\Production\LightBurn\Incoming</code></td>
+                        </tr>
+                        <tr>
+                            <td><strong><?php esc_html_e( 'Log File:', 'qsa-engraving' ); ?></strong></td>
+                            <td><code>C:\Users\Production\lightburn-watcher.log</code></td>
+                        </tr>
+                        <tr>
+                            <td><strong><?php esc_html_e( 'Poll Interval:', 'qsa-engraving' ); ?></strong></td>
+                            <td><?php esc_html_e( '3 seconds', 'qsa-engraving' ); ?></td>
+                        </tr>
+                    </table>
+                </div>
+
+                <div class="qsa-setup-item">
+                    <h4><?php esc_html_e( 'Managing the Watcher Service', 'qsa-engraving' ); ?></h4>
+                    <p class="description"><?php esc_html_e( 'The watcher runs as a Windows Service that starts automatically at boot:', 'qsa-engraving' ); ?></p>
+                    <table class="qsa-setup-table">
+                        <tr>
+                            <td><strong><?php esc_html_e( 'View Status:', 'qsa-engraving' ); ?></strong></td>
+                            <td><?php esc_html_e( 'Open Services (services.msc) and find "LightBurn SFTP Watcher"', 'qsa-engraving' ); ?></td>
+                        </tr>
+                        <tr>
+                            <td><strong><?php esc_html_e( 'Restart:', 'qsa-engraving' ); ?></strong></td>
+                            <td><?php esc_html_e( 'Right-click the service and select "Restart"', 'qsa-engraving' ); ?></td>
+                        </tr>
+                        <tr>
+                            <td><strong><?php esc_html_e( 'Command Line:', 'qsa-engraving' ); ?></strong></td>
+                            <td><code>net stop "LightBurn SFTP Watcher" && net start "LightBurn SFTP Watcher"</code></td>
+                        </tr>
+                        <tr>
+                            <td><strong><?php esc_html_e( 'View Logs:', 'qsa-engraving' ); ?></strong></td>
+                            <td><code>Get-Content ~\lightburn-watcher.log -Tail 50 -Wait</code></td>
+                        </tr>
+                    </table>
+                </div>
+
+                <div class="qsa-setup-item">
+                    <h4><?php esc_html_e( 'Service Configuration', 'qsa-engraving' ); ?></h4>
+                    <p class="description"><?php esc_html_e( 'Edit lightburn-watcher-service.js to adjust these values:', 'qsa-engraving' ); ?></p>
+                    <table class="qsa-setup-table">
+                        <tr>
+                            <td><code>CONFIG.pollInterval</code></td>
+                            <td><?php esc_html_e( 'How often to check for new files (default: 3000ms)', 'qsa-engraving' ); ?></td>
+                        </tr>
+                        <tr>
+                            <td><code>CONFIG.remoteDir</code></td>
+                            <td><?php esc_html_e( 'Path on server for SVG files', 'qsa-engraving' ); ?></td>
+                        </tr>
+                        <tr>
+                            <td><code>CONFIG.localDir</code></td>
+                            <td><?php esc_html_e( 'Where files are placed for LightBurn', 'qsa-engraving' ); ?></td>
+                        </tr>
+                        <tr>
+                            <td><code>CONFIG.sftp.*</code></td>
+                            <td><?php esc_html_e( 'SFTP connection details (host, port, username)', 'qsa-engraving' ); ?></td>
+                        </tr>
+                    </table>
+                    <p class="description" style="margin-top: 8px;">
+                        <span class="dashicons dashicons-warning" style="color: #dba617;"></span>
+                        <?php esc_html_e( 'After changing configuration, restart the service for changes to take effect.', 'qsa-engraving' ); ?>
+                    </p>
+                </div>
+
+                <div class="qsa-setup-item">
+                    <h4><?php esc_html_e( 'Database Tables', 'qsa-engraving' ); ?></h4>
+                    <table class="qsa-setup-table">
+                        <tr>
+                            <td><code>lw_quad_serial_numbers</code></td>
+                            <td><?php esc_html_e( 'Serial number lifecycle tracking', 'qsa-engraving' ); ?></td>
+                        </tr>
+                        <tr>
+                            <td><code>lw_quad_engraving_batches</code></td>
+                            <td><?php esc_html_e( 'Batch metadata', 'qsa-engraving' ); ?></td>
+                        </tr>
+                        <tr>
+                            <td><code>lw_quad_engraved_modules</code></td>
+                            <td><?php esc_html_e( 'Module-to-batch linkage', 'qsa-engraving' ); ?></td>
+                        </tr>
+                        <tr>
+                            <td><code>lw_quad_qsa_config</code></td>
+                            <td><?php esc_html_e( 'Element coordinates per QSA design', 'qsa-engraving' ); ?></td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <?php
+    }
+
+    /**
+     * Render the Tweaker Panel.
+     *
+     * @return void
+     */
+    private function render_tweaker_panel(): void {
+        // Get available QSA designs from database.
+        $plugin      = \Quadica\QSA_Engraving\qsa_engraving();
+        $config_repo = $plugin->get_config_repository();
+
+        // Get distinct design/revision combinations.
+        global $wpdb;
+        $table_name = $config_repo->get_table_name();
+        $designs    = $wpdb->get_results(
+            "SELECT DISTINCT qsa_design, revision,
+                    CONCAT(qsa_design, COALESCE(revision, '')) as display_name
+             FROM {$table_name}
+             WHERE is_active = 1
+             ORDER BY qsa_design, revision"
+        );
+        ?>
+        <div class="qsa-widget qsa-tweaker-panel">
+            <h2><?php esc_html_e( 'Tweaker', 'qsa-engraving' ); ?></h2>
+            <p class="description"><?php esc_html_e( 'Fine-tune element coordinates for laser alignment calibration.', 'qsa-engraving' ); ?></p>
+
+            <div class="qsa-tweaker-controls">
+                <div class="qsa-tweaker-row">
+                    <label for="qsa-tweaker-design"><?php esc_html_e( 'QSA Design:', 'qsa-engraving' ); ?></label>
+                    <select id="qsa-tweaker-design" class="qsa-tweaker-select">
+                        <option value=""><?php esc_html_e( '— Select QSA —', 'qsa-engraving' ); ?></option>
+                        <?php foreach ( $designs as $design ) : ?>
+                            <option value="<?php echo esc_attr( $design->qsa_design . '|' . ( $design->revision ?? '' ) ); ?>">
+                                <?php echo esc_html( $design->display_name ); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <div class="qsa-tweaker-row" id="qsa-tweaker-position-row" style="display: none;">
+                    <label for="qsa-tweaker-position"><?php esc_html_e( 'Position:', 'qsa-engraving' ); ?></label>
+                    <select id="qsa-tweaker-position" class="qsa-tweaker-select">
+                        <option value=""><?php esc_html_e( '— Select Position —', 'qsa-engraving' ); ?></option>
+                        <?php for ( $i = 1; $i <= 8; $i++ ) : ?>
+                            <option value="<?php echo esc_attr( $i ); ?>"><?php echo esc_html( $i ); ?></option>
+                        <?php endfor; ?>
+                    </select>
+                </div>
+            </div>
+
+            <div id="qsa-tweaker-elements" class="qsa-tweaker-elements" style="display: none;">
+                <!-- Elements will be loaded here via AJAX -->
+            </div>
+
+            <div id="qsa-tweaker-actions" class="qsa-tweaker-actions" style="display: none;">
+                <button type="button" id="qsa-tweaker-save" class="button button-primary">
+                    <?php esc_html_e( 'Save Changes', 'qsa-engraving' ); ?>
+                </button>
+                <span id="qsa-tweaker-status" class="qsa-tweaker-status"></span>
+            </div>
+        </div>
+
+        <script type="text/javascript">
+        jQuery(function($) {
+            var ajaxUrl = '<?php echo esc_url( admin_url( 'admin-ajax.php' ) ); ?>';
+            var nonce = '<?php echo esc_js( wp_create_nonce( 'qsa_engraving_nonce' ) ); ?>';
+            var currentDesign = '';
+            var currentRevision = '';
+            var currentPosition = 0;
+
+            // Design selection changed
+            $('#qsa-tweaker-design').on('change', function() {
+                var value = $(this).val();
+                $('#qsa-tweaker-elements').hide().empty();
+                $('#qsa-tweaker-actions').hide();
+                $('#qsa-tweaker-position').val('');
+
+                if (value) {
+                    var parts = value.split('|');
+                    currentDesign = parts[0];
+                    currentRevision = parts[1] || '';
+                    $('#qsa-tweaker-position-row').show();
+                } else {
+                    currentDesign = '';
+                    currentRevision = '';
+                    $('#qsa-tweaker-position-row').hide();
+                }
+            });
+
+            // Position selection changed
+            $('#qsa-tweaker-position').on('change', function() {
+                var position = $(this).val();
+                $('#qsa-tweaker-elements').hide().empty();
+                $('#qsa-tweaker-actions').hide();
+
+                if (position && currentDesign) {
+                    currentPosition = parseInt(position, 10);
+                    loadElements();
+                }
+            });
+
+            // Load elements for current design/position
+            function loadElements() {
+                var $container = $('#qsa-tweaker-elements');
+                $container.html('<p class="loading"><span class="spinner is-active"></span> <?php echo esc_js( __( 'Loading...', 'qsa-engraving' ) ); ?></p>').show();
+
+                $.post(ajaxUrl, {
+                    action: 'qsa_get_tweaker_elements',
+                    nonce: nonce,
+                    design: currentDesign,
+                    revision: currentRevision,
+                    position: currentPosition
+                }, function(response) {
+                    if (response.success && response.data.elements) {
+                        renderElements(response.data.elements);
+                        $('#qsa-tweaker-actions').show();
+                    } else {
+                        $container.html('<p class="error"><?php echo esc_js( __( 'No configuration found for this design/position.', 'qsa-engraving' ) ); ?></p>');
+                    }
+                }).fail(function() {
+                    $container.html('<p class="error"><?php echo esc_js( __( 'Failed to load configuration.', 'qsa-engraving' ) ); ?></p>');
+                });
+            }
+
+            // Render element fields
+            function renderElements(elements) {
+                var $container = $('#qsa-tweaker-elements');
+                $container.empty();
+
+                elements.forEach(function(el) {
+                    var hasTextHeight = (el.element_type !== 'micro_id' && el.element_type !== 'datamatrix');
+                    var elementLabel = el.element_type.replace(/_/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+
+                    var html = '<div class="qsa-element-group" data-element="' + el.element_type + '">';
+                    html += '<h4 class="qsa-element-title">' + elementLabel + '</h4>';
+                    html += '<div class="qsa-element-fields">';
+
+                    // X Position
+                    html += '<div class="qsa-field">';
+                    html += '<label><?php echo esc_js( __( 'X Position', 'qsa-engraving' ) ); ?></label>';
+                    html += '<input type="number" class="qsa-tweaker-input" name="origin_x" value="' + el.origin_x.toFixed(3) + '" step="0.001" min="-50" max="200">';
+                    html += '<span class="qsa-unit">mm</span>';
+                    html += '</div>';
+
+                    // Y Position
+                    html += '<div class="qsa-field">';
+                    html += '<label><?php echo esc_js( __( 'Y Position', 'qsa-engraving' ) ); ?></label>';
+                    html += '<input type="number" class="qsa-tweaker-input" name="origin_y" value="' + el.origin_y.toFixed(3) + '" step="0.001" min="-50" max="200">';
+                    html += '<span class="qsa-unit">mm</span>';
+                    html += '</div>';
+
+                    // Rotation
+                    html += '<div class="qsa-field">';
+                    html += '<label><?php echo esc_js( __( 'Rotation', 'qsa-engraving' ) ); ?></label>';
+                    html += '<input type="number" class="qsa-tweaker-input" name="rotation" value="' + el.rotation.toFixed(1) + '" step="0.1" min="-360" max="360">';
+                    html += '<span class="qsa-unit">&deg;</span>';
+                    html += '</div>';
+
+                    // Text Height (only for text elements)
+                    if (hasTextHeight) {
+                        var textHeight = el.text_height !== null ? el.text_height.toFixed(2) : '1.20';
+                        html += '<div class="qsa-field">';
+                        html += '<label><?php echo esc_js( __( 'Text Height', 'qsa-engraving' ) ); ?></label>';
+                        html += '<input type="number" class="qsa-tweaker-input" name="text_height" value="' + textHeight + '" step="0.01" min="0.1" max="10">';
+                        html += '<span class="qsa-unit">mm</span>';
+                        html += '</div>';
+                    }
+
+                    html += '</div>'; // .qsa-element-fields
+                    html += '</div>'; // .qsa-element-group
+
+                    $container.append(html);
+                });
+
+                $container.show();
+            }
+
+            // Save changes
+            $('#qsa-tweaker-save').on('click', function() {
+                var $btn = $(this);
+                var $status = $('#qsa-tweaker-status');
+                var elements = [];
+
+                // Gather all element data
+                $('#qsa-tweaker-elements .qsa-element-group').each(function() {
+                    var $group = $(this);
+                    var elementType = $group.data('element');
+                    var data = {
+                        element_type: elementType,
+                        origin_x: parseFloat($group.find('input[name="origin_x"]').val()) || 0,
+                        origin_y: parseFloat($group.find('input[name="origin_y"]').val()) || 0,
+                        rotation: parseFloat($group.find('input[name="rotation"]').val()) || 0
+                    };
+
+                    var $textHeight = $group.find('input[name="text_height"]');
+                    if ($textHeight.length) {
+                        data.text_height = parseFloat($textHeight.val()) || null;
+                    }
+
+                    elements.push(data);
+                });
+
+                $btn.prop('disabled', true);
+                $status.removeClass('success error').addClass('saving').text('<?php echo esc_js( __( 'Saving...', 'qsa-engraving' ) ); ?>');
+
+                $.post(ajaxUrl, {
+                    action: 'qsa_save_tweaker_elements',
+                    nonce: nonce,
+                    design: currentDesign,
+                    revision: currentRevision,
+                    position: currentPosition,
+                    elements: JSON.stringify(elements)
+                }, function(response) {
+                    $btn.prop('disabled', false);
+                    if (response.success) {
+                        $status.removeClass('saving').addClass('success').text('<?php echo esc_js( __( 'Saved!', 'qsa-engraving' ) ); ?>');
+                        setTimeout(function() { $status.text('').removeClass('success'); }, 3000);
+                    } else {
+                        $status.removeClass('saving').addClass('error').text(response.data || '<?php echo esc_js( __( 'Save failed', 'qsa-engraving' ) ); ?>');
+                    }
+                }).fail(function() {
+                    $btn.prop('disabled', false);
+                    $status.removeClass('saving').addClass('error').text('<?php echo esc_js( __( 'Request failed', 'qsa-engraving' ) ); ?>');
+                });
+            });
+        });
+        </script>
         <?php
     }
 
@@ -842,14 +1118,9 @@ class Admin_Menu {
 
         // Default values.
         $defaults = array(
-            'lightburn_enabled'     => false,
-            'lightburn_host'        => '127.0.0.1',
-            'lightburn_out_port'    => 19840,
-            'lightburn_in_port'     => 19841,
-            'lightburn_timeout'     => 2,
-            'lightburn_auto_load'   => true,
-            'svg_output_dir'        => '',
-            'lightburn_path_prefix' => '',
+            'lightburn_enabled' => false,
+            'keep_svg_files'    => true,
+            'svg_output_dir'    => '',
         );
 
         $settings = wp_parse_args( $settings, $defaults );
@@ -858,111 +1129,42 @@ class Admin_Menu {
             <form method="post" action="options.php" id="qsa-settings-form">
                 <?php wp_nonce_field( 'qsa_engraving_settings_nonce', 'qsa_settings_nonce' ); ?>
 
-                <!-- LightBurn Integration Settings -->
+                <!-- SVG Generation Settings -->
                 <div class="qsa-settings-section">
-                    <h2><?php esc_html_e( 'LightBurn Integration', 'qsa-engraving' ); ?></h2>
+                    <h2><?php esc_html_e( 'SVG Generation', 'qsa-engraving' ); ?></h2>
                     <p class="description">
-                        <?php esc_html_e( 'Configure the connection to LightBurn software for automatic SVG loading.', 'qsa-engraving' ); ?>
+                        <?php esc_html_e( 'Configure SVG file generation for laser engraving.', 'qsa-engraving' ); ?>
                     </p>
 
                     <table class="form-table">
                         <tr>
                             <th scope="row">
-                                <label for="lightburn_enabled"><?php esc_html_e( 'Enable LightBurn Integration', 'qsa-engraving' ); ?></label>
+                                <label for="lightburn_enabled"><?php esc_html_e( 'Enable SVG Generation', 'qsa-engraving' ); ?></label>
                             </th>
                             <td>
                                 <label>
                                     <input type="checkbox" name="lightburn_enabled" id="lightburn_enabled" value="1" <?php checked( $settings['lightburn_enabled'] ); ?>>
-                                    <?php esc_html_e( 'Enable UDP communication with LightBurn', 'qsa-engraving' ); ?>
+                                    <?php esc_html_e( 'Generate SVG files when engraving batches', 'qsa-engraving' ); ?>
                                 </label>
                                 <p class="description">
-                                    <?php esc_html_e( 'When enabled, SVG files will be automatically sent to LightBurn during engraving.', 'qsa-engraving' ); ?>
+                                    <?php esc_html_e( 'When enabled, SVG files will be generated and saved for pickup by the LightBurn watcher.', 'qsa-engraving' ); ?>
                                 </p>
                             </td>
                         </tr>
                         <tr>
                             <th scope="row">
-                                <label for="lightburn_host"><?php esc_html_e( 'LightBurn Host IP', 'qsa-engraving' ); ?></label>
-                            </th>
-                            <td>
-                                <input type="text" name="lightburn_host" id="lightburn_host" value="<?php echo esc_attr( $settings['lightburn_host'] ); ?>" class="regular-text" placeholder="127.0.0.1">
-                                <p class="description">
-                                    <?php esc_html_e( 'IP address of the machine running LightBurn. Use 127.0.0.1 for localhost.', 'qsa-engraving' ); ?>
-                                </p>
-                            </td>
-                        </tr>
-                        <tr>
-                            <th scope="row">
-                                <label for="lightburn_out_port"><?php esc_html_e( 'Output Port', 'qsa-engraving' ); ?></label>
-                            </th>
-                            <td>
-                                <input type="number" name="lightburn_out_port" id="lightburn_out_port" value="<?php echo esc_attr( $settings['lightburn_out_port'] ); ?>" min="1" max="65535" class="small-text">
-                                <p class="description">
-                                    <?php esc_html_e( 'Port for sending commands to LightBurn. Default: 19840', 'qsa-engraving' ); ?>
-                                </p>
-                            </td>
-                        </tr>
-                        <tr>
-                            <th scope="row">
-                                <label for="lightburn_in_port"><?php esc_html_e( 'Input Port', 'qsa-engraving' ); ?></label>
-                            </th>
-                            <td>
-                                <input type="number" name="lightburn_in_port" id="lightburn_in_port" value="<?php echo esc_attr( $settings['lightburn_in_port'] ); ?>" min="1" max="65535" class="small-text">
-                                <p class="description">
-                                    <?php esc_html_e( 'Port for receiving responses from LightBurn. Default: 19841', 'qsa-engraving' ); ?>
-                                </p>
-                            </td>
-                        </tr>
-                        <tr>
-                            <th scope="row">
-                                <label for="lightburn_timeout"><?php esc_html_e( 'Connection Timeout', 'qsa-engraving' ); ?></label>
-                            </th>
-                            <td>
-                                <input type="number" name="lightburn_timeout" id="lightburn_timeout" value="<?php echo esc_attr( $settings['lightburn_timeout'] ); ?>" min="1" max="30" class="small-text">
-                                <span><?php esc_html_e( 'seconds', 'qsa-engraving' ); ?></span>
-                                <p class="description">
-                                    <?php esc_html_e( 'Time to wait for LightBurn to respond before timing out. Default: 2', 'qsa-engraving' ); ?>
-                                </p>
-                            </td>
-                        </tr>
-                        <tr>
-                            <th scope="row">
-                                <label for="lightburn_auto_load"><?php esc_html_e( 'Auto-Load SVG', 'qsa-engraving' ); ?></label>
+                                <label for="keep_svg_files"><?php esc_html_e( 'Keep SVG Files', 'qsa-engraving' ); ?></label>
                             </th>
                             <td>
                                 <label>
-                                    <input type="checkbox" name="lightburn_auto_load" id="lightburn_auto_load" value="1" <?php checked( $settings['lightburn_auto_load'] ); ?>>
-                                    <?php esc_html_e( 'Automatically load SVG in LightBurn when starting a row', 'qsa-engraving' ); ?>
+                                    <input type="checkbox" name="keep_svg_files" id="keep_svg_files" value="1" <?php checked( $settings['keep_svg_files'] ); ?>>
+                                    <?php esc_html_e( 'Retain SVG files after engraving is complete', 'qsa-engraving' ); ?>
                                 </label>
                                 <p class="description">
-                                    <?php esc_html_e( 'When enabled, the SVG will be sent to LightBurn automatically. Otherwise, use the "Load" button manually.', 'qsa-engraving' ); ?>
+                                    <?php esc_html_e( 'When disabled, SVG files are deleted after the batch is completed.', 'qsa-engraving' ); ?>
                                 </p>
                             </td>
                         </tr>
-                        <tr>
-                            <th scope="row"><?php esc_html_e( 'Connection Test', 'qsa-engraving' ); ?></th>
-                            <td>
-                                <button type="button" id="qsa-test-lightburn" class="button button-secondary">
-                                    <span class="dashicons dashicons-admin-plugins"></span>
-                                    <?php esc_html_e( 'Test Connection', 'qsa-engraving' ); ?>
-                                </button>
-                                <span id="qsa-lightburn-test-result" class="qsa-test-result"></span>
-                                <p class="description">
-                                    <?php esc_html_e( 'Test the connection to LightBurn. Make sure LightBurn is running before testing.', 'qsa-engraving' ); ?>
-                                </p>
-                            </td>
-                        </tr>
-                    </table>
-                </div>
-
-                <!-- SVG Output Settings -->
-                <div class="qsa-settings-section">
-                    <h2><?php esc_html_e( 'SVG File Settings', 'qsa-engraving' ); ?></h2>
-                    <p class="description">
-                        <?php esc_html_e( 'Configure where SVG files are saved and how LightBurn accesses them.', 'qsa-engraving' ); ?>
-                    </p>
-
-                    <table class="form-table">
                         <tr>
                             <th scope="row">
                                 <label for="svg_output_dir"><?php esc_html_e( 'SVG Output Directory', 'qsa-engraving' ); ?></label>
@@ -970,18 +1172,7 @@ class Admin_Menu {
                             <td>
                                 <input type="text" name="svg_output_dir" id="svg_output_dir" value="<?php echo esc_attr( $settings['svg_output_dir'] ); ?>" class="large-text" placeholder="<?php esc_attr_e( 'Leave empty to use WordPress uploads directory', 'qsa-engraving' ); ?>">
                                 <p class="description">
-                                    <?php esc_html_e( 'Absolute path where SVG files will be saved. For network shares, use the full path (e.g., Q:\\Shared drives\\Production\\SVG).', 'qsa-engraving' ); ?>
-                                </p>
-                            </td>
-                        </tr>
-                        <tr>
-                            <th scope="row">
-                                <label for="lightburn_path_prefix"><?php esc_html_e( 'LightBurn Path Prefix', 'qsa-engraving' ); ?></label>
-                            </th>
-                            <td>
-                                <input type="text" name="lightburn_path_prefix" id="lightburn_path_prefix" value="<?php echo esc_attr( $settings['lightburn_path_prefix'] ); ?>" class="large-text" placeholder="<?php esc_attr_e( 'e.g., Q:\\Production\\SVG', 'qsa-engraving' ); ?>">
-                                <p class="description">
-                                    <?php esc_html_e( 'If LightBurn runs on a different machine, specify how it accesses the SVG directory. Leave empty if using the same machine.', 'qsa-engraving' ); ?>
+                                    <?php esc_html_e( 'Server path where SVG files are saved. Default: wp-content/uploads/qsa-engraving/svg/', 'qsa-engraving' ); ?>
                                 </p>
                             </td>
                         </tr>
@@ -994,6 +1185,38 @@ class Admin_Menu {
                     </table>
                 </div>
 
+                <!-- LightBurn Watcher Information -->
+                <div class="qsa-settings-section">
+                    <h2><?php esc_html_e( 'LightBurn Watcher Service', 'qsa-engraving' ); ?></h2>
+                    <div class="qsa-info-box">
+                        <p>
+                            <span class="dashicons dashicons-info" style="color: #2271b1;"></span>
+                            <?php esc_html_e( 'The LightBurn Watcher runs as a Windows Service on the production workstation. It monitors this server via SFTP for new SVG files and automatically loads them into LightBurn.', 'qsa-engraving' ); ?>
+                        </p>
+                        <table class="qsa-info-table">
+                            <tr>
+                                <td><strong><?php esc_html_e( 'Service Name:', 'qsa-engraving' ); ?></strong></td>
+                                <td><code>LightBurn SFTP Watcher</code></td>
+                            </tr>
+                            <tr>
+                                <td><strong><?php esc_html_e( 'Polling Interval:', 'qsa-engraving' ); ?></strong></td>
+                                <td><?php esc_html_e( '3 seconds', 'qsa-engraving' ); ?></td>
+                            </tr>
+                            <tr>
+                                <td><strong><?php esc_html_e( 'Install Location:', 'qsa-engraving' ); ?></strong></td>
+                                <td><code>C:\Users\Production\LightBurn\lightburn-watcher\</code></td>
+                            </tr>
+                            <tr>
+                                <td><strong><?php esc_html_e( 'Log File:', 'qsa-engraving' ); ?></strong></td>
+                                <td><code>C:\Users\Production\lightburn-watcher.log</code></td>
+                            </tr>
+                        </table>
+                        <p class="description" style="margin-top: 10px;">
+                            <?php esc_html_e( 'To manage the service: Open Services (services.msc), find "LightBurn SFTP Watcher", right-click to Start/Stop/Restart.', 'qsa-engraving' ); ?>
+                        </p>
+                    </div>
+                </div>
+
                 <p class="submit">
                     <button type="submit" id="qsa-save-settings" class="button button-primary">
                         <?php esc_html_e( 'Save Settings', 'qsa-engraving' ); ?>
@@ -1003,34 +1226,46 @@ class Admin_Menu {
             </form>
         </div>
 
+        <style>
+            .qsa-info-box {
+                background: #f0f6fc;
+                border: 1px solid #c3c4c7;
+                border-left: 4px solid #2271b1;
+                padding: 12px 15px;
+                margin: 10px 0;
+            }
+            .qsa-info-box p {
+                margin: 0 0 10px;
+            }
+            .qsa-info-box .dashicons {
+                vertical-align: text-bottom;
+                margin-right: 5px;
+            }
+            .qsa-info-table {
+                margin: 10px 0;
+            }
+            .qsa-info-table td {
+                padding: 4px 10px 4px 0;
+                vertical-align: top;
+            }
+            .qsa-info-table code {
+                font-size: 12px;
+            }
+            .qsa-save-result {
+                margin-left: 10px;
+            }
+            .qsa-save-result.success {
+                color: #00a32a;
+            }
+            .qsa-save-result.error {
+                color: #d63638;
+            }
+        </style>
+
         <script type="text/javascript">
         jQuery(document).ready(function($) {
             var nonce = '<?php echo esc_js( wp_create_nonce( 'qsa_engraving_nonce' ) ); ?>';
             var ajaxUrl = '<?php echo esc_js( admin_url( 'admin-ajax.php' ) ); ?>';
-
-            // Test LightBurn connection
-            $('#qsa-test-lightburn').on('click', function() {
-                var $btn = $(this);
-                var $result = $('#qsa-lightburn-test-result');
-
-                $btn.prop('disabled', true);
-                $result.removeClass('success error').text('<?php echo esc_js( __( 'Testing...', 'qsa-engraving' ) ); ?>');
-
-                $.post(ajaxUrl, {
-                    action: 'qsa_test_lightburn',
-                    nonce: nonce
-                }, function(response) {
-                    $btn.prop('disabled', false);
-                    if (response.success) {
-                        $result.addClass('success').text('<?php echo esc_js( __( 'Connected!', 'qsa-engraving' ) ); ?>');
-                    } else {
-                        $result.addClass('error').text(response.message || '<?php echo esc_js( __( 'Connection failed', 'qsa-engraving' ) ); ?>');
-                    }
-                }).fail(function() {
-                    $btn.prop('disabled', false);
-                    $result.addClass('error').text('<?php echo esc_js( __( 'Request failed', 'qsa-engraving' ) ); ?>');
-                });
-            });
 
             // Save settings via AJAX
             $('#qsa-settings-form').on('submit', function(e) {
@@ -1046,19 +1281,15 @@ class Admin_Menu {
                     action: 'qsa_save_lightburn_settings',
                     nonce: nonce,
                     lightburn_enabled: $('#lightburn_enabled').is(':checked') ? 1 : 0,
-                    lightburn_host: $('#lightburn_host').val(),
-                    lightburn_out_port: $('#lightburn_out_port').val(),
-                    lightburn_in_port: $('#lightburn_in_port').val(),
-                    lightburn_timeout: $('#lightburn_timeout').val(),
-                    lightburn_auto_load: $('#lightburn_auto_load').is(':checked') ? 1 : 0,
-                    svg_output_dir: $('#svg_output_dir').val(),
-                    lightburn_path_prefix: $('#lightburn_path_prefix').val()
+                    keep_svg_files: $('#keep_svg_files').is(':checked') ? 1 : 0,
+                    svg_output_dir: $('#svg_output_dir').val()
                 };
 
                 $.post(ajaxUrl, data, function(response) {
                     $btn.prop('disabled', false);
                     if (response.success) {
                         $result.addClass('success').text('<?php echo esc_js( __( 'Settings saved!', 'qsa-engraving' ) ); ?>');
+                        setTimeout(function() { $result.text(''); }, 3000);
                     } else {
                         $result.addClass('error').text(response.message || '<?php echo esc_js( __( 'Save failed', 'qsa-engraving' ) ); ?>');
                     }

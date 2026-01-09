@@ -13,10 +13,7 @@
 -- Execution:   Run manually via phpMyAdmin or MySQL CLI
 -- Environment: Both staging and production
 --
--- Table Prefix: This script uses {prefix} placeholder.
---               Replace with actual prefix before execution:
---               - luxeonstar.com: lw_
---               - handlaidtrack.com: fwp_
+-- Table Prefix: lw_ (luxeonstar.com only - this plugin is not used on handlaidtrack.com)
 --
 -- IMPORTANT: Review and test on staging before production deployment
 -- =============================================================================
@@ -32,14 +29,14 @@
 --   - Status lifecycle: reserved -> engraved OR reserved -> voided
 --
 -- Relationships:
---   - engraving_batch_id -> {prefix}quad_engraving_batches.id
+--   - engraving_batch_id -> lw_quad_engraving_batches.id
 --   - production_batch_id -> oms_batch_items.batch_id (legacy OM system, read-only)
 --   - order_id -> wp_posts.ID where post_type = 'shop_order'
 --
 -- Volume Estimate: ~1M max capacity, ~85k/year growth = 12+ years runway
 -- -----------------------------------------------------------------------------
 
-CREATE TABLE IF NOT EXISTS `{prefix}quad_serial_numbers` (
+CREATE TABLE IF NOT EXISTS `lw_quad_serial_numbers` (
     `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT
         COMMENT 'Primary key',
 
@@ -120,7 +117,7 @@ CREATE TABLE IF NOT EXISTS `{prefix}quad_serial_numbers` (
 -- Volume Estimate: ~20-50 batches/week = ~1-2.5k/year
 -- -----------------------------------------------------------------------------
 
-CREATE TABLE IF NOT EXISTS `{prefix}quad_engraving_batches` (
+CREATE TABLE IF NOT EXISTS `lw_quad_engraving_batches` (
     `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT
         COMMENT 'Primary key, referenced by serial_numbers and engraved_modules',
 
@@ -176,7 +173,7 @@ CREATE TABLE IF NOT EXISTS `{prefix}quad_engraving_batches` (
 -- Volume Estimate: ~85k modules/year
 -- -----------------------------------------------------------------------------
 
-CREATE TABLE IF NOT EXISTS `{prefix}quad_engraved_modules` (
+CREATE TABLE IF NOT EXISTS `lw_quad_engraved_modules` (
     `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT
         COMMENT 'Primary key',
 
@@ -255,7 +252,7 @@ CREATE TABLE IF NOT EXISTS `{prefix}quad_engraved_modules` (
 -- Volume Estimate: ~50-100 rows per design, ~10-20 designs = ~500-2000 rows total
 -- -----------------------------------------------------------------------------
 
-CREATE TABLE IF NOT EXISTS `{prefix}quad_qsa_config` (
+CREATE TABLE IF NOT EXISTS `lw_quad_qsa_config` (
     `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT
         COMMENT 'Primary key',
 

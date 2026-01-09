@@ -204,7 +204,7 @@ class Datamatrix_Renderer {
                     $y = $offset_y + ( $row * $module_size );
 
                     $rects[] = sprintf(
-                        '<rect x="%.4f" y="%.4f" width="%.4f" height="%.4f" fill="%s"/>',
+                        '<rect x="%.4f" y="%.4f" width="%.4f" height="%.4f" fill="%s" stroke="none"/>',
                         $x,
                         $y,
                         $module_size,
