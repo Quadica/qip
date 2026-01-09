@@ -604,8 +604,10 @@ class SVG_Document {
         }
 
         // LED codes.
-        foreach ( $led_codes as $index => $led_code ) {
-            $config_key = 'led_code_' . ( $index + 1 );
+        // The led_codes array is keyed by LED position (1, 2, 3, 4, etc.) from the Order BOM.
+        // This preserves actual position info for modules with gaps (e.g., LEDs at positions 1 and 4 only).
+        foreach ( $led_codes as $led_position => $led_code ) {
+            $config_key = 'led_code_' . $led_position;
             if ( ! empty( $led_code ) && isset( $config[ $config_key ] ) ) {
                 // Validate LED code against allowed character set.
                 if ( ! Text_Renderer::validate_led_code( $led_code ) ) {
@@ -615,7 +617,7 @@ class SVG_Document {
                             /* translators: 1: LED code, 2: Position number, 3: Allowed characters */
                             __( 'Invalid LED code "%1$s" at position %2$d. Only these characters allowed: %3$s', 'qsa-engraving' ),
                             $led_code,
-                            $position,
+                            $led_position,
                             Text_Renderer::get_led_code_charset()
                         )
                     );
