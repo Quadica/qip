@@ -360,8 +360,14 @@ class SVG_Document {
             $output .= "\n" . $indent . $this->render_crosshair();
         }
 
+        // Open offset group if offset is applied (only affects engraved content, not alignment marks).
+        if ( $has_offset ) {
+            $output .= "\n\n" . $indent . $this->render_offset_group_open();
+            $indent .= '  ';
+        }
+
         // Render QR code at design level (position 0) - after alignment marks, before modules.
-        // QR code is affected by offset group like other engraved content.
+        // QR code is inside offset group so it moves with module content when top_offset is applied.
         if ( $this->has_qr_code() ) {
             $qr_svg = $this->render_qr_code();
             if ( is_wp_error( $qr_svg ) ) {
@@ -370,12 +376,6 @@ class SVG_Document {
             // Add QR code with proper indentation.
             $qr_svg = str_replace( "\n", "\n" . $indent, $qr_svg );
             $output .= "\n\n" . $indent . $qr_svg;
-        }
-
-        // Open offset group if offset is applied (only affects engraved content, not alignment marks).
-        if ( $has_offset ) {
-            $output .= "\n\n" . $indent . $this->render_offset_group_open();
-            $indent .= '  ';
         }
 
         // Render each module (inside offset group if offset applied).

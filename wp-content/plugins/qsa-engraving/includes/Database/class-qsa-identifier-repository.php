@@ -648,19 +648,23 @@ class QSA_Identifier_Repository {
     /**
      * Format a QSA ID as a URL.
      *
+     * URLs use lowercase per specification (e.g., 'quadi.ca/cube00076').
+     * This keeps URLs shorter and cleaner while stored IDs remain uppercase.
+     *
      * @param string $qsa_id        The QSA ID (e.g., 'CUBE00076').
      * @param bool   $include_https Whether to include 'https://' prefix (default true).
-     * @return string The formatted URL (e.g., 'quadi.ca/CUBE00076' or 'https://quadi.ca/CUBE00076').
+     * @return string The formatted URL (e.g., 'quadi.ca/cube00076' or 'https://quadi.ca/cube00076').
      */
     public function format_qsa_url( string $qsa_id, bool $include_https = true ): string {
         $base_domain = 'quadi.ca';
-        $qsa_id      = strtoupper( $qsa_id );
+        // URLs use lowercase per specification.
+        $qsa_id_lower = strtolower( $qsa_id );
 
         if ( $include_https ) {
-            return 'https://' . $base_domain . '/' . $qsa_id;
+            return 'https://' . $base_domain . '/' . $qsa_id_lower;
         }
 
-        return $base_domain . '/' . $qsa_id;
+        return $base_domain . '/' . $qsa_id_lower;
     }
 
     /**
