@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 echo "\n";
 echo "================================================================\n";
-echo "QSA Engraving Plugin - Phase 1-9 + Landing Handler Smoke Tests\n";
+echo "QSA Engraving Plugin - Phase 1-9 + Legacy SKU Mapping Smoke Tests\n";
 echo "================================================================\n\n";
 
 $tests_passed = 0;
@@ -5095,6 +5095,497 @@ run_test(
         return true;
     },
     'Landing Handler registers the qsa_lookup query variable.'
+);
+
+// ============================================
+// Legacy SKU Mapping Tests (Phase 1)
+// ============================================
+
+// ============================================
+// TC-LEG-001: SKU Mappings Table Exists
+// ============================================
+run_test(
+    'TC-LEG-001: SKU mappings table exists',
+    function (): bool {
+        $sku_repo = new \Quadica\QSA_Engraving\Database\SKU_Mapping_Repository();
+
+        if ( ! $sku_repo->table_exists() ) {
+            return new WP_Error(
+                'table_missing',
+                'Table lw_quad_sku_mappings does not exist. ' .
+                'Run docs/database/install/10-sku-mappings-schema.sql via phpMyAdmin.'
+            );
+        }
+
+        echo "  Table exists: " . $sku_repo->get_table_name() . "\n";
+        return true;
+    },
+    'SKU mappings table should exist after schema installation.'
+);
+
+// ============================================
+// TC-LEG-002: SKU Mapping Repository Instantiates
+// ============================================
+run_test(
+    'TC-LEG-002: SKU_Mapping_Repository class instantiates',
+    function (): bool {
+        $sku_repo = new \Quadica\QSA_Engraving\Database\SKU_Mapping_Repository();
+
+        // Check required methods exist.
+        $required_methods = array(
+            'find_mapping',
+            'get_all',
+            'get',
+            'create',
+            'update',
+            'delete',
+            'test_pattern',
+            'table_exists',
+        );
+
+        foreach ( $required_methods as $method ) {
+            if ( ! method_exists( $sku_repo, $method ) ) {
+                return new WP_Error( 'missing_method', "Method {$method}() not found." );
+            }
+        }
+
+        echo "  All required methods present.\n";
+        return true;
+    },
+    'SKU_Mapping_Repository should have all required CRUD methods.'
+);
+
+// ============================================
+// TC-LEG-003: Match Type Constants Defined
+// ============================================
+run_test(
+    'TC-LEG-003: Match type constants defined',
+    function (): bool {
+        $match_types = \Quadica\QSA_Engraving\Database\SKU_Mapping_Repository::MATCH_TYPES;
+
+        $expected = array( 'exact', 'prefix', 'suffix', 'regex' );
+
+        if ( $match_types !== $expected ) {
+            return new WP_Error(
+                'wrong_match_types',
+                'Expected: ' . implode( ', ', $expected ) . '. Got: ' . implode( ', ', $match_types )
+            );
+        }
+
+        echo "  Match types: " . implode( ', ', $match_types ) . "\n";
+        return true;
+    },
+    'Repository should define all four match types.'
+);
+
+// ============================================
+// TC-LEG-004: Test Pattern - Exact Match
+// ============================================
+run_test(
+    'TC-LEG-004: test_pattern - exact match',
+    function (): bool {
+        $sku_repo = new \Quadica\QSA_Engraving\Database\SKU_Mapping_Repository();
+
+        // Test exact match.
+        if ( ! $sku_repo->test_pattern( 'SP-01', 'exact', 'SP-01' ) ) {
+            return new WP_Error( 'exact_fail', 'Exact match SP-01 should match SP-01.' );
+        }
+
+        if ( $sku_repo->test_pattern( 'SP-01', 'exact', 'SP-02' ) ) {
+            return new WP_Error( 'exact_false_positive', 'Exact match SP-01 should NOT match SP-02.' );
+        }
+
+        if ( $sku_repo->test_pattern( 'SP-01', 'exact', 'SP-01-XYZ' ) ) {
+            return new WP_Error( 'exact_false_positive', 'Exact match SP-01 should NOT match SP-01-XYZ.' );
+        }
+
+        echo "  Exact match logic verified.\n";
+        return true;
+    },
+    'Exact match should only match identical strings.'
+);
+
+// ============================================
+// TC-LEG-005: Test Pattern - Prefix Match
+// ============================================
+run_test(
+    'TC-LEG-005: test_pattern - prefix match',
+    function (): bool {
+        $sku_repo = new \Quadica\QSA_Engraving\Database\SKU_Mapping_Repository();
+
+        // Test prefix match.
+        if ( ! $sku_repo->test_pattern( 'SP-', 'prefix', 'SP-01' ) ) {
+            return new WP_Error( 'prefix_fail', 'Prefix SP- should match SP-01.' );
+        }
+
+        if ( ! $sku_repo->test_pattern( 'SP-', 'prefix', 'SP-02-XYZ' ) ) {
+            return new WP_Error( 'prefix_fail', 'Prefix SP- should match SP-02-XYZ.' );
+        }
+
+        if ( $sku_repo->test_pattern( 'SP-', 'prefix', 'XSP-01' ) ) {
+            return new WP_Error( 'prefix_false_positive', 'Prefix SP- should NOT match XSP-01.' );
+        }
+
+        echo "  Prefix match logic verified.\n";
+        return true;
+    },
+    'Prefix match should match SKUs starting with pattern.'
+);
+
+// ============================================
+// TC-LEG-006: Test Pattern - Suffix Match
+// ============================================
+run_test(
+    'TC-LEG-006: test_pattern - suffix match',
+    function (): bool {
+        $sku_repo = new \Quadica\QSA_Engraving\Database\SKU_Mapping_Repository();
+
+        // Test suffix match.
+        if ( ! $sku_repo->test_pattern( '-10S', 'suffix', 'MR-001-10S' ) ) {
+            return new WP_Error( 'suffix_fail', 'Suffix -10S should match MR-001-10S.' );
+        }
+
+        if ( ! $sku_repo->test_pattern( '-10S', 'suffix', 'ABC-10S' ) ) {
+            return new WP_Error( 'suffix_fail', 'Suffix -10S should match ABC-10S.' );
+        }
+
+        if ( $sku_repo->test_pattern( '-10S', 'suffix', 'MR-10S-001' ) ) {
+            return new WP_Error( 'suffix_false_positive', 'Suffix -10S should NOT match MR-10S-001.' );
+        }
+
+        echo "  Suffix match logic verified.\n";
+        return true;
+    },
+    'Suffix match should match SKUs ending with pattern.'
+);
+
+// ============================================
+// TC-LEG-007: Test Pattern - Regex Match
+// ============================================
+run_test(
+    'TC-LEG-007: test_pattern - regex match',
+    function (): bool {
+        $sku_repo = new \Quadica\QSA_Engraving\Database\SKU_Mapping_Repository();
+
+        // Test regex match (without delimiters - repo should add them).
+        if ( ! $sku_repo->test_pattern( '^MR-[0-9]+-10S$', 'regex', 'MR-001-10S' ) ) {
+            return new WP_Error( 'regex_fail', 'Regex ^MR-[0-9]+-10S$ should match MR-001-10S.' );
+        }
+
+        if ( ! $sku_repo->test_pattern( '^MR-[0-9]+-10S$', 'regex', 'MR-99999-10S' ) ) {
+            return new WP_Error( 'regex_fail', 'Regex ^MR-[0-9]+-10S$ should match MR-99999-10S.' );
+        }
+
+        if ( $sku_repo->test_pattern( '^MR-[0-9]+-10S$', 'regex', 'MR-ABC-10S' ) ) {
+            return new WP_Error( 'regex_false_positive', 'Regex ^MR-[0-9]+-10S$ should NOT match MR-ABC-10S.' );
+        }
+
+        // Test regex with delimiters.
+        if ( ! $sku_repo->test_pattern( '/^SP-[0-9]{2}$/', 'regex', 'SP-01' ) ) {
+            return new WP_Error( 'regex_delim_fail', 'Regex /^SP-[0-9]{2}$/ should match SP-01.' );
+        }
+
+        echo "  Regex match logic verified.\n";
+        return true;
+    },
+    'Regex match should correctly apply pattern matching.'
+);
+
+// ============================================
+// TC-LEG-008: Validation - Canonical Code Format
+// ============================================
+run_test(
+    'TC-LEG-008: Validation - canonical code format',
+    function (): bool {
+        $sku_repo = new \Quadica\QSA_Engraving\Database\SKU_Mapping_Repository();
+
+        // Test with invalid canonical code (too short).
+        $result = $sku_repo->create( array(
+            'legacy_pattern' => 'TEST-INVALID',
+            'canonical_code' => 'ABC', // Only 3 chars.
+            'match_type'     => 'exact',
+        ) );
+
+        if ( ! is_wp_error( $result ) ) {
+            // Clean up if it was created.
+            $sku_repo->delete( $result );
+            return new WP_Error( 'validation_fail', '3-char canonical code should be rejected.' );
+        }
+
+        if ( $result->get_error_code() !== 'invalid_canonical_code' ) {
+            return new WP_Error(
+                'wrong_error_code',
+                'Expected error code: invalid_canonical_code. Got: ' . $result->get_error_code()
+            );
+        }
+
+        // Test with invalid canonical code (too long).
+        $result = $sku_repo->create( array(
+            'legacy_pattern' => 'TEST-INVALID2',
+            'canonical_code' => 'ABCDE', // 5 chars.
+            'match_type'     => 'exact',
+        ) );
+
+        if ( ! is_wp_error( $result ) ) {
+            $sku_repo->delete( $result );
+            return new WP_Error( 'validation_fail', '5-char canonical code should be rejected.' );
+        }
+
+        echo "  Canonical code format validation works.\n";
+        return true;
+    },
+    'Canonical code must be exactly 4 alphanumeric characters.'
+);
+
+// ============================================
+// TC-LEG-009: CRUD Operations Work
+// ============================================
+run_test(
+    'TC-LEG-009: CRUD operations work',
+    function (): bool {
+        $sku_repo = new \Quadica\QSA_Engraving\Database\SKU_Mapping_Repository();
+
+        // Skip if table doesn't exist.
+        if ( ! $sku_repo->table_exists() ) {
+            echo "  Skipping: Table does not exist.\n";
+            return true;
+        }
+
+        // Create a test mapping.
+        $create_result = $sku_repo->create( array(
+            'legacy_pattern' => 'SMOKE-TEST-' . time(),
+            'canonical_code' => 'SMOK',
+            'match_type'     => 'exact',
+            'description'    => 'Smoke test mapping - safe to delete',
+            'priority'       => 999,
+        ) );
+
+        if ( is_wp_error( $create_result ) ) {
+            return new WP_Error( 'create_fail', 'Create failed: ' . $create_result->get_error_message() );
+        }
+
+        $mapping_id = $create_result;
+        echo "  Created mapping ID: {$mapping_id}\n";
+
+        // Read the mapping.
+        $mapping = $sku_repo->get( $mapping_id );
+        if ( ! $mapping ) {
+            $sku_repo->delete( $mapping_id );
+            return new WP_Error( 'read_fail', 'Failed to read created mapping.' );
+        }
+
+        if ( $mapping['canonical_code'] !== 'SMOK' ) {
+            $sku_repo->delete( $mapping_id );
+            return new WP_Error( 'read_mismatch', 'Canonical code mismatch after read.' );
+        }
+
+        // Update the mapping.
+        $update_result = $sku_repo->update( $mapping_id, array(
+            'description' => 'Updated smoke test',
+            'priority'    => 998,
+        ) );
+
+        if ( is_wp_error( $update_result ) ) {
+            $sku_repo->delete( $mapping_id );
+            return new WP_Error( 'update_fail', 'Update failed: ' . $update_result->get_error_message() );
+        }
+
+        $updated = $sku_repo->get( $mapping_id );
+        if ( (int) $updated['priority'] !== 998 ) {
+            $sku_repo->delete( $mapping_id );
+            return new WP_Error( 'update_mismatch', 'Priority not updated correctly.' );
+        }
+
+        // Delete the mapping.
+        $delete_result = $sku_repo->delete( $mapping_id );
+        if ( ! $delete_result ) {
+            return new WP_Error( 'delete_fail', 'Delete returned false.' );
+        }
+
+        // Verify deletion.
+        $deleted = $sku_repo->get( $mapping_id );
+        if ( $deleted !== null ) {
+            return new WP_Error( 'delete_verify_fail', 'Mapping still exists after delete.' );
+        }
+
+        echo "  CRUD operations verified successfully.\n";
+        return true;
+    },
+    'Create, read, update, delete operations should work correctly.'
+);
+
+// ============================================
+// TC-LEG-010: Find Mapping - Priority Order
+// ============================================
+run_test(
+    'TC-LEG-010: find_mapping respects priority order',
+    function (): bool {
+        $sku_repo = new \Quadica\QSA_Engraving\Database\SKU_Mapping_Repository();
+
+        // Skip if table doesn't exist.
+        if ( ! $sku_repo->table_exists() ) {
+            echo "  Skipping: Table does not exist.\n";
+            return true;
+        }
+
+        $timestamp = time();
+        $test_sku  = 'PRIORITY-TEST-' . $timestamp;
+
+        // Create two mappings for the same SKU with different priorities.
+        $high_priority_id = $sku_repo->create( array(
+            'legacy_pattern' => $test_sku,
+            'canonical_code' => 'HIGH',
+            'match_type'     => 'exact',
+            'priority'       => 10, // Higher priority (lower number).
+        ) );
+
+        if ( is_wp_error( $high_priority_id ) ) {
+            return new WP_Error( 'setup_fail', 'Failed to create high priority mapping.' );
+        }
+
+        // Create prefix match with lower priority (higher number).
+        $low_priority_id = $sku_repo->create( array(
+            'legacy_pattern' => 'PRIORITY-',
+            'canonical_code' => 'LOWP',
+            'match_type'     => 'prefix',
+            'priority'       => 100, // Lower priority.
+        ) );
+
+        if ( is_wp_error( $low_priority_id ) ) {
+            $sku_repo->delete( $high_priority_id );
+            return new WP_Error( 'setup_fail', 'Failed to create low priority mapping.' );
+        }
+
+        // Find mapping - should return exact match due to match type priority.
+        $found = $sku_repo->find_mapping( $test_sku );
+
+        // Clean up first.
+        $sku_repo->delete( $high_priority_id );
+        $sku_repo->delete( $low_priority_id );
+
+        if ( ! $found ) {
+            return new WP_Error( 'find_fail', 'No mapping found.' );
+        }
+
+        // Exact match should win over prefix, regardless of priority.
+        if ( $found['canonical_code'] !== 'HIGH' ) {
+            return new WP_Error(
+                'priority_fail',
+                'Expected HIGH (exact match), got ' . $found['canonical_code']
+            );
+        }
+
+        echo "  Priority and match type ordering verified.\n";
+        return true;
+    },
+    'find_mapping should respect match type precedence and priority.'
+);
+
+// ============================================
+// TC-LEG-011: Duplicate Pattern Prevention
+// ============================================
+run_test(
+    'TC-LEG-011: Duplicate pattern prevention',
+    function (): bool {
+        $sku_repo = new \Quadica\QSA_Engraving\Database\SKU_Mapping_Repository();
+
+        // Skip if table doesn't exist.
+        if ( ! $sku_repo->table_exists() ) {
+            echo "  Skipping: Table does not exist.\n";
+            return true;
+        }
+
+        $timestamp    = time();
+        $test_pattern = 'DUP-TEST-' . $timestamp;
+
+        // Create first mapping.
+        $first_id = $sku_repo->create( array(
+            'legacy_pattern' => $test_pattern,
+            'canonical_code' => 'DUP1',
+            'match_type'     => 'exact',
+        ) );
+
+        if ( is_wp_error( $first_id ) ) {
+            return new WP_Error( 'setup_fail', 'Failed to create first mapping.' );
+        }
+
+        // Try to create duplicate.
+        $duplicate = $sku_repo->create( array(
+            'legacy_pattern' => $test_pattern,
+            'canonical_code' => 'DUP2',
+            'match_type'     => 'exact', // Same pattern + match_type.
+        ) );
+
+        // Clean up.
+        $sku_repo->delete( $first_id );
+
+        if ( ! is_wp_error( $duplicate ) ) {
+            $sku_repo->delete( $duplicate );
+            return new WP_Error( 'duplicate_allowed', 'Duplicate pattern should be rejected.' );
+        }
+
+        if ( $duplicate->get_error_code() !== 'duplicate_pattern' ) {
+            return new WP_Error(
+                'wrong_error_code',
+                'Expected duplicate_pattern error. Got: ' . $duplicate->get_error_code()
+            );
+        }
+
+        echo "  Duplicate pattern prevention verified.\n";
+        return true;
+    },
+    'Creating duplicate pattern + match_type should fail.'
+);
+
+// ============================================
+// TC-LEG-012: Original SKU Column Exists
+// ============================================
+run_test(
+    'TC-LEG-012: original_sku column exists in engraved_modules',
+    function (): bool {
+        global $wpdb;
+
+        $table = $wpdb->prefix . 'quad_engraved_modules';
+
+        // Check if column exists.
+        $columns = $wpdb->get_results(
+            $wpdb->prepare(
+                "SHOW COLUMNS FROM {$table} LIKE %s",
+                'original_sku'
+            ),
+            ARRAY_A
+        );
+
+        if ( empty( $columns ) ) {
+            return new WP_Error(
+                'column_missing',
+                'Column original_sku does not exist in ' . $table . '. ' .
+                'Run docs/database/install/10-sku-mappings-schema.sql via phpMyAdmin.'
+            );
+        }
+
+        $column = $columns[0];
+
+        // Verify column type.
+        if ( stripos( $column['Type'], 'varchar' ) === false ) {
+            return new WP_Error(
+                'wrong_type',
+                'original_sku should be VARCHAR. Got: ' . $column['Type']
+            );
+        }
+
+        // Verify nullable.
+        if ( $column['Null'] !== 'YES' ) {
+            return new WP_Error(
+                'not_nullable',
+                'original_sku should be nullable.'
+            );
+        }
+
+        echo "  Column original_sku exists with correct type.\n";
+        return true;
+    },
+    'engraved_modules table should have original_sku column for legacy SKU traceability.'
 );
 
 // ============================================
