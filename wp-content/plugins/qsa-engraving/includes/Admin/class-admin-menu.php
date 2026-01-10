@@ -774,6 +774,18 @@ class Admin_Menu {
                         <td><code>lw_quad_qsa_config</code></td>
                         <td><?php esc_html_e( 'Element coordinates per QSA design', 'qsa-engraving' ); ?></td>
                     </tr>
+                    <tr>
+                        <td><code>lw_quad_qsa_identifiers</code></td>
+                        <td><?php esc_html_e( 'QSA identifier records', 'qsa-engraving' ); ?></td>
+                    </tr>
+                    <tr>
+                        <td><code>lw_quad_qsa_design_sequences</code></td>
+                        <td><?php esc_html_e( 'Sequence tracking per QSA design', 'qsa-engraving' ); ?></td>
+                    </tr>
+                    <tr>
+                        <td><code>lw_quad_sku_mappings</code></td>
+                        <td><?php esc_html_e( 'Legacy SKU to canonical code mappings', 'qsa-engraving' ); ?></td>
+                    </tr>
                 </table>
             </div>
         </div>
