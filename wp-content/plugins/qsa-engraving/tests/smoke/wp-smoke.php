@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 echo "\n";
 echo "================================================================\n";
-echo "QSA Engraving Plugin - Phase 1-9 Smoke Tests\n";
+echo "QSA Engraving Plugin - Phase 1-9 + Landing Handler Smoke Tests\n";
 echo "================================================================\n\n";
 
 $tests_passed = 0;
@@ -1474,33 +1474,7 @@ run_test(
     'Micro-ID position transform converts center to top-left correctly.'
 );
 
-run_test(
-    'TC-SVG-005: Data Matrix position transform',
-    function (): bool {
-        $transformer = new \Quadica\QSA_Engraving\SVG\Coordinate_Transformer();
-
-        // Test Data Matrix position transform.
-        // CAD coords for Data Matrix center, expecting offset for top-left.
-        // Default width=14, height=6.5, so offset is (7, 3.25).
-        $result = $transformer->get_datamatrix_position( 50.0, 50.0 );
-
-        // X should be 50.0 - 7 = 43.0.
-        if ( abs( $result['x'] - 43.0 ) > 0.001 ) {
-            return new WP_Error( 'dm_pos_fail', "X should be 43.0, got {$result['x']}." );
-        }
-
-        // Y should be (113.7 - 50) - 3.25 = 60.45.
-        $expected_y = 113.7 - 50.0 - 3.25;
-        if ( abs( $result['y'] - $expected_y ) > 0.001 ) {
-            return new WP_Error( 'dm_pos_fail', "Y should be {$expected_y}, got {$result['y']}." );
-        }
-
-        echo "  Data Matrix position transform verified (center to top-left offset).\n";
-
-        return true;
-    },
-    'Data Matrix position transform converts center to top-left correctly.'
-);
+// TC-SVG-005: Data Matrix position transform - REMOVED (Phase 2: datamatrix replaced by qr_code)
 
 run_test(
     'TC-SVG-006: Hair-space character spacing',
@@ -1662,111 +1636,7 @@ run_test(
     'LED code validation enforces character set and length.'
 );
 
-run_test(
-    'TC-DM-001: Data Matrix renderer availability check',
-    function (): bool {
-        $renderer = \Quadica\QSA_Engraving\SVG\Datamatrix_Renderer::class;
-
-        // Check library status.
-        $status = $renderer::get_library_status();
-
-        if ( ! is_array( $status ) ) {
-            return new WP_Error( 'status_fail', 'get_library_status() should return array.' );
-        }
-
-        if ( ! array_key_exists( 'available', $status ) ) {
-            return new WP_Error( 'status_fail', 'Status should have available key.' );
-        }
-
-        if ( $status['available'] ) {
-            echo "  tc-lib-barcode library is available.\n";
-        } else {
-            echo "  tc-lib-barcode not installed - using placeholder mode.\n";
-            echo "  Run: composer install in plugin directory.\n";
-        }
-
-        return true;
-    },
-    'Data Matrix renderer checks library availability.'
-);
-
-run_test(
-    'TC-DM-002: Data Matrix placeholder rendering',
-    function (): bool {
-        $renderer = \Quadica\QSA_Engraving\SVG\Datamatrix_Renderer::class;
-
-        // Render Data Matrix (will use placeholder if library not available).
-        $svg = $renderer::render( '00123456' );
-        if ( is_wp_error( $svg ) ) {
-            return $svg;
-        }
-
-        // Should return string.
-        if ( ! is_string( $svg ) ) {
-            return new WP_Error( 'render_fail', 'render() should return string.' );
-        }
-
-        // Should contain group element.
-        if ( strpos( $svg, '<g>' ) === false ) {
-            return new WP_Error( 'render_fail', 'Should contain group element.' );
-        }
-
-        // Test positioned rendering.
-        $positioned = $renderer::render_positioned( '00123456', 10.0, 20.0, 14.0, 6.5, 'dm-1' );
-        if ( is_wp_error( $positioned ) ) {
-            return $positioned;
-        }
-
-        if ( strpos( $positioned, 'id="dm-1"' ) === false ) {
-            return new WP_Error( 'render_fail', 'Positioned should have ID.' );
-        }
-
-        if ( strpos( $positioned, 'translate(10.0000, 20.0000)' ) === false ) {
-            return new WP_Error( 'render_fail', 'Positioned should have translate transform.' );
-        }
-
-        echo "  Data Matrix rendering produces valid output.\n";
-
-        return true;
-    },
-    'Data Matrix renderer generates SVG output.'
-);
-
-run_test(
-    'TC-DM-003: Data Matrix serial validation',
-    function (): bool {
-        $renderer = \Quadica\QSA_Engraving\SVG\Datamatrix_Renderer::class;
-
-        // Valid serial.
-        $result = $renderer::validate_serial( '00123456' );
-        if ( is_wp_error( $result ) ) {
-            return new WP_Error( 'validation_fail', '00123456 should be valid.' );
-        }
-
-        // Invalid: wrong length.
-        $result = $renderer::validate_serial( '123456' );
-        if ( ! is_wp_error( $result ) ) {
-            return new WP_Error( 'validation_fail', '123456 (6 chars) should be invalid.' );
-        }
-
-        // Invalid: contains letters.
-        $result = $renderer::validate_serial( '0012345A' );
-        if ( ! is_wp_error( $result ) ) {
-            return new WP_Error( 'validation_fail', '0012345A should be invalid.' );
-        }
-
-        // Get URL.
-        $url = $renderer::get_url( '00123456' );
-        if ( $url !== 'https://quadi.ca/00123456' ) {
-            return new WP_Error( 'url_fail', "Expected 'https://quadi.ca/00123456', got '{$url}'." );
-        }
-
-        echo "  Data Matrix serial validation and URL generation verified.\n";
-
-        return true;
-    },
-    'Data Matrix validates serial format and generates URLs.'
-);
+// TC-DM-001, TC-DM-002, TC-DM-003: Data Matrix tests - REMOVED (Phase 2: datamatrix class deleted)
 
 run_test(
     'TC-SVG-GEN-001: SVG Document structure',
@@ -2027,6 +1897,277 @@ run_test(
         return true;
     },
     'SVG Generator validates and clamps start_position.'
+);
+
+// ============================================
+// PHASE 4: QR Code Renderer Tests
+// ============================================
+
+echo "-------------------------------------------\n";
+echo "Phase 4: QR Code Renderer Tests\n";
+echo "-------------------------------------------\n\n";
+
+run_test(
+    'TC-QR-001: QR_Code_Renderer class exists',
+    function (): bool {
+        if ( ! class_exists( 'Quadica\\QSA_Engraving\\SVG\\QR_Code_Renderer' ) ) {
+            return new WP_Error( 'missing_class', 'QR_Code_Renderer class not found.' );
+        }
+
+        // Check required methods.
+        $renderer = \Quadica\QSA_Engraving\SVG\QR_Code_Renderer::class;
+
+        if ( ! method_exists( $renderer, 'is_library_available' ) ) {
+            return new WP_Error( 'missing_method', 'is_library_available() method not found.' );
+        }
+        if ( ! method_exists( $renderer, 'render' ) ) {
+            return new WP_Error( 'missing_method', 'render() method not found.' );
+        }
+        if ( ! method_exists( $renderer, 'render_positioned' ) ) {
+            return new WP_Error( 'missing_method', 'render_positioned() method not found.' );
+        }
+        if ( ! method_exists( $renderer, 'validate_data' ) ) {
+            return new WP_Error( 'missing_method', 'validate_data() method not found.' );
+        }
+
+        echo "  QR_Code_Renderer class found with required methods.\n";
+
+        return true;
+    },
+    'QR_Code_Renderer class exists with required methods.'
+);
+
+run_test(
+    'TC-QR-002: tc-lib-barcode library available',
+    function (): bool {
+        $renderer = \Quadica\QSA_Engraving\SVG\QR_Code_Renderer::class;
+
+        if ( ! $renderer::is_library_available() ) {
+            return new WP_Error(
+                'library_missing',
+                'tc-lib-barcode library not available. Ensure vendor directory is deployed.'
+            );
+        }
+
+        echo "  tc-lib-barcode library is available.\n";
+
+        return true;
+    },
+    'tc-lib-barcode library is available for QR code generation.'
+);
+
+run_test(
+    'TC-QR-003: QR code render basic',
+    function (): bool|WP_Error {
+        $renderer = \Quadica\QSA_Engraving\SVG\QR_Code_Renderer::class;
+
+        // Test rendering a basic QR code.
+        $result = $renderer::render( 'quadi.ca/CUBE00001', 10.0 );
+
+        if ( is_wp_error( $result ) ) {
+            return $result;
+        }
+
+        // Should return SVG content.
+        if ( empty( $result ) ) {
+            return new WP_Error( 'render_fail', 'Render returned empty content.' );
+        }
+
+        // Should contain a group wrapper element.
+        if ( strpos( $result, '<g>' ) === false ) {
+            return new WP_Error( 'render_fail', 'Missing group element in output.' );
+        }
+
+        // Should contain rect elements for QR modules.
+        if ( strpos( $result, '<rect' ) === false ) {
+            return new WP_Error( 'render_fail', 'Missing rect elements in output.' );
+        }
+
+        echo "  Basic QR code rendered successfully.\n";
+        echo "  Output length: " . strlen( $result ) . " chars.\n";
+
+        return true;
+    },
+    'QR_Code_Renderer renders basic QR codes correctly.'
+);
+
+run_test(
+    'TC-QR-004: QR code render positioned',
+    function (): bool {
+        $renderer = \Quadica\QSA_Engraving\SVG\QR_Code_Renderer::class;
+
+        // Test rendering with position.
+        // Coordinates are CENTER of QR code, not top-left.
+        $result = $renderer::render_positioned(
+            'quadi.ca/CUBE00001',
+            74.0,  // center X.
+            56.85, // center Y.
+            10.0,  // 10mm size.
+            'qr-test-id'
+        );
+
+        if ( is_wp_error( $result ) ) {
+            return $result;
+        }
+
+        // Should contain translate transform at top-left position.
+        // Center X=74, size=10, so top-left X = 74 - 5 = 69.
+        if ( strpos( $result, 'translate(69' ) === false ) {
+            return new WP_Error( 'position_fail', 'Missing/incorrect X translate in output (expected 69 for centered position).' );
+        }
+
+        // Should contain ID attribute.
+        if ( strpos( $result, 'id="qr-test-id"' ) === false ) {
+            return new WP_Error( 'position_fail', 'Missing ID attribute in output.' );
+        }
+
+        // Should contain QR code comment showing center coordinates.
+        if ( strpos( $result, 'centered at 74' ) === false ) {
+            return new WP_Error( 'position_fail', 'Missing QR code center comment in output.' );
+        }
+
+        echo "  Positioned QR code rendered correctly (centered at 74,56.85 -> translate 69,51.85).\n";
+
+        return true;
+    },
+    'QR_Code_Renderer renders positioned QR codes with translate transform.'
+);
+
+run_test(
+    'TC-QR-005: QR code validation',
+    function (): bool {
+        $renderer = \Quadica\QSA_Engraving\SVG\QR_Code_Renderer::class;
+
+        // Empty data should fail.
+        $result = $renderer::validate_data( '' );
+        if ( ! is_wp_error( $result ) ) {
+            return new WP_Error( 'validation_fail', 'Empty data should be invalid.' );
+        }
+
+        // Valid QSA URL should pass.
+        $result = $renderer::validate_data( 'quadi.ca/CUBE00001' );
+        if ( is_wp_error( $result ) ) {
+            return new WP_Error( 'validation_fail', 'Valid URL should pass validation.' );
+        }
+
+        echo "  QR code data validation works correctly.\n";
+
+        return true;
+    },
+    'QR_Code_Renderer validates data correctly.'
+);
+
+run_test(
+    'TC-QR-006: QR code size bounds',
+    function (): bool {
+        $renderer = \Quadica\QSA_Engraving\SVG\QR_Code_Renderer::class;
+
+        // Size below minimum (3mm) should fail.
+        $result = $renderer::render( 'test', 2.0 );
+        if ( ! is_wp_error( $result ) ) {
+            return new WP_Error( 'bounds_fail', 'Size 2mm should be rejected (min is 3mm).' );
+        }
+
+        // Size above maximum (50mm) should fail.
+        $result = $renderer::render( 'test', 60.0 );
+        if ( ! is_wp_error( $result ) ) {
+            return new WP_Error( 'bounds_fail', 'Size 60mm should be rejected (max is 50mm).' );
+        }
+
+        // Valid size (10mm) should work.
+        $result = $renderer::render( 'test', 10.0 );
+        if ( is_wp_error( $result ) ) {
+            return $result;
+        }
+
+        echo "  Size bounds validation working correctly.\n";
+
+        return true;
+    },
+    'QR_Code_Renderer enforces size limits (3mm-50mm).'
+);
+
+run_test(
+    'TC-QR-007: SVG_Document QR code integration',
+    function (): bool {
+        // Create an SVG document with QR code.
+        $doc = new \Quadica\QSA_Engraving\SVG\SVG_Document();
+
+        // Set QR code data.
+        $doc->set_qr_code(
+            'quadi.ca/STAR00042',
+            array(
+                'origin_x'     => 74.0,
+                'origin_y'     => 10.0,
+                'element_size' => 10.0,
+            )
+        );
+
+        // Verify QR code is set.
+        if ( ! $doc->has_qr_code() ) {
+            return new WP_Error( 'integration_fail', 'has_qr_code() should return true.' );
+        }
+
+        // Note: Full render test requires module data which we can't easily mock here.
+        // Just verify the method chain works.
+
+        echo "  SVG_Document QR code integration working.\n";
+
+        return true;
+    },
+    'SVG_Document accepts QR code configuration.'
+);
+
+run_test(
+    'TC-QR-008: QSA Identifier Repository URL formatting',
+    function (): bool {
+        $repo = \Quadica\QSA_Engraving\qsa_engraving()->get_qsa_identifier_repository();
+
+        // Test with https prefix - URLs are lowercase per specification.
+        $url = $repo->format_qsa_url( 'CUBE00001', true );
+        if ( $url !== 'https://quadi.ca/cube00001' ) {
+            return new WP_Error( 'format_fail', "Expected 'https://quadi.ca/cube00001', got '{$url}'." );
+        }
+
+        // Test without https prefix (for QR code - shorter is better).
+        $url = $repo->format_qsa_url( 'CUBE00001', false );
+        if ( $url !== 'quadi.ca/cube00001' ) {
+            return new WP_Error( 'format_fail', "Expected 'quadi.ca/cube00001', got '{$url}'." );
+        }
+
+        // Test uppercase input is lowercased in URL.
+        $url = $repo->format_qsa_url( 'STAR00042', false );
+        if ( $url !== 'quadi.ca/star00042' ) {
+            return new WP_Error( 'format_fail', "Expected lowercase 'quadi.ca/star00042', got '{$url}'." );
+        }
+
+        echo "  QSA Identifier URL formatting working correctly (lowercase URLs).\n";
+
+        return true;
+    },
+    'QSA_Identifier_Repository formats URLs correctly with lowercase.'
+);
+
+run_test(
+    'TC-QR-009: Config_Loader default QR code size',
+    function (): bool {
+        // Verify the default QR code size constant exists.
+        $loader_class = \Quadica\QSA_Engraving\Services\Config_Loader::class;
+
+        if ( ! defined( $loader_class . '::DEFAULT_QR_CODE_SIZE' ) ) {
+            return new WP_Error( 'constant_fail', 'DEFAULT_QR_CODE_SIZE constant not found.' );
+        }
+
+        $default_size = $loader_class::DEFAULT_QR_CODE_SIZE;
+        if ( $default_size !== 10.0 ) {
+            return new WP_Error( 'constant_fail', "Expected 10.0, got {$default_size}." );
+        }
+
+        echo "  Config_Loader QR code defaults verified.\n";
+
+        return true;
+    },
+    'Config_Loader has correct QR code default size.'
 );
 
 // ============================================
@@ -3965,19 +4106,25 @@ run_test(
             return new WP_Error( 'no_config', 'No STARa configuration found in database.' );
         }
 
-        // Should have 8 positions.
-        if ( count( $config ) !== 8 ) {
-            return new WP_Error( 'wrong_count', 'Expected 8 positions, got ' . count( $config ) );
+        // Filter out position 0 (design-level elements like qr_code) for module position checks.
+        // Position 0 is validated separately in TC-P9-010.
+        $module_positions = array_filter( $config, fn( $pos ) => $pos > 0, ARRAY_FILTER_USE_KEY );
+
+        // Should have 8 module positions (1-8).
+        if ( count( $module_positions ) !== 8 ) {
+            return new WP_Error( 'wrong_count', 'Expected 8 module positions, got ' . count( $module_positions ) );
         }
 
-        // Each position should have 5 elements.
-        foreach ( $config as $pos => $elements ) {
-            if ( count( $elements ) !== 5 ) {
-                return new WP_Error( 'wrong_elements', "Position {$pos} should have 5 elements, got " . count( $elements ) );
+        // Each module position should have 4 elements (micro_id, module_id, serial_url, led_code_1).
+        // Note: datamatrix removed in Phase 2, qr_code is design-level (position=0).
+        foreach ( $module_positions as $pos => $elements ) {
+            if ( count( $elements ) !== 4 ) {
+                return new WP_Error( 'wrong_elements', "Position {$pos} should have 4 elements, got " . count( $elements ) );
             }
         }
 
-        echo "  STARa: 8 positions × 5 elements = 40 config entries.\n";
+        $qr_config = isset( $config[0] ) ? ' + position 0 (design-level)' : '';
+        echo "  STARa: 8 positions × 4 elements = 32 config entries{$qr_config}.\n";
         return true;
     },
     'STARa design has complete coordinate configuration.'
@@ -3995,19 +4142,25 @@ run_test(
             return new WP_Error( 'no_config', 'No CUBEa configuration found in database.' );
         }
 
-        // Should have 8 positions.
-        if ( count( $config ) !== 8 ) {
-            return new WP_Error( 'wrong_count', 'Expected 8 positions, got ' . count( $config ) );
+        // Filter out position 0 (design-level elements like qr_code) for module position checks.
+        // Position 0 is validated separately in TC-P9-010.
+        $module_positions = array_filter( $config, fn( $pos ) => $pos > 0, ARRAY_FILTER_USE_KEY );
+
+        // Should have 8 module positions (1-8).
+        if ( count( $module_positions ) !== 8 ) {
+            return new WP_Error( 'wrong_count', 'Expected 8 module positions, got ' . count( $module_positions ) );
         }
 
-        // Each position should have 8 elements (4 LED codes).
-        foreach ( $config as $pos => $elements ) {
-            if ( count( $elements ) !== 8 ) {
-                return new WP_Error( 'wrong_elements', "Position {$pos} should have 8 elements, got " . count( $elements ) );
+        // Each module position should have 7 elements (micro_id, module_id, serial_url, led_code_1-4).
+        // Note: datamatrix removed in Phase 2, qr_code is design-level (position=0).
+        foreach ( $module_positions as $pos => $elements ) {
+            if ( count( $elements ) !== 7 ) {
+                return new WP_Error( 'wrong_elements', "Position {$pos} should have 7 elements, got " . count( $elements ) );
             }
         }
 
-        echo "  CUBEa: 8 positions × 8 elements = 64 config entries.\n";
+        $qr_config = isset( $config[0] ) ? ' + position 0 (design-level)' : '';
+        echo "  CUBEa: 8 positions × 7 elements = 56 config entries{$qr_config}.\n";
         return true;
     },
     'CUBEa design has complete coordinate configuration with 4 LED codes.'
@@ -4025,19 +4178,25 @@ run_test(
             return new WP_Error( 'no_config', 'No PICOa configuration found in database.' );
         }
 
-        // Should have 8 positions.
-        if ( count( $config ) !== 8 ) {
-            return new WP_Error( 'wrong_count', 'Expected 8 positions, got ' . count( $config ) );
+        // Filter out position 0 (design-level elements like qr_code) for module position checks.
+        // Position 0 is validated separately in TC-P9-010.
+        $module_positions = array_filter( $config, fn( $pos ) => $pos > 0, ARRAY_FILTER_USE_KEY );
+
+        // Should have 8 module positions (1-8).
+        if ( count( $module_positions ) !== 8 ) {
+            return new WP_Error( 'wrong_count', 'Expected 8 module positions, got ' . count( $module_positions ) );
         }
 
-        // Each position should have 5 elements.
-        foreach ( $config as $pos => $elements ) {
-            if ( count( $elements ) !== 5 ) {
-                return new WP_Error( 'wrong_elements', "Position {$pos} should have 5 elements, got " . count( $elements ) );
+        // Each module position should have 4 elements (micro_id, module_id, serial_url, led_code_1).
+        // Note: datamatrix removed in Phase 2, qr_code is design-level (position=0).
+        foreach ( $module_positions as $pos => $elements ) {
+            if ( count( $elements ) !== 4 ) {
+                return new WP_Error( 'wrong_elements', "Position {$pos} should have 4 elements, got " . count( $elements ) );
             }
         }
 
-        echo "  PICOa: 8 positions × 5 elements = 40 config entries.\n";
+        $qr_config = isset( $config[0] ) ? ' + position 0 (design-level)' : '';
+        echo "  PICOa: 8 positions × 4 elements = 32 config entries{$qr_config}.\n";
         return true;
     },
     'PICOa design has complete coordinate configuration.'
@@ -4072,10 +4231,11 @@ run_test(
         $config_repo = new \Quadica\QSA_Engraving\Database\Config_Repository();
 
         // Get STARa position 1 config.
+        // Note: datamatrix removed in Phase 2, now testing micro_id and module_id only.
         $micro_id = $config_repo->get_element_config( 'STAR', 1, 'micro_id', 'a' );
-        $datamatrix = $config_repo->get_element_config( 'STAR', 1, 'datamatrix', 'a' );
+        $module_id = $config_repo->get_element_config( 'STAR', 1, 'module_id', 'a' );
 
-        if ( ! $micro_id || ! $datamatrix ) {
+        if ( ! $micro_id || ! $module_id ) {
             return new WP_Error( 'config_missing', 'Position 1 configuration not found.' );
         }
 
@@ -4087,16 +4247,8 @@ run_test(
             return new WP_Error( 'wrong_y', "micro_id Y expected 63.7933, got {$micro_id['origin_y']}" );
         }
 
-        // Verify datamatrix coordinates (from CSV: 29.7215, 95.2849).
-        if ( abs( $datamatrix['origin_x'] - 29.7215 ) > 0.001 ) {
-            return new WP_Error( 'wrong_x', "datamatrix X expected 29.7215, got {$datamatrix['origin_x']}" );
-        }
-        if ( abs( $datamatrix['origin_y'] - 95.2849 ) > 0.001 ) {
-            return new WP_Error( 'wrong_y', "datamatrix Y expected 95.2849, got {$datamatrix['origin_y']}" );
-        }
-
         echo "  STARa position 1 micro_id: ({$micro_id['origin_x']}, {$micro_id['origin_y']})\n";
-        echo "  STARa position 1 datamatrix: ({$datamatrix['origin_x']}, {$datamatrix['origin_y']})\n";
+        echo "  STARa position 1 module_id: ({$module_id['origin_x']}, {$module_id['origin_y']})\n";
         return true;
     },
     'STARa position 1 coordinates match source CSV data.'
@@ -4189,7 +4341,7 @@ run_test(
             return new WP_Error( 'transform_error', "Expected SVG Y {$expected_svg_y_1}, got {$actual_svg_y_1}" );
         }
 
-        // Position 5 datamatrix Y = 18.4151 in CAD.
+        // Position 5 element Y = 18.4151 in CAD.
         // SVG Y should be 113.7 - 18.4151 = 95.2849.
         $cad_y_2 = 18.4151;
         $expected_svg_y_2 = 95.2849;
@@ -4204,6 +4356,745 @@ run_test(
         return true;
     },
     'CAD to SVG Y coordinate transformation is correct.'
+);
+
+run_test(
+    'TC-P9-009: set_element_config enforces position constraints',
+    function (): bool {
+        $config_repo = new \Quadica\QSA_Engraving\Database\Config_Repository();
+
+        // Test 1: qr_code should ONLY be allowed at position 0 (design-level).
+        $result_qr_pos1 = $config_repo->set_element_config(
+            'TEST',
+            null,
+            1, // Invalid - qr_code must be position 0.
+            'qr_code',
+            10.0,
+            10.0
+        );
+
+        if ( ! is_wp_error( $result_qr_pos1 ) ) {
+            return new WP_Error( 'constraint_fail', 'qr_code at position 1 should have been rejected.' );
+        }
+        if ( $result_qr_pos1->get_error_code() !== 'invalid_position' ) {
+            return new WP_Error( 'wrong_error', "Expected 'invalid_position', got '{$result_qr_pos1->get_error_code()}'." );
+        }
+
+        echo "  qr_code at position 1 correctly rejected: {$result_qr_pos1->get_error_message()}\n";
+
+        // Test 2: micro_id should NOT be allowed at position 0 (module-level only).
+        $result_micro_pos0 = $config_repo->set_element_config(
+            'TEST',
+            null,
+            0, // Invalid - micro_id must be position 1-8.
+            'micro_id',
+            10.0,
+            10.0
+        );
+
+        if ( ! is_wp_error( $result_micro_pos0 ) ) {
+            return new WP_Error( 'constraint_fail', 'micro_id at position 0 should have been rejected.' );
+        }
+        if ( $result_micro_pos0->get_error_code() !== 'invalid_position' ) {
+            return new WP_Error( 'wrong_error', "Expected 'invalid_position', got '{$result_micro_pos0->get_error_code()}'." );
+        }
+
+        echo "  micro_id at position 0 correctly rejected: {$result_micro_pos0->get_error_message()}\n";
+
+        return true;
+    },
+    'set_element_config enforces position 0 for design-level elements only.'
+);
+
+run_test(
+    'TC-P9-010: DESIGN_LEVEL_ELEMENTS constant exists',
+    function (): bool {
+        $design_level = \Quadica\QSA_Engraving\Database\Config_Repository::DESIGN_LEVEL_ELEMENTS;
+
+        if ( ! is_array( $design_level ) ) {
+            return new WP_Error( 'not_array', 'DESIGN_LEVEL_ELEMENTS should be an array.' );
+        }
+
+        if ( ! in_array( 'qr_code', $design_level, true ) ) {
+            return new WP_Error( 'missing_qr', 'qr_code should be in DESIGN_LEVEL_ELEMENTS.' );
+        }
+
+        echo '  DESIGN_LEVEL_ELEMENTS: ' . implode( ', ', $design_level ) . "\n";
+        return true;
+    },
+    'DESIGN_LEVEL_ELEMENTS constant defines position-0 elements.'
+);
+
+run_test(
+    'TC-P9-011: QR code config includes element_size',
+    function (): bool {
+        $config_repo = new \Quadica\QSA_Engraving\Database\Config_Repository();
+
+        $designs_to_check = array( 'STAR', 'CUBE', 'PICO' );
+        foreach ( $designs_to_check as $design ) {
+            $config = $config_repo->get_config( $design, 'a' );
+
+            if ( ! isset( $config[0]['qr_code'] ) ) {
+                return new WP_Error( 'no_qr', "{$design}a has no QR code config at position 0." );
+            }
+
+            $qr = $config[0]['qr_code'];
+
+            // Verify element_size is present and correct (10.0mm).
+            if ( ! isset( $qr['element_size'] ) ) {
+                return new WP_Error( 'no_size', "{$design}a QR code config missing element_size." );
+            }
+
+            if ( abs( (float) $qr['element_size'] - 10.0 ) > 0.01 ) {
+                return new WP_Error( 'wrong_size', "{$design}a QR code element_size is {$qr['element_size']}, expected 10.0." );
+            }
+
+            echo "  {$design}a QR: x={$qr['origin_x']} y={$qr['origin_y']} size={$qr['element_size']}mm\n";
+        }
+
+        return true;
+    },
+    'QR code config entries have element_size loaded from database.'
+);
+
+// ============================================
+// Phase 3: QSA Identifier Repository Tests
+// ============================================
+
+run_test(
+    'TC-QSA-001: QSA_Identifier_Repository class exists',
+    function (): bool {
+        $repo = new \Quadica\QSA_Engraving\Database\QSA_Identifier_Repository();
+
+        if ( ! method_exists( $repo, 'get_or_create' ) ) {
+            return new WP_Error( 'method_missing', 'get_or_create method not found.' );
+        }
+        if ( ! method_exists( $repo, 'get_by_batch' ) ) {
+            return new WP_Error( 'method_missing', 'get_by_batch method not found.' );
+        }
+        if ( ! method_exists( $repo, 'format_qsa_id' ) ) {
+            return new WP_Error( 'method_missing', 'format_qsa_id method not found.' );
+        }
+
+        echo "  QSA_Identifier_Repository instantiated with all required methods.\n";
+        return true;
+    },
+    'QSA Identifier Repository class exists and has required methods.'
+);
+
+run_test(
+    'TC-QSA-002: Tables exist with correct structure',
+    function (): bool {
+        $repo = new \Quadica\QSA_Engraving\Database\QSA_Identifier_Repository();
+
+        if ( ! $repo->table_exists() ) {
+            return new WP_Error( 'table_missing', 'lw_quad_qsa_identifiers table not found.' );
+        }
+        if ( ! $repo->sequence_table_exists() ) {
+            return new WP_Error( 'table_missing', 'lw_quad_qsa_design_sequences table not found.' );
+        }
+
+        echo "  Both QSA identifier tables exist.\n";
+        return true;
+    },
+    'QSA identifier and sequence tables exist.'
+);
+
+run_test(
+    'TC-QSA-003: format_qsa_id formats correctly',
+    function (): bool {
+        $repo = new \Quadica\QSA_Engraving\Database\QSA_Identifier_Repository();
+
+        // Test normal formatting (now returns string|WP_Error).
+        $id1 = $repo->format_qsa_id( 'CUBE', 76 );
+        if ( is_wp_error( $id1 ) ) {
+            return new WP_Error( 'format_error', "format_qsa_id(CUBE, 76) returned error: {$id1->get_error_message()}" );
+        }
+        if ( 'CUBE00076' !== $id1 ) {
+            return new WP_Error( 'format_error', "Expected CUBE00076, got {$id1}" );
+        }
+
+        // Test with low number.
+        $id2 = $repo->format_qsa_id( 'STAR', 1 );
+        if ( is_wp_error( $id2 ) || 'STAR00001' !== $id2 ) {
+            return new WP_Error( 'format_error', 'Expected STAR00001.' );
+        }
+
+        // Test with max number.
+        $id3 = $repo->format_qsa_id( 'PICO', 99999 );
+        if ( is_wp_error( $id3 ) || 'PICO99999' !== $id3 ) {
+            return new WP_Error( 'format_error', 'Expected PICO99999.' );
+        }
+
+        // Test lowercase conversion.
+        $id4 = $repo->format_qsa_id( 'cube', 42 );
+        if ( is_wp_error( $id4 ) || 'CUBE00042' !== $id4 ) {
+            return new WP_Error( 'format_error', 'Expected CUBE00042.' );
+        }
+
+        echo "  Format tests: CUBE00076, STAR00001, PICO99999, CUBE00042\n";
+        return true;
+    },
+    'format_qsa_id correctly formats QSA IDs.'
+);
+
+run_test(
+    'TC-QSA-003b: format_qsa_id validates sequence range',
+    function (): bool {
+        $repo = new \Quadica\QSA_Engraving\Database\QSA_Identifier_Repository();
+
+        // Test sequence too low (0).
+        $result_zero = $repo->format_qsa_id( 'TEST', 0 );
+        if ( ! is_wp_error( $result_zero ) ) {
+            return new WP_Error( 'validation_fail', 'format_qsa_id should reject sequence=0.' );
+        }
+        if ( 'invalid_sequence' !== $result_zero->get_error_code() ) {
+            return new WP_Error( 'wrong_error', "Expected 'invalid_sequence', got '{$result_zero->get_error_code()}'." );
+        }
+
+        // Test sequence too high (100000).
+        $result_over = $repo->format_qsa_id( 'TEST', 100000 );
+        if ( ! is_wp_error( $result_over ) ) {
+            return new WP_Error( 'validation_fail', 'format_qsa_id should reject sequence=100000.' );
+        }
+        if ( 'sequence_overflow' !== $result_over->get_error_code() ) {
+            return new WP_Error( 'wrong_error', "Expected 'sequence_overflow', got '{$result_over->get_error_code()}'." );
+        }
+
+        // Test negative sequence.
+        $result_neg = $repo->format_qsa_id( 'TEST', -1 );
+        if ( ! is_wp_error( $result_neg ) ) {
+            return new WP_Error( 'validation_fail', 'format_qsa_id should reject sequence=-1.' );
+        }
+
+        echo "  Sequence 0 rejected: {$result_zero->get_error_message()}\n";
+        echo "  Sequence 100000 rejected: {$result_over->get_error_message()}\n";
+        echo "  Negative sequence rejected.\n";
+        return true;
+    },
+    'format_qsa_id validates sequence range (1 to MAX_SEQUENCE).'
+);
+
+run_test(
+    'TC-QSA-004: parse_qsa_id parses correctly',
+    function (): bool {
+        $repo = new \Quadica\QSA_Engraving\Database\QSA_Identifier_Repository();
+
+        // Test valid ID.
+        $parsed = $repo->parse_qsa_id( 'CUBE00076' );
+        if ( null === $parsed ) {
+            return new WP_Error( 'parse_error', 'Failed to parse CUBE00076' );
+        }
+        if ( 'CUBE' !== $parsed['design'] || 76 !== $parsed['sequence'] ) {
+            return new WP_Error( 'parse_error', 'Parsed values incorrect.' );
+        }
+
+        // Test lowercase conversion.
+        $parsed2 = $repo->parse_qsa_id( 'star00001' );
+        if ( null === $parsed2 || 'STAR' !== $parsed2['design'] ) {
+            return new WP_Error( 'parse_error', 'Failed to parse lowercase star00001' );
+        }
+
+        // Test invalid formats.
+        if ( null !== $repo->parse_qsa_id( 'CUBE0076' ) ) { // Only 4 digits.
+            return new WP_Error( 'validation_error', 'Should reject CUBE0076 (4 digits).' );
+        }
+        if ( null !== $repo->parse_qsa_id( 'CUBE000076' ) ) { // 6 digits.
+            return new WP_Error( 'validation_error', 'Should reject CUBE000076 (6 digits).' );
+        }
+        if ( null !== $repo->parse_qsa_id( '12345' ) ) { // No letters.
+            return new WP_Error( 'validation_error', 'Should reject 12345 (no letters).' );
+        }
+
+        echo "  Parse tests passed: CUBE00076 -> CUBE/76, validation working.\n";
+        return true;
+    },
+    'parse_qsa_id correctly parses and validates QSA IDs.'
+);
+
+run_test(
+    'TC-QSA-005: is_valid_qsa_id validates correctly',
+    function (): bool {
+        $repo = new \Quadica\QSA_Engraving\Database\QSA_Identifier_Repository();
+
+        // Valid IDs.
+        if ( ! $repo->is_valid_qsa_id( 'CUBE00076' ) ) {
+            return new WP_Error( 'validation_error', 'CUBE00076 should be valid.' );
+        }
+        if ( ! $repo->is_valid_qsa_id( 'A00001' ) ) {
+            return new WP_Error( 'validation_error', 'A00001 should be valid (1 letter).' );
+        }
+        if ( ! $repo->is_valid_qsa_id( 'ABCDEFGHIJ99999' ) ) {
+            return new WP_Error( 'validation_error', 'ABCDEFGHIJ99999 should be valid (10 letters).' );
+        }
+
+        // Invalid IDs.
+        if ( $repo->is_valid_qsa_id( '' ) ) {
+            return new WP_Error( 'validation_error', 'Empty string should be invalid.' );
+        }
+        if ( $repo->is_valid_qsa_id( 'CUBE' ) ) {
+            return new WP_Error( 'validation_error', 'CUBE (no digits) should be invalid.' );
+        }
+        if ( $repo->is_valid_qsa_id( 'CUBE123456' ) ) {
+            return new WP_Error( 'validation_error', 'CUBE123456 (6 digits) should be invalid.' );
+        }
+
+        echo "  Validation tests passed for valid and invalid QSA IDs.\n";
+        return true;
+    },
+    'is_valid_qsa_id validates QSA ID format correctly.'
+);
+
+run_test(
+    'TC-QSA-006: Input validation rejects invalid parameters',
+    function (): bool {
+        $repo = new \Quadica\QSA_Engraving\Database\QSA_Identifier_Repository();
+
+        // Test invalid batch_id.
+        $result1 = $repo->get_or_create( 0, 1, 'CUBE' );
+        if ( ! is_wp_error( $result1 ) || 'invalid_batch_id' !== $result1->get_error_code() ) {
+            return new WP_Error( 'validation_fail', 'Should reject batch_id=0.' );
+        }
+
+        // Test invalid qsa_sequence.
+        $result2 = $repo->get_or_create( 1, 0, 'CUBE' );
+        if ( ! is_wp_error( $result2 ) || 'invalid_qsa_sequence' !== $result2->get_error_code() ) {
+            return new WP_Error( 'validation_fail', 'Should reject qsa_sequence=0.' );
+        }
+
+        // Test invalid design (numbers).
+        $result3 = $repo->get_or_create( 1, 1, 'CUBE123' );
+        if ( ! is_wp_error( $result3 ) || 'invalid_design' !== $result3->get_error_code() ) {
+            return new WP_Error( 'validation_fail', 'Should reject design with numbers.' );
+        }
+
+        // Test invalid design (too long).
+        $result4 = $repo->get_or_create( 1, 1, 'ABCDEFGHIJK' );
+        if ( ! is_wp_error( $result4 ) || 'invalid_design_length' !== $result4->get_error_code() ) {
+            return new WP_Error( 'validation_fail', 'Should reject design > 10 chars.' );
+        }
+
+        echo "  Input validation correctly rejects: batch_id=0, qsa_sequence=0, CUBE123, 11-char design.\n";
+        return true;
+    },
+    'get_or_create validates inputs and rejects invalid parameters.'
+);
+
+run_test(
+    'TC-QSA-007: get_or_create creates and retrieves QSA ID',
+    function (): bool {
+        global $wpdb;
+
+        $repo = new \Quadica\QSA_Engraving\Database\QSA_Identifier_Repository();
+
+        // Create a test batch first.
+        $batch_table = $wpdb->prefix . 'quad_engraving_batches';
+        $wpdb->insert(
+            $batch_table,
+            array(
+                'created_by' => 1,
+                'status'     => 'draft',
+            ),
+            array( '%d', '%s' )
+        );
+        $test_batch_id = (int) $wpdb->insert_id;
+
+        if ( $test_batch_id < 1 ) {
+            return new WP_Error( 'setup_failed', 'Failed to create test batch.' );
+        }
+
+        // Create a new QSA ID.
+        $qsa_id_1 = $repo->get_or_create( $test_batch_id, 1, 'TEST' );
+        if ( is_wp_error( $qsa_id_1 ) ) {
+            // Cleanup.
+            $wpdb->delete( $batch_table, array( 'id' => $test_batch_id ), array( '%d' ) );
+            return new WP_Error( 'create_failed', "Failed to create QSA ID: {$qsa_id_1->get_error_message()}" );
+        }
+
+        // Verify format.
+        if ( ! preg_match( '/^TEST[0-9]{5}$/', $qsa_id_1 ) ) {
+            $wpdb->delete( $batch_table, array( 'id' => $test_batch_id ), array( '%d' ) );
+            return new WP_Error( 'format_error', "QSA ID format incorrect: {$qsa_id_1}" );
+        }
+
+        // Retrieve the same ID again (should return existing).
+        $qsa_id_2 = $repo->get_or_create( $test_batch_id, 1, 'TEST' );
+        if ( is_wp_error( $qsa_id_2 ) ) {
+            $wpdb->delete( $batch_table, array( 'id' => $test_batch_id ), array( '%d' ) );
+            return new WP_Error( 'retrieve_failed', 'Failed to retrieve existing QSA ID.' );
+        }
+
+        if ( $qsa_id_1 !== $qsa_id_2 ) {
+            $wpdb->delete( $batch_table, array( 'id' => $test_batch_id ), array( '%d' ) );
+            return new WP_Error( 'mismatch', "QSA IDs should match: {$qsa_id_1} vs {$qsa_id_2}" );
+        }
+
+        echo "  Created QSA ID: {$qsa_id_1}\n";
+        echo "  Re-fetched same ID: {$qsa_id_2} (matches)\n";
+
+        // Cleanup.
+        $repo->delete_for_batch( $test_batch_id );
+        $wpdb->delete( $batch_table, array( 'id' => $test_batch_id ), array( '%d' ) );
+
+        return true;
+    },
+    'get_or_create creates new QSA ID and returns existing on re-call.'
+);
+
+run_test(
+    'TC-QSA-008: get_by_batch returns correct record',
+    function (): bool {
+        global $wpdb;
+
+        $repo = new \Quadica\QSA_Engraving\Database\QSA_Identifier_Repository();
+
+        // Create a test batch.
+        $batch_table = $wpdb->prefix . 'quad_engraving_batches';
+        $wpdb->insert(
+            $batch_table,
+            array(
+                'created_by' => 1,
+                'status'     => 'draft',
+            ),
+            array( '%d', '%s' )
+        );
+        $test_batch_id = (int) $wpdb->insert_id;
+
+        // Create a QSA ID.
+        $qsa_id = $repo->get_or_create( $test_batch_id, 2, 'DEMO' );
+        if ( is_wp_error( $qsa_id ) ) {
+            $wpdb->delete( $batch_table, array( 'id' => $test_batch_id ), array( '%d' ) );
+            return new WP_Error( 'setup_failed', 'Failed to create test QSA ID.' );
+        }
+
+        // Retrieve by batch.
+        $record = $repo->get_by_batch( $test_batch_id, 2 );
+        if ( null === $record ) {
+            $repo->delete_for_batch( $test_batch_id );
+            $wpdb->delete( $batch_table, array( 'id' => $test_batch_id ), array( '%d' ) );
+            return new WP_Error( 'retrieve_failed', 'get_by_batch returned null.' );
+        }
+
+        // Verify record structure.
+        if ( $record['qsa_id'] !== $qsa_id ) {
+            $repo->delete_for_batch( $test_batch_id );
+            $wpdb->delete( $batch_table, array( 'id' => $test_batch_id ), array( '%d' ) );
+            return new WP_Error( 'mismatch', 'QSA ID mismatch.' );
+        }
+        if ( 'DEMO' !== $record['design'] ) {
+            $repo->delete_for_batch( $test_batch_id );
+            $wpdb->delete( $batch_table, array( 'id' => $test_batch_id ), array( '%d' ) );
+            return new WP_Error( 'mismatch', 'Design mismatch.' );
+        }
+        if ( $test_batch_id !== $record['batch_id'] ) {
+            $repo->delete_for_batch( $test_batch_id );
+            $wpdb->delete( $batch_table, array( 'id' => $test_batch_id ), array( '%d' ) );
+            return new WP_Error( 'mismatch', 'Batch ID mismatch.' );
+        }
+        if ( 2 !== $record['qsa_sequence'] ) {
+            $repo->delete_for_batch( $test_batch_id );
+            $wpdb->delete( $batch_table, array( 'id' => $test_batch_id ), array( '%d' ) );
+            return new WP_Error( 'mismatch', 'QSA sequence mismatch.' );
+        }
+
+        echo "  Retrieved record: qsa_id={$record['qsa_id']}, design={$record['design']}, seq={$record['qsa_sequence']}\n";
+
+        // Cleanup.
+        $repo->delete_for_batch( $test_batch_id );
+        $wpdb->delete( $batch_table, array( 'id' => $test_batch_id ), array( '%d' ) );
+
+        return true;
+    },
+    'get_by_batch returns correct QSA ID record.'
+);
+
+run_test(
+    'TC-QSA-009: get_by_qsa_id returns correct record',
+    function (): bool {
+        global $wpdb;
+
+        $repo = new \Quadica\QSA_Engraving\Database\QSA_Identifier_Repository();
+
+        // Create a test batch.
+        $batch_table = $wpdb->prefix . 'quad_engraving_batches';
+        $wpdb->insert(
+            $batch_table,
+            array(
+                'created_by' => 1,
+                'status'     => 'draft',
+            ),
+            array( '%d', '%s' )
+        );
+        $test_batch_id = (int) $wpdb->insert_id;
+
+        // Create a QSA ID.
+        $qsa_id = $repo->get_or_create( $test_batch_id, 1, 'LOOK' );
+        if ( is_wp_error( $qsa_id ) ) {
+            $wpdb->delete( $batch_table, array( 'id' => $test_batch_id ), array( '%d' ) );
+            return new WP_Error( 'setup_failed', 'Failed to create test QSA ID.' );
+        }
+
+        // Retrieve by QSA ID string.
+        $record = $repo->get_by_qsa_id( $qsa_id );
+        if ( null === $record ) {
+            $repo->delete_for_batch( $test_batch_id );
+            $wpdb->delete( $batch_table, array( 'id' => $test_batch_id ), array( '%d' ) );
+            return new WP_Error( 'retrieve_failed', 'get_by_qsa_id returned null.' );
+        }
+
+        // Verify record.
+        if ( $record['batch_id'] !== $test_batch_id ) {
+            $repo->delete_for_batch( $test_batch_id );
+            $wpdb->delete( $batch_table, array( 'id' => $test_batch_id ), array( '%d' ) );
+            return new WP_Error( 'mismatch', 'Batch ID mismatch.' );
+        }
+
+        // Test lowercase lookup.
+        $record2 = $repo->get_by_qsa_id( strtolower( $qsa_id ) );
+        if ( null === $record2 ) {
+            $repo->delete_for_batch( $test_batch_id );
+            $wpdb->delete( $batch_table, array( 'id' => $test_batch_id ), array( '%d' ) );
+            return new WP_Error( 'case_fail', 'Lowercase lookup failed.' );
+        }
+
+        echo "  Retrieved by QSA ID: {$qsa_id} -> batch_id={$record['batch_id']}\n";
+        echo "  Lowercase lookup works.\n";
+
+        // Cleanup.
+        $repo->delete_for_batch( $test_batch_id );
+        $wpdb->delete( $batch_table, array( 'id' => $test_batch_id ), array( '%d' ) );
+
+        return true;
+    },
+    'get_by_qsa_id returns correct record with case-insensitive lookup.'
+);
+
+run_test(
+    'TC-QSA-010: Sequence numbers increment per design',
+    function (): bool {
+        global $wpdb;
+
+        $repo = new \Quadica\QSA_Engraving\Database\QSA_Identifier_Repository();
+
+        // Create test batches.
+        $batch_table = $wpdb->prefix . 'quad_engraving_batches';
+        $test_batch_ids = array();
+
+        for ( $i = 0; $i < 3; $i++ ) {
+            $wpdb->insert(
+                $batch_table,
+                array(
+                    'created_by' => 1,
+                    'status'     => 'draft',
+                ),
+                array( '%d', '%s' )
+            );
+            $test_batch_ids[] = (int) $wpdb->insert_id;
+        }
+
+        // Create multiple QSA IDs for same design.
+        $qsa_ids = array();
+        foreach ( $test_batch_ids as $idx => $batch_id ) {
+            $qsa_id = $repo->get_or_create( $batch_id, 1, 'SEQT' );
+            if ( is_wp_error( $qsa_id ) ) {
+                // Cleanup.
+                foreach ( $test_batch_ids as $b_id ) {
+                    $repo->delete_for_batch( $b_id );
+                    $wpdb->delete( $batch_table, array( 'id' => $b_id ), array( '%d' ) );
+                }
+                return new WP_Error( 'create_failed', "Failed to create QSA ID {$idx}." );
+            }
+            $qsa_ids[] = $qsa_id;
+        }
+
+        // Parse and verify sequences are incrementing.
+        $sequences = array();
+        foreach ( $qsa_ids as $qsa_id ) {
+            $parsed = $repo->parse_qsa_id( $qsa_id );
+            $sequences[] = $parsed['sequence'];
+        }
+
+        // Verify strictly increasing.
+        for ( $i = 1; $i < count( $sequences ); $i++ ) {
+            if ( $sequences[ $i ] <= $sequences[ $i - 1 ] ) {
+                // Cleanup.
+                foreach ( $test_batch_ids as $b_id ) {
+                    $repo->delete_for_batch( $b_id );
+                    $wpdb->delete( $batch_table, array( 'id' => $b_id ), array( '%d' ) );
+                }
+                return new WP_Error( 'sequence_error', 'Sequence numbers not strictly increasing.' );
+            }
+        }
+
+        echo '  QSA IDs created: ' . implode( ', ', $qsa_ids ) . "\n";
+        echo '  Sequences: ' . implode( ', ', $sequences ) . ' (strictly increasing)\n';
+
+        // Cleanup.
+        foreach ( $test_batch_ids as $b_id ) {
+            $repo->delete_for_batch( $b_id );
+            $wpdb->delete( $batch_table, array( 'id' => $b_id ), array( '%d' ) );
+        }
+
+        return true;
+    },
+    'Sequence numbers increment correctly for each new QSA ID in a design.'
+);
+
+run_test(
+    'TC-QSA-011: Constants are correctly defined',
+    function (): bool {
+        $max_seq = \Quadica\QSA_Engraving\Database\QSA_Identifier_Repository::MAX_SEQUENCE;
+        $digits = \Quadica\QSA_Engraving\Database\QSA_Identifier_Repository::SEQUENCE_DIGITS;
+
+        if ( 99999 !== $max_seq ) {
+            return new WP_Error( 'constant_error', "MAX_SEQUENCE should be 99999, got {$max_seq}" );
+        }
+        if ( 5 !== $digits ) {
+            return new WP_Error( 'constant_error', "SEQUENCE_DIGITS should be 5, got {$digits}" );
+        }
+
+        echo "  MAX_SEQUENCE: {$max_seq}\n";
+        echo "  SEQUENCE_DIGITS: {$digits}\n";
+        return true;
+    },
+    'QSA Identifier Repository constants are correctly defined.'
+);
+
+run_test(
+    'TC-QSA-012: Plugin getter returns repository instance',
+    function (): bool {
+        $plugin = \Quadica\QSA_Engraving\Plugin::get_instance();
+
+        if ( ! method_exists( $plugin, 'get_qsa_identifier_repository' ) ) {
+            return new WP_Error( 'method_missing', 'get_qsa_identifier_repository method not found.' );
+        }
+
+        $repo = $plugin->get_qsa_identifier_repository();
+        if ( ! $repo instanceof \Quadica\QSA_Engraving\Database\QSA_Identifier_Repository ) {
+            return new WP_Error( 'type_error', 'Returned object is not QSA_Identifier_Repository.' );
+        }
+
+        echo "  Plugin::get_qsa_identifier_repository() returns valid instance.\n";
+        return true;
+    },
+    'Plugin provides getter for QSA Identifier Repository.'
+);
+
+// ============================================
+// TC-LAND-001: QSA Landing Handler Class Exists
+// ============================================
+run_test(
+    'TC-LAND-001: QSA Landing Handler class exists',
+    function (): bool {
+        if ( ! class_exists( '\Quadica\QSA_Engraving\Frontend\QSA_Landing_Handler' ) ) {
+            return new WP_Error( 'class_missing', 'QSA_Landing_Handler class not found.' );
+        }
+
+        echo "  Class: Quadica\\QSA_Engraving\\Frontend\\QSA_Landing_Handler exists.\n";
+        return true;
+    },
+    'QSA Landing Handler class is available for routing QSA ID URLs.'
+);
+
+// ============================================
+// TC-LAND-002: Landing Handler Constants Defined
+// ============================================
+run_test(
+    'TC-LAND-002: Landing Handler constants defined',
+    function (): bool {
+        $handler_class = '\Quadica\QSA_Engraving\Frontend\QSA_Landing_Handler';
+
+        if ( ! defined( "{$handler_class}::QUERY_VAR" ) ) {
+            return new WP_Error( 'missing_constant', 'QUERY_VAR constant not defined.' );
+        }
+
+        if ( ! defined( "{$handler_class}::QSA_ID_PATTERN" ) ) {
+            return new WP_Error( 'missing_constant', 'QSA_ID_PATTERN constant not defined.' );
+        }
+
+        $query_var = $handler_class::QUERY_VAR;
+        $pattern   = $handler_class::QSA_ID_PATTERN;
+
+        echo "  QUERY_VAR: {$query_var}\n";
+        echo "  QSA_ID_PATTERN: {$pattern}\n";
+
+        return true;
+    },
+    'Landing Handler has required constants for URL routing.'
+);
+
+// ============================================
+// TC-LAND-003: QSA ID Pattern Matches Valid IDs
+// ============================================
+run_test(
+    'TC-LAND-003: QSA ID pattern matches valid IDs',
+    function (): bool|WP_Error {
+        $pattern = '/^' . \Quadica\QSA_Engraving\Frontend\QSA_Landing_Handler::QSA_ID_PATTERN . '$/';
+
+        $valid_ids = array(
+            'CUBE00001',
+            'STAR12345',
+            'PICOa00042',
+            'TESTb99999',
+            'CUBES00001', // 4 letters + revision 'S' + 5 digits
+            'cube00001',  // lowercase should also match
+        );
+
+        $invalid_ids = array(
+            'CUB00001',    // Only 3 letters
+            'CUBESS00001', // 6 letters (4 + 2, too many revision letters)
+            'CUBE0001',    // Only 4 digits
+            'CUBE000001',  // 6 digits
+            '12345CUBE',   // Reversed
+            'CUBE-00001',  // Has hyphen
+        );
+
+        foreach ( $valid_ids as $id ) {
+            if ( ! preg_match( $pattern, $id ) ) {
+                return new WP_Error( 'pattern_fail', "Valid ID '{$id}' did not match pattern." );
+            }
+        }
+
+        foreach ( $invalid_ids as $id ) {
+            if ( preg_match( $pattern, $id ) ) {
+                return new WP_Error( 'pattern_fail', "Invalid ID '{$id}' incorrectly matched pattern." );
+            }
+        }
+
+        echo "  Valid IDs correctly matched: " . implode( ', ', $valid_ids ) . "\n";
+        echo "  Invalid IDs correctly rejected.\n";
+        return true;
+    },
+    'QSA ID regex pattern correctly validates ID format.'
+);
+
+// ============================================
+// TC-LAND-004: Query Variable Registered
+// ============================================
+run_test(
+    'TC-LAND-004: Query variable registered',
+    function (): bool {
+        global $wp;
+
+        $query_var = \Quadica\QSA_Engraving\Frontend\QSA_Landing_Handler::QUERY_VAR;
+
+        // Check if our query var is in the public query vars.
+        // Note: This requires the handler to have run its add_query_vars filter.
+        $handler = new \Quadica\QSA_Engraving\Frontend\QSA_Landing_Handler(
+            \Quadica\QSA_Engraving\qsa_engraving()->get_qsa_identifier_repository()
+        );
+
+        $vars    = $handler->add_query_vars( array() );
+        $has_var = in_array( $query_var, $vars, true );
+
+        if ( ! $has_var ) {
+            return new WP_Error( 'missing_var', "Query variable '{$query_var}' not registered." );
+        }
+
+        echo "  Query variable '{$query_var}' is registered.\n";
+        return true;
+    },
+    'Landing Handler registers the qsa_lookup query variable.'
 );
 
 // ============================================

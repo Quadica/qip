@@ -3,7 +3,7 @@
  * SVG Document Assembler.
  *
  * Generates complete SVG documents for QSA engraving with all element types:
- * Micro-ID codes, Data Matrix barcodes, and text elements.
+ * Micro-ID codes, QR codes, and text elements.
  *
  * @package QSA_Engraving
  * @since 1.0.0
@@ -127,6 +127,20 @@ class SVG_Document {
     private Coordinate_Transformer $transformer;
 
     /**
+     * QR code data to encode.
+     *
+     * @var string|null
+     */
+    private ?string $qr_code_data = null;
+
+    /**
+     * QR code configuration (position and size).
+     *
+     * @var array|null
+     */
+    private ?array $qr_code_config = null;
+
+    /**
      * Constructor.
      *
      * @param float $width  Canvas width in mm.
@@ -248,6 +262,31 @@ class SVG_Document {
     }
 
     /**
+     * Set QR code data and configuration.
+     *
+     * The QR code is rendered at the design level (position 0), after alignment marks
+     * but before per-module elements. It encodes a URL linking to the QSA ID.
+     *
+     * @param string $data   Data to encode (e.g., "quadi.ca/cube00076").
+     * @param array  $config Configuration with origin_x, origin_y, element_size keys.
+     * @return self For method chaining.
+     */
+    public function set_qr_code( string $data, array $config ): self {
+        $this->qr_code_data   = $data;
+        $this->qr_code_config = $config;
+        return $this;
+    }
+
+    /**
+     * Check if QR code is configured.
+     *
+     * @return bool True if QR code data and config are set.
+     */
+    public function has_qr_code(): bool {
+        return ! empty( $this->qr_code_data ) && ! empty( $this->qr_code_config );
+    }
+
+    /**
      * Add a module to the document.
      *
      * @param int   $position      Module position (1-8).
@@ -325,6 +364,18 @@ class SVG_Document {
         if ( $has_offset ) {
             $output .= "\n\n" . $indent . $this->render_offset_group_open();
             $indent .= '  ';
+        }
+
+        // Render QR code at design level (position 0) - after alignment marks, before modules.
+        // QR code is inside offset group so it moves with module content when top_offset is applied.
+        if ( $this->has_qr_code() ) {
+            $qr_svg = $this->render_qr_code();
+            if ( is_wp_error( $qr_svg ) ) {
+                return $qr_svg;
+            }
+            // Add QR code with proper indentation.
+            $qr_svg = str_replace( "\n", "\n" . $indent, $qr_svg );
+            $output .= "\n\n" . $indent . $qr_svg;
         }
 
         // Render each module (inside offset group if offset applied).
@@ -537,6 +588,60 @@ class SVG_Document {
     }
 
     /**
+     * Render QR code element.
+     *
+     * Renders a single QR code at the design level (position 0).
+     * The QR code encodes a URL with the QSA ID for array identification.
+     *
+     * @return string|WP_Error SVG group element or error.
+     */
+    private function render_qr_code(): string|WP_Error {
+        if ( ! $this->has_qr_code() ) {
+            return new WP_Error(
+                'no_qr_code',
+                __( 'QR code data not configured.', 'qsa-engraving' )
+            );
+        }
+
+        $config = $this->qr_code_config;
+
+        // Get coordinates from config (CAD format).
+        $cad_x = (float) ( $config['origin_x'] ?? 0 );
+        $cad_y = (float) ( $config['origin_y'] ?? 0 );
+        $size  = (float) ( $config['element_size'] ?? QR_Code_Renderer::DEFAULT_SIZE );
+
+        // Transform CAD coordinates to SVG coordinates.
+        $svg_coords = $this->transformer->cad_to_svg( $cad_x, $cad_y );
+
+        // Validate coordinates are within bounds (clamp if needed).
+        if ( ! $this->transformer->is_within_bounds( $svg_coords['x'], $svg_coords['y'] ) ) {
+            $svg_coords = $this->transformer->clamp_to_bounds( $svg_coords['x'], $svg_coords['y'] );
+        }
+
+        // Render the QR code at the calculated position.
+        $qr_svg = QR_Code_Renderer::render_positioned(
+            $this->qr_code_data,
+            $svg_coords['x'],
+            $svg_coords['y'],
+            $size,
+            'qr-code-design'
+        );
+
+        if ( is_wp_error( $qr_svg ) ) {
+            return $qr_svg;
+        }
+
+        // Add section comment for the design-level element.
+        $comment = sprintf(
+            '<!-- ========== DESIGN LEVEL QR CODE ========== -->
+<!-- QSA ID: %s -->',
+            esc_html( $this->qr_code_data )
+        );
+
+        return $comment . "\n" . $qr_svg;
+    }
+
+    /**
      * Render a single module group.
      *
      * @param int   $position Module position.
@@ -576,15 +681,6 @@ class SVG_Document {
             $elements[] = '  ' . $micro_id_svg;
         }
 
-        // Data Matrix.
-        if ( isset( $config['datamatrix'] ) ) {
-            $datamatrix_svg = $this->render_datamatrix( $position, $serial_number, $config['datamatrix'] );
-            if ( is_wp_error( $datamatrix_svg ) ) {
-                return $datamatrix_svg;
-            }
-            $elements[] = '  ' . $datamatrix_svg;
-        }
-
         // Module ID text.
         if ( ! empty( $module_id ) && isset( $config['module_id'] ) ) {
             $elements[] = '  ' . $this->render_text_element(
@@ -604,8 +700,10 @@ class SVG_Document {
         }
 
         // LED codes.
-        foreach ( $led_codes as $index => $led_code ) {
-            $config_key = 'led_code_' . ( $index + 1 );
+        // The led_codes array is keyed by LED position (1, 2, 3, 4, etc.) from the Order BOM.
+        // This preserves actual position info for modules with gaps (e.g., LEDs at positions 1 and 4 only).
+        foreach ( $led_codes as $led_position => $led_code ) {
+            $config_key = 'led_code_' . $led_position;
             if ( ! empty( $led_code ) && isset( $config[ $config_key ] ) ) {
                 // Validate LED code against allowed character set.
                 if ( ! Text_Renderer::validate_led_code( $led_code ) ) {
@@ -615,7 +713,7 @@ class SVG_Document {
                             /* translators: 1: LED code, 2: Position number, 3: Allowed characters */
                             __( 'Invalid LED code "%1$s" at position %2$d. Only these characters allowed: %3$s', 'qsa-engraving' ),
                             $led_code,
-                            $position,
+                            $led_position,
                             Text_Renderer::get_led_code_charset()
                         )
                     );
@@ -661,36 +759,6 @@ class SVG_Document {
             $svg_coords['x'],
             $svg_coords['y'],
             sprintf( 'micro-id-%d', $position )
-        );
-    }
-
-    /**
-     * Render Data Matrix element.
-     *
-     * @param int    $position      Module position.
-     * @param string $serial_number Serial number.
-     * @param array  $config        Element configuration.
-     * @return string|WP_Error SVG markup or error.
-     */
-    private function render_datamatrix( int $position, string $serial_number, array $config ): string|WP_Error {
-        // Transform CAD coordinates to SVG.
-        $svg_coords = $this->transformer->get_datamatrix_position(
-            $config['origin_x'],
-            $config['origin_y']
-        );
-
-        // Validate coordinates are within bounds (clamp if needed).
-        if ( ! $this->transformer->is_within_bounds( $svg_coords['x'], $svg_coords['y'] ) ) {
-            $svg_coords = $this->transformer->clamp_to_bounds( $svg_coords['x'], $svg_coords['y'] );
-        }
-
-        return Datamatrix_Renderer::render_positioned(
-            $serial_number,
-            $svg_coords['x'],
-            $svg_coords['y'],
-            Datamatrix_Renderer::DEFAULT_WIDTH,
-            Datamatrix_Renderer::DEFAULT_HEIGHT,
-            sprintf( 'datamatrix-%d', $position )
         );
     }
 
@@ -805,6 +873,12 @@ class SVG_Document {
 
         if ( isset( $options['top_offset'] ) ) {
             $doc->set_top_offset( (float) $options['top_offset'] );
+        }
+
+        // Set QR code if data and config provided.
+        // QR code data is in options['qr_code_data'], config is in the position 0 config.
+        if ( ! empty( $options['qr_code_data'] ) && isset( $config[0]['qr_code'] ) ) {
+            $doc->set_qr_code( $options['qr_code_data'], $config[0]['qr_code'] );
         }
 
         // Add each module.

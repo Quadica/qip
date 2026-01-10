@@ -68,6 +68,13 @@ class Config_Loader {
     );
 
     /**
+     * Default QR code size in millimeters.
+     *
+     * @var float
+     */
+    public const DEFAULT_QR_CODE_SIZE = 10.0;
+
+    /**
      * Constructor.
      *
      * @param Config_Repository|null $repository Optional repository instance.
@@ -149,7 +156,7 @@ class Config_Loader {
     }
 
     /**
-     * Apply default text heights to configuration.
+     * Apply default text heights and element sizes to configuration.
      *
      * @param array $config Configuration array.
      * @return array Configuration with defaults applied.
@@ -157,10 +164,15 @@ class Config_Loader {
     private function apply_default_text_heights( array $config ): array {
         foreach ( $config as $position => $elements ) {
             foreach ( $elements as $type => $element_config ) {
-                // Only apply to text elements.
+                // Apply default text heights to text elements.
                 if ( $this->is_text_element( $type ) && ! isset( $element_config['text_height'] ) ) {
                     $config[ $position ][ $type ]['text_height'] =
                         self::DEFAULT_TEXT_HEIGHTS[ $type ] ?? 1.0;
+                }
+
+                // Apply default element_size to QR code (position 0).
+                if ( 'qr_code' === $type && ! isset( $element_config['element_size'] ) ) {
+                    $config[ $position ][ $type ]['element_size'] = self::DEFAULT_QR_CODE_SIZE;
                 }
             }
         }
@@ -254,7 +266,8 @@ class Config_Loader {
         $missing = array();
 
         // Required elements for each position.
-        $required = array( 'micro_id', 'datamatrix', 'module_id', 'serial_url', 'led_code_1' );
+        // Note: 'datamatrix' removed in Phase 2 - QR code is at position=0 (design-level).
+        $required = array( 'micro_id', 'module_id', 'serial_url', 'led_code_1' );
 
         for ( $pos = 1; $pos <= $positions; $pos++ ) {
             if ( ! isset( $config[ $pos ] ) ) {

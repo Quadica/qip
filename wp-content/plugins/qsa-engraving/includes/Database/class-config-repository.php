@@ -29,11 +29,14 @@ class Config_Repository {
     /**
      * Valid element types.
      *
+     * Note: 'datamatrix' was removed in Phase 2 of QR code implementation.
+     * 'qr_code' is a design-level element (position=0) added in Phase 4.
+     *
      * @var array
      */
     public const ELEMENT_TYPES = array(
         'micro_id',
-        'datamatrix',
+        'qr_code',
         'module_id',
         'serial_url',
         'led_code_1',
@@ -45,6 +48,18 @@ class Config_Repository {
         'led_code_7',
         'led_code_8',
         'led_code_9',
+    );
+
+    /**
+     * Design-level element types that use position 0.
+     *
+     * These elements appear once per SVG at the design level,
+     * not per module position (1-8).
+     *
+     * @var array
+     */
+    public const DESIGN_LEVEL_ELEMENTS = array(
+        'qr_code',
     );
 
     /**
@@ -129,7 +144,7 @@ class Config_Repository {
         // Priority: exact revision match > null revision > any revision (alphabetically first).
         if ( null !== $revision && '' !== $revision ) {
             // Specific revision requested.
-            $sql = "SELECT position, element_type, origin_x, origin_y, rotation, text_height
+            $sql = "SELECT position, element_type, origin_x, origin_y, rotation, text_height, element_size
                     FROM {$this->table_name}
                     WHERE qsa_design = %s
                       AND revision = %s
@@ -142,7 +157,7 @@ class Config_Repository {
 
             // If specific revision not found, fall back to any available revision.
             if ( empty( $results ) ) {
-                $sql = "SELECT position, element_type, origin_x, origin_y, rotation, text_height, revision
+                $sql = "SELECT position, element_type, origin_x, origin_y, rotation, text_height, element_size, revision
                         FROM {$this->table_name}
                         WHERE qsa_design = %s
                           AND is_active = 1
@@ -159,7 +174,7 @@ class Config_Repository {
             }
         } else {
             // No specific revision - try NULL first, then fall back to first available.
-            $sql = "SELECT position, element_type, origin_x, origin_y, rotation, text_height
+            $sql = "SELECT position, element_type, origin_x, origin_y, rotation, text_height, element_size
                     FROM {$this->table_name}
                     WHERE qsa_design = %s
                       AND revision IS NULL
@@ -172,7 +187,7 @@ class Config_Repository {
 
             // Fall back to first available revision if no NULL revision config.
             if ( empty( $results ) ) {
-                $sql = "SELECT position, element_type, origin_x, origin_y, rotation, text_height, revision
+                $sql = "SELECT position, element_type, origin_x, origin_y, rotation, text_height, element_size, revision
                         FROM {$this->table_name}
                         WHERE qsa_design = %s
                           AND is_active = 1
@@ -211,10 +226,11 @@ class Config_Repository {
             // Only set if not already set (revision-specific comes first).
             if ( ! isset( $config[ $pos ][ $type ] ) ) {
                 $config[ $pos ][ $type ] = array(
-                    'origin_x'    => (float) $row['origin_x'],
-                    'origin_y'    => (float) $row['origin_y'],
-                    'rotation'    => (int) $row['rotation'],
-                    'text_height' => $row['text_height'] !== null ? (float) $row['text_height'] : null,
+                    'origin_x'     => (float) $row['origin_x'],
+                    'origin_y'     => (float) $row['origin_y'],
+                    'rotation'     => (int) $row['rotation'],
+                    'text_height'  => $row['text_height'] !== null ? (float) $row['text_height'] : null,
+                    'element_size' => $row['element_size'] !== null ? (float) $row['element_size'] : null,
                 );
             }
         }
@@ -281,7 +297,7 @@ class Config_Repository {
      *
      * @param string      $qsa_design The design name.
      * @param string|null $revision The revision letter or null.
-     * @param int         $position The position (1-8).
+     * @param int         $position The position (0 for design-level elements, 1-8 for module positions).
      * @param string      $element_type The element type.
      * @param float       $origin_x The X coordinate.
      * @param float       $origin_y The Y coordinate.
@@ -311,12 +327,31 @@ class Config_Repository {
             );
         }
 
-        // Validate position.
-        if ( $position < 1 || $position > 8 ) {
-            return new WP_Error(
-                'invalid_position',
-                __( 'Position must be between 1 and 8.', 'qsa-engraving' )
-            );
+        // Validate position based on element type.
+        // Design-level elements (e.g., qr_code) use position 0.
+        // Module-level elements use positions 1-8.
+        $is_design_level = in_array( $element_type, self::DESIGN_LEVEL_ELEMENTS, true );
+
+        if ( $is_design_level ) {
+            // Design-level elements must be at position 0.
+            if ( 0 !== $position ) {
+                return new WP_Error(
+                    'invalid_position',
+                    sprintf(
+                        /* translators: %s: Element type */
+                        __( 'Element type %s must be at position 0 (design-level).', 'qsa-engraving' ),
+                        $element_type
+                    )
+                );
+            }
+        } else {
+            // Module-level elements must be at positions 1-8.
+            if ( $position < 1 || $position > 8 ) {
+                return new WP_Error(
+                    'invalid_position',
+                    __( 'Position must be between 1 and 8 for module-level elements.', 'qsa-engraving' )
+                );
+            }
         }
 
         // Check if exists (upsert).

@@ -18,6 +18,7 @@ use Quadica\QSA_Engraving\Services\SVG_Generator;
 use Quadica\QSA_Engraving\Services\LED_Code_Resolver;
 use Quadica\QSA_Engraving\Database\Batch_Repository;
 use Quadica\QSA_Engraving\Database\Serial_Repository;
+use Quadica\QSA_Engraving\Database\QSA_Identifier_Repository;
 use Quadica\QSA_Engraving\Admin\Admin_Menu;
 use WP_Error;
 
@@ -89,22 +90,32 @@ class LightBurn_Ajax_Handler {
 	private LED_Code_Resolver $led_code_resolver;
 
 	/**
+	 * QSA Identifier Repository instance.
+	 *
+	 * @var QSA_Identifier_Repository|null
+	 */
+	private ?QSA_Identifier_Repository $qsa_identifier_repository = null;
+
+	/**
 	 * Constructor.
 	 *
-	 * @param Batch_Repository  $batch_repository  Batch repository.
-	 * @param Serial_Repository $serial_repository Serial repository.
-	 * @param LED_Code_Resolver $led_code_resolver LED code resolver.
+	 * @param Batch_Repository              $batch_repository           Batch repository.
+	 * @param Serial_Repository             $serial_repository          Serial repository.
+	 * @param LED_Code_Resolver             $led_code_resolver          LED code resolver.
+	 * @param QSA_Identifier_Repository|null $qsa_identifier_repository QSA identifier repository (optional for backward compatibility).
 	 */
 	public function __construct(
 		Batch_Repository $batch_repository,
 		Serial_Repository $serial_repository,
-		LED_Code_Resolver $led_code_resolver
+		LED_Code_Resolver $led_code_resolver,
+		?QSA_Identifier_Repository $qsa_identifier_repository = null
 	) {
-		$this->batch_repository  = $batch_repository;
-		$this->serial_repository = $serial_repository;
-		$this->led_code_resolver = $led_code_resolver;
-		$this->file_manager      = new SVG_File_Manager();
-		$this->svg_generator     = new SVG_Generator();
+		$this->batch_repository          = $batch_repository;
+		$this->serial_repository         = $serial_repository;
+		$this->led_code_resolver         = $led_code_resolver;
+		$this->qsa_identifier_repository = $qsa_identifier_repository;
+		$this->file_manager              = new SVG_File_Manager();
+		$this->svg_generator             = new SVG_Generator();
 	}
 
 	/**
@@ -315,15 +326,16 @@ class LightBurn_Ajax_Handler {
 
 		$this->send_success(
 			array(
-				'batch_id'        => $batch_id,
-				'qsa_sequence'    => $qsa_sequence,
-				'filename'        => $file_result['filename'],
-				'path'            => $file_result['path'],
-				'lightburn_path'  => $file_result['lightburn_path'],
-				'size'            => $file_result['size'],
-				'module_count'    => count( $qsa_modules ),
+				'batch_id'         => $batch_id,
+				'qsa_sequence'     => $qsa_sequence,
+				'qsa_id'           => $svg_result['qsa_id'] ?? null,
+				'filename'         => $file_result['filename'],
+				'path'             => $file_result['path'],
+				'lightburn_path'   => $file_result['lightburn_path'],
+				'size'             => $file_result['size'],
+				'module_count'     => count( $qsa_modules ),
 				'lightburn_loaded' => $lightburn_result['success'] ?? false,
-				'lightburn_error' => $lightburn_result['error'] ?? null,
+				'lightburn_error'  => $lightburn_result['error'] ?? null,
 			),
 			__( 'SVG generated successfully.', 'qsa-engraving' )
 		);
@@ -335,7 +347,7 @@ class LightBurn_Ajax_Handler {
 	 * @param array $modules    The modules for this QSA.
 	 * @param array $serials    The reserved serials.
 	 * @param int   $batch_id   The batch ID.
-	 * @return array{svg: string, design: string}|WP_Error
+	 * @return array{svg: string, design: string, revision: string, qsa_id: string|null}|WP_Error
 	 */
 	private function generate_svg_for_qsa( array $modules, array $serials, int $batch_id ): array|WP_Error {
 		// Get QSA design from first module SKU.
@@ -349,6 +361,32 @@ class LightBurn_Ajax_Handler {
 		$parsed        = $config_loader->parse_sku( $first_sku );
 		if ( is_wp_error( $parsed ) ) {
 			return $parsed;
+		}
+
+		// Get or create QSA ID for this array (if QSA Identifier Repository is available).
+		$qsa_id_url = null;
+		$qsa_id     = null;
+		if ( null !== $this->qsa_identifier_repository ) {
+			$qsa_sequence = (int) ( $modules[0]['qsa_sequence'] ?? 0 );
+
+			// Create QSA ID if it doesn't exist, or retrieve existing one.
+			$qsa_id_result = $this->qsa_identifier_repository->get_or_create(
+				$batch_id,
+				$qsa_sequence,
+				$parsed['design']
+			);
+
+			// Return error immediately if QSA ID creation failed.
+			// WP_Error is not JSON-serializable and would break the response.
+			if ( is_wp_error( $qsa_id_result ) ) {
+				return $qsa_id_result;
+			}
+
+			if ( ! empty( $qsa_id_result ) ) {
+				$qsa_id = $qsa_id_result;
+				// Format as short URL for QR code (without https://).
+				$qsa_id_url = $this->qsa_identifier_repository->format_qsa_url( $qsa_id, false );
+			}
 		}
 
 		// Build serial map by position.
@@ -407,11 +445,18 @@ class LightBurn_Ajax_Handler {
 			return new WP_Error( 'no_module_data', __( 'No module data could be built.', 'qsa-engraving' ) );
 		}
 
+		// Build options array with QR code data if available.
+		$options = array();
+		if ( ! empty( $qsa_id_url ) ) {
+			$options['qr_code_data'] = $qsa_id_url;
+		}
+
 		// Generate SVG.
 		$svg = $this->svg_generator->generate_array(
 			$module_data,
 			$parsed['design'],
-			$parsed['revision']
+			$parsed['revision'],
+			$options
 		);
 
 		if ( is_wp_error( $svg ) ) {
@@ -422,6 +467,7 @@ class LightBurn_Ajax_Handler {
 			'svg'      => $svg,
 			'design'   => $parsed['design'],
 			'revision' => $parsed['revision'],
+			'qsa_id'   => $qsa_id,
 		);
 	}
 
@@ -431,11 +477,17 @@ class LightBurn_Ajax_Handler {
 	 * Uses the LED_Code_Resolver to query Order BOM and product metadata
 	 * for the 3-character LED shortcodes.
 	 *
+	 * For SVG rendering, we use get_led_codes_by_position() which preserves
+	 * position information and does NOT deduplicate LED codes. This ensures
+	 * that modules with multiple LEDs of the same type (e.g., 4x same LED)
+	 * render LED codes at all positions, not just position 1.
+	 *
 	 * @param array $module The module data.
 	 * @return array|WP_Error Array of LED shortcodes or WP_Error if resolution fails.
 	 */
 	private function resolve_led_codes( array $module ): array|WP_Error {
 		// Check if module already has LED codes in its data (from batch sorter).
+		// Note: Pre-populated LED codes should already be position-aware.
 		if ( ! empty( $module['led_codes'] ) ) {
 			if ( is_array( $module['led_codes'] ) ) {
 				$led_codes = array_filter( $module['led_codes'], fn( $code ) => ! empty( $code ) && '---' !== $code );
@@ -452,6 +504,7 @@ class LightBurn_Ajax_Handler {
 		}
 
 		// Use LED_Code_Resolver to query Order BOM for LED shortcodes.
+		// Use get_led_codes_by_position() to preserve all positions for SVG rendering.
 		$order_id   = (int) ( $module['order_id'] ?? 0 );
 		$module_sku = $module['module_sku'] ?? '';
 
@@ -466,7 +519,8 @@ class LightBurn_Ajax_Handler {
 			);
 		}
 
-		$led_codes = $this->led_code_resolver->get_led_codes_for_module( $order_id, $module_sku );
+		// Use position-aware method for SVG rendering (does not deduplicate).
+		$led_codes = $this->led_code_resolver->get_led_codes_by_position( $order_id, $module_sku );
 
 		if ( is_wp_error( $led_codes ) ) {
 			return $led_codes;
@@ -863,7 +917,7 @@ class LightBurn_Ajax_Handler {
 					   AND revision = %s
 					   AND position = %d
 					   AND is_active = 1
-					 ORDER BY FIELD(element_type, 'micro_id', 'datamatrix', 'module_id', 'serial_url',
+					 ORDER BY FIELD(element_type, 'micro_id', 'qr_code', 'module_id', 'serial_url',
 					                'led_code_1', 'led_code_2', 'led_code_3', 'led_code_4',
 					                'led_code_5', 'led_code_6', 'led_code_7', 'led_code_8')",
 					$design,
@@ -881,7 +935,7 @@ class LightBurn_Ajax_Handler {
 					   AND revision IS NULL
 					   AND position = %d
 					   AND is_active = 1
-					 ORDER BY FIELD(element_type, 'micro_id', 'datamatrix', 'module_id', 'serial_url',
+					 ORDER BY FIELD(element_type, 'micro_id', 'qr_code', 'module_id', 'serial_url',
 					                'led_code_1', 'led_code_2', 'led_code_3', 'led_code_4',
 					                'led_code_5', 'led_code_6', 'led_code_7', 'led_code_8')",
 					$design,

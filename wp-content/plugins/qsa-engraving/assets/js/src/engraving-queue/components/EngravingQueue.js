@@ -282,10 +282,11 @@ export default function EngravingQueue() {
 	 * Generate and optionally load SVG in LightBurn.
 	 *
 	 * @param {number}  qsaSequence The QSA sequence number.
+	 * @param {number}  itemId      The queue item ID (first QSA sequence in group).
 	 * @param {boolean} autoLoad    Whether to auto-load in LightBurn.
 	 * @return {Promise<{success: boolean, data?: Object, error?: string}>} Result with success flag and data or error.
 	 */
-	const generateSvg = async ( qsaSequence, autoLoad = true ) => {
+	const generateSvg = async ( qsaSequence, itemId, autoLoad = true ) => {
 		try {
 			setLightburnStatus( ( prev ) => ( { ...prev, loading: true } ) );
 
@@ -301,6 +302,18 @@ export default function EngravingQueue() {
 					lastFile: data.data.filename,
 					connected: data.data.lightburn_loaded || prev.connected,
 				} ) );
+
+				// Store QSA ID in the queue item if returned.
+				if ( data.data.qsa_id && itemId ) {
+					setQueueItems( ( prev ) =>
+						prev.map( ( i ) =>
+							i.id === itemId
+								? { ...i, qsaId: data.data.qsa_id }
+								: i
+						)
+					);
+				}
+
 				return { success: true, data: data.data };
 			}
 			setLightburnStatus( ( prev ) => ( { ...prev, loading: false } ) );
@@ -363,11 +376,11 @@ export default function EngravingQueue() {
 				setActiveItemId( itemId );
 				// Initialize current array to the starting array (1 for pending, completedArrays+1 for partial).
 				setCurrentArrays( ( prev ) => ( { ...prev, [ itemId ]: startingArray } ) );
-				// Update the queue item status.
+				// Update the queue item status and clear any stale QSA ID from previous array.
 				setQueueItems( ( prev ) =>
 					prev.map( ( i ) =>
 						i.id === itemId
-							? { ...i, status: 'in_progress', serials: data.data.serials }
+							? { ...i, status: 'in_progress', serials: data.data.serials, qsaId: null }
 							: i
 					)
 				);
@@ -379,7 +392,7 @@ export default function EngravingQueue() {
 				if ( shouldGenerateSvg ) {
 					// Only attempt LightBurn auto-load if LightBurn is enabled AND autoLoad is on.
 					const shouldAutoLoad = lightburnStatus.enabled && lightburnStatus.autoLoad;
-					const svgResult = await generateSvg( qsaSequence, shouldAutoLoad );
+					const svgResult = await generateSvg( qsaSequence, itemId, shouldAutoLoad );
 
 					if ( ! svgResult.success ) {
 						// SVG generation failed - alert operator with error details.
@@ -516,11 +529,11 @@ export default function EngravingQueue() {
 				// Advance the current array counter.
 				setCurrentArrays( ( prev ) => ( { ...prev, [ itemId ]: nextArray } ) );
 
-				// Update serials with new ones from next QSA.
+				// Update serials with new ones from next QSA and clear stale QSA ID from previous array.
 				setQueueItems( ( prev ) =>
 					prev.map( ( i ) =>
 						i.id === itemId
-							? { ...i, serials: startData.data.serials }
+							? { ...i, serials: startData.data.serials, qsaId: null }
 							: i
 					)
 				);
@@ -531,7 +544,7 @@ export default function EngravingQueue() {
 
 				if ( shouldGenerateSvg ) {
 					const shouldAutoLoad = lightburnStatus.enabled && lightburnStatus.autoLoad;
-					const svgResult = await generateSvg( nextQsaSequence, shouldAutoLoad );
+					const svgResult = await generateSvg( nextQsaSequence, itemId, shouldAutoLoad );
 					if ( ! svgResult.success ) {
 						alert(
 							__( 'Array started but SVG generation failed:', 'qsa-engraving' ) +
@@ -592,7 +605,7 @@ export default function EngravingQueue() {
 				} ) );
 			} else {
 				// File not found - regenerate it.
-				const svgResult = await generateSvg( qsaSequence, true );
+				const svgResult = await generateSvg( qsaSequence, itemId, true );
 				if ( svgResult.success ) {
 					setLightburnStatus( ( prev ) => ( { ...prev, loading: false } ) );
 				} else {
