@@ -6150,6 +6150,56 @@ run_test(
 );
 
 // ============================================
+// TC-RES-012: Cache Key Normalization
+// ============================================
+run_test(
+    'TC-RES-012: Cache key uses normalized (trimmed) SKU',
+    function (): bool {
+        $resolver = new \Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver();
+
+        // Clear cache to start fresh.
+        $resolver->clear_cache();
+
+        // Resolve with whitespace - should cache under trimmed key.
+        $result1 = $resolver->resolve( '  STAR-12345  ' );
+        if ( null === $result1 ) {
+            return new WP_Error( 'resolve_fail', 'First resolve should succeed.' );
+        }
+
+        // Cache should have 1 entry (the trimmed key).
+        if ( $resolver->get_cache_count() !== 1 ) {
+            return new WP_Error( 'cache_wrong', 'Cache should have 1 entry after first resolve. Got: ' . $resolver->get_cache_count() );
+        }
+
+        // Resolve with different whitespace - should hit cache (normalized to same key).
+        $result2 = $resolver->resolve( "\t STAR-12345\n" );
+        if ( null === $result2 ) {
+            return new WP_Error( 'cache_miss', 'Second resolve with different whitespace should hit cache.' );
+        }
+
+        // Cache should still have 1 entry (same normalized key).
+        if ( $resolver->get_cache_count() !== 1 ) {
+            return new WP_Error( 'cache_grew', 'Cache should still have 1 entry (cache hit). Got: ' . $resolver->get_cache_count() );
+        }
+
+        // Resolve trimmed version - should also hit cache.
+        $result3 = $resolver->resolve( 'STAR-12345' );
+        if ( $resolver->get_cache_count() !== 1 ) {
+            return new WP_Error( 'cache_grew2', 'Trimmed version should hit cache. Got: ' . $resolver->get_cache_count() );
+        }
+
+        // Verify all results are identical.
+        if ( $result1 !== $result2 || $result2 !== $result3 ) {
+            return new WP_Error( 'results_differ', 'All results should be identical (same cache entry).' );
+        }
+
+        echo "  Cache key normalized: 3 calls with varied whitespace = 1 cache entry.\n";
+        return true;
+    },
+    'Cache should use normalized (trimmed) SKU as key for consistent hits.'
+);
+
+// ============================================
 // Summary
 // ============================================
 // Re-declare global to ensure PHP 8.1 recognizes the variables in eval-file context.
