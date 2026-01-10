@@ -15,6 +15,7 @@ namespace Quadica\QSA_Engraving\Ajax;
 use Quadica\QSA_Engraving\Services\Module_Selector;
 use Quadica\QSA_Engraving\Services\Batch_Sorter;
 use Quadica\QSA_Engraving\Services\LED_Code_Resolver;
+use Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver;
 use Quadica\QSA_Engraving\Database\Batch_Repository;
 use Quadica\QSA_Engraving\Database\Serial_Repository;
 use Quadica\QSA_Engraving\Admin\Admin_Menu;
@@ -75,26 +76,38 @@ class Batch_Ajax_Handler {
 	private LED_Code_Resolver $led_code_resolver;
 
 	/**
+	 * Legacy SKU Resolver service.
+	 *
+	 * Resolves both QSA-format and legacy SKUs to canonical form.
+	 *
+	 * @var Legacy_SKU_Resolver|null
+	 */
+	private ?Legacy_SKU_Resolver $legacy_resolver;
+
+	/**
 	 * Constructor.
 	 *
-	 * @param Module_Selector   $module_selector   Module selector service.
-	 * @param Batch_Sorter      $batch_sorter      Batch sorter service.
-	 * @param Batch_Repository  $batch_repository  Batch repository.
-	 * @param Serial_Repository $serial_repository Serial repository.
-	 * @param LED_Code_Resolver $led_code_resolver LED code resolver service.
+	 * @param Module_Selector        $module_selector   Module selector service.
+	 * @param Batch_Sorter           $batch_sorter      Batch sorter service.
+	 * @param Batch_Repository       $batch_repository  Batch repository.
+	 * @param Serial_Repository      $serial_repository Serial repository.
+	 * @param LED_Code_Resolver      $led_code_resolver LED code resolver service.
+	 * @param Legacy_SKU_Resolver|null $legacy_resolver   Optional legacy SKU resolver.
 	 */
 	public function __construct(
 		Module_Selector $module_selector,
 		Batch_Sorter $batch_sorter,
 		Batch_Repository $batch_repository,
 		Serial_Repository $serial_repository,
-		LED_Code_Resolver $led_code_resolver
+		LED_Code_Resolver $led_code_resolver,
+		?Legacy_SKU_Resolver $legacy_resolver = null
 	) {
 		$this->module_selector   = $module_selector;
 		$this->batch_sorter      = $batch_sorter;
 		$this->batch_repository  = $batch_repository;
 		$this->serial_repository = $serial_repository;
 		$this->led_code_resolver = $led_code_resolver;
+		$this->legacy_resolver   = $legacy_resolver;
 	}
 
 	/**
@@ -246,7 +259,7 @@ class Batch_Ajax_Handler {
 		// Modules of different base types should never share the same QSA array.
 		$by_base_type = array();
 		foreach ( $modules_with_leds as $module ) {
-			$base_type = $this->extract_base_type( $module['module_sku'] );
+			$base_type = $this->extract_base_type( $module['module_sku'], $module );
 			if ( ! isset( $by_base_type[ $base_type ] ) ) {
 				$by_base_type[ $base_type ] = array();
 			}
@@ -294,7 +307,7 @@ class Batch_Ajax_Handler {
 		foreach ( $qsa_arrays as $qsa ) {
 			foreach ( $qsa as $module ) {
 				$total_modules++;
-				$base_type = $this->extract_base_type( $module['module_sku'] );
+				$base_type = $this->extract_base_type( $module['module_sku'], $module );
 				$result = $this->batch_repository->add_module(
 					array(
 						'engraving_batch_id'    => $batch_id,
@@ -498,7 +511,7 @@ class Batch_Ajax_Handler {
 		// Each base type forms its own row and uses its own SVG configuration.
 		$by_base_type = array();
 		foreach ( $modules_with_leds as $module ) {
-			$base_type = $this->extract_base_type( $module['module_sku'] );
+			$base_type = $this->extract_base_type( $module['module_sku'], $module );
 			if ( ! isset( $by_base_type[ $base_type ] ) ) {
 				$by_base_type[ $base_type ] = array();
 			}
@@ -545,7 +558,7 @@ class Batch_Ajax_Handler {
 		foreach ( $qsa_arrays as $qsa ) {
 			foreach ( $qsa as $module ) {
 				$total_modules++;
-				$base_type = $this->extract_base_type( $module['module_sku'] );
+				$base_type = $this->extract_base_type( $module['module_sku'], $module );
 				$result = $this->batch_repository->add_module(
 					array(
 						'engraving_batch_id'    => $batch_id,
@@ -696,7 +709,29 @@ class Batch_Ajax_Handler {
 			return new WP_Error( 'invalid_sku', __( 'Invalid module SKU.', 'qsa-engraving' ) );
 		}
 
-		if ( ! Module_Selector::is_qsa_compatible( $validated['module_sku'] ) ) {
+		// Validate SKU format using resolver if available, otherwise fall back to static check.
+		if ( null !== $this->legacy_resolver ) {
+			$resolution = $this->legacy_resolver->resolve( $validated['module_sku'] );
+			if ( null === $resolution ) {
+				return new WP_Error(
+					'unknown_sku_format',
+					sprintf(
+						/* translators: %s: Module SKU */
+						__( 'SKU %s is not recognized. Add a mapping for legacy SKUs.', 'qsa-engraving' ),
+						$validated['module_sku']
+					)
+				);
+			}
+
+			// Attach resolution data for downstream processing.
+			$validated['canonical_code'] = $resolution['canonical_code'];
+			$validated['canonical_sku']  = $resolution['canonical_sku'];
+			$validated['original_sku']   = $resolution['original_sku'];
+			$validated['revision']       = $resolution['revision'];
+			$validated['is_legacy']      = $resolution['is_legacy'];
+			$validated['config_number']  = $resolution['config_number'];
+		} elseif ( ! Module_Selector::is_qsa_compatible( $validated['module_sku'] ) ) {
+			// Fallback: static QSA check for backward compatibility.
 			return new WP_Error(
 				'invalid_sku_format',
 				sprintf(
@@ -768,20 +803,35 @@ class Batch_Ajax_Handler {
 	}
 
 	/**
-	 * Extract base type from SKU.
+	 * Extract base type from SKU or module data.
 	 *
-	 * The base type includes the 4-letter design prefix AND the revision letter
-	 * (e.g., "STARa", "CUBEb"). Different revisions have different physical layouts
-	 * and SVG configurations, so they cannot share the same row or array.
+	 * The base type includes the 4-letter design code AND the revision letter
+	 * (e.g., "STARa", "CUBEb", "SP01"). Different revisions have different physical
+	 * layouts and SVG configurations, so they cannot share the same row or array.
 	 *
-	 * @param string $sku The module SKU (e.g., "STARa-38546").
-	 * @return string The base type with revision (e.g., "STARa").
+	 * When module_data contains canonical_code (from resolver), uses that.
+	 * Otherwise falls back to regex extraction for backward compatibility.
+	 *
+	 * @param string     $sku         The module SKU (e.g., "STARa-38546").
+	 * @param array|null $module_data Optional module data with canonical_code/revision.
+	 * @return string The base type with revision (e.g., "STARa", "SP01").
 	 */
-	private function extract_base_type( string $sku ): string {
+	private function extract_base_type( string $sku, ?array $module_data = null ): string {
+		// Use pre-resolved canonical code if available (from resolver).
+		if ( null !== $module_data && isset( $module_data['canonical_code'] ) ) {
+			$base = $module_data['canonical_code'];
+			if ( ! empty( $module_data['revision'] ) ) {
+				$base .= $module_data['revision'];
+			}
+			return $base;
+		}
+
+		// Fallback: regex extraction for QSA-format SKUs.
 		// Match 4 uppercase letters + optional lowercase revision letter.
 		if ( preg_match( '/^([A-Z]{4}[a-z]?)/', $sku, $matches ) ) {
 			return $matches[1];
 		}
+
 		return 'UNKNOWN';
 	}
 }
