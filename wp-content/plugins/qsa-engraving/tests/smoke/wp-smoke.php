@@ -5159,9 +5159,11 @@ run_test(
 // TC-LEG-003: Match Type Constants Defined
 // ============================================
 run_test(
-    'TC-LEG-003: Match type constants defined',
+    'TC-LEG-003: Match type and validation constants defined',
     function (): bool {
         $match_types = \Quadica\QSA_Engraving\Database\SKU_Mapping_Repository::MATCH_TYPES;
+        $max_pattern = \Quadica\QSA_Engraving\Database\SKU_Mapping_Repository::MAX_PATTERN_LENGTH;
+        $max_priority = \Quadica\QSA_Engraving\Database\SKU_Mapping_Repository::MAX_PRIORITY;
 
         $expected = array( 'exact', 'prefix', 'suffix', 'regex' );
 
@@ -5172,23 +5174,37 @@ run_test(
             );
         }
 
+        if ( $max_pattern !== 50 ) {
+            return new WP_Error( 'wrong_max_pattern', 'MAX_PATTERN_LENGTH should be 50. Got: ' . $max_pattern );
+        }
+
+        if ( $max_priority !== 65535 ) {
+            return new WP_Error( 'wrong_max_priority', 'MAX_PRIORITY should be 65535. Got: ' . $max_priority );
+        }
+
         echo "  Match types: " . implode( ', ', $match_types ) . "\n";
+        echo "  MAX_PATTERN_LENGTH: {$max_pattern}, MAX_PRIORITY: {$max_priority}\n";
         return true;
     },
-    'Repository should define all four match types.'
+    'Repository should define all constants for match types and validation.'
 );
 
 // ============================================
 // TC-LEG-004: Test Pattern - Exact Match
 // ============================================
 run_test(
-    'TC-LEG-004: test_pattern - exact match',
+    'TC-LEG-004: test_pattern - exact match (case-insensitive)',
     function (): bool {
         $sku_repo = new \Quadica\QSA_Engraving\Database\SKU_Mapping_Repository();
 
-        // Test exact match.
+        // Test exact match (case-insensitive per database collation).
         if ( ! $sku_repo->test_pattern( 'SP-01', 'exact', 'SP-01' ) ) {
             return new WP_Error( 'exact_fail', 'Exact match SP-01 should match SP-01.' );
+        }
+
+        // Case-insensitive: sp-01 should match SP-01.
+        if ( ! $sku_repo->test_pattern( 'sp-01', 'exact', 'SP-01' ) ) {
+            return new WP_Error( 'exact_case_fail', 'Exact match sp-01 should match SP-01 (case-insensitive).' );
         }
 
         if ( $sku_repo->test_pattern( 'SP-01', 'exact', 'SP-02' ) ) {
@@ -5199,23 +5215,28 @@ run_test(
             return new WP_Error( 'exact_false_positive', 'Exact match SP-01 should NOT match SP-01-XYZ.' );
         }
 
-        echo "  Exact match logic verified.\n";
+        echo "  Exact match logic verified (case-insensitive).\n";
         return true;
     },
-    'Exact match should only match identical strings.'
+    'Exact match should match strings case-insensitively (per database collation).'
 );
 
 // ============================================
 // TC-LEG-005: Test Pattern - Prefix Match
 // ============================================
 run_test(
-    'TC-LEG-005: test_pattern - prefix match',
+    'TC-LEG-005: test_pattern - prefix match (case-insensitive)',
     function (): bool {
         $sku_repo = new \Quadica\QSA_Engraving\Database\SKU_Mapping_Repository();
 
-        // Test prefix match.
+        // Test prefix match (case-insensitive).
         if ( ! $sku_repo->test_pattern( 'SP-', 'prefix', 'SP-01' ) ) {
             return new WP_Error( 'prefix_fail', 'Prefix SP- should match SP-01.' );
+        }
+
+        // Case-insensitive: sp- should match SP-01.
+        if ( ! $sku_repo->test_pattern( 'sp-', 'prefix', 'SP-01' ) ) {
+            return new WP_Error( 'prefix_case_fail', 'Prefix sp- should match SP-01 (case-insensitive).' );
         }
 
         if ( ! $sku_repo->test_pattern( 'SP-', 'prefix', 'SP-02-XYZ' ) ) {
@@ -5226,23 +5247,28 @@ run_test(
             return new WP_Error( 'prefix_false_positive', 'Prefix SP- should NOT match XSP-01.' );
         }
 
-        echo "  Prefix match logic verified.\n";
+        echo "  Prefix match logic verified (case-insensitive).\n";
         return true;
     },
-    'Prefix match should match SKUs starting with pattern.'
+    'Prefix match should match SKUs starting with pattern (case-insensitive).'
 );
 
 // ============================================
 // TC-LEG-006: Test Pattern - Suffix Match
 // ============================================
 run_test(
-    'TC-LEG-006: test_pattern - suffix match',
+    'TC-LEG-006: test_pattern - suffix match (case-insensitive)',
     function (): bool {
         $sku_repo = new \Quadica\QSA_Engraving\Database\SKU_Mapping_Repository();
 
-        // Test suffix match.
+        // Test suffix match (case-insensitive).
         if ( ! $sku_repo->test_pattern( '-10S', 'suffix', 'MR-001-10S' ) ) {
             return new WP_Error( 'suffix_fail', 'Suffix -10S should match MR-001-10S.' );
+        }
+
+        // Case-insensitive: -10s should match -10S.
+        if ( ! $sku_repo->test_pattern( '-10s', 'suffix', 'MR-001-10S' ) ) {
+            return new WP_Error( 'suffix_case_fail', 'Suffix -10s should match MR-001-10S (case-insensitive).' );
         }
 
         if ( ! $sku_repo->test_pattern( '-10S', 'suffix', 'ABC-10S' ) ) {
@@ -5253,23 +5279,28 @@ run_test(
             return new WP_Error( 'suffix_false_positive', 'Suffix -10S should NOT match MR-10S-001.' );
         }
 
-        echo "  Suffix match logic verified.\n";
+        echo "  Suffix match logic verified (case-insensitive).\n";
         return true;
     },
-    'Suffix match should match SKUs ending with pattern.'
+    'Suffix match should match SKUs ending with pattern (case-insensitive).'
 );
 
 // ============================================
 // TC-LEG-007: Test Pattern - Regex Match
 // ============================================
 run_test(
-    'TC-LEG-007: test_pattern - regex match',
+    'TC-LEG-007: test_pattern - regex match (case-insensitive by default)',
     function (): bool {
         $sku_repo = new \Quadica\QSA_Engraving\Database\SKU_Mapping_Repository();
 
-        // Test regex match (without delimiters - repo should add them).
+        // Test regex match (without delimiters - repo adds /i flag for case-insensitivity).
         if ( ! $sku_repo->test_pattern( '^MR-[0-9]+-10S$', 'regex', 'MR-001-10S' ) ) {
             return new WP_Error( 'regex_fail', 'Regex ^MR-[0-9]+-10S$ should match MR-001-10S.' );
+        }
+
+        // Case-insensitive: lowercase should match uppercase pattern.
+        if ( ! $sku_repo->test_pattern( '^MR-[0-9]+-10S$', 'regex', 'mr-001-10s' ) ) {
+            return new WP_Error( 'regex_case_fail', 'Regex ^MR-[0-9]+-10S$ should match mr-001-10s (case-insensitive).' );
         }
 
         if ( ! $sku_repo->test_pattern( '^MR-[0-9]+-10S$', 'regex', 'MR-99999-10S' ) ) {
@@ -5280,15 +5311,15 @@ run_test(
             return new WP_Error( 'regex_false_positive', 'Regex ^MR-[0-9]+-10S$ should NOT match MR-ABC-10S.' );
         }
 
-        // Test regex with delimiters.
+        // Test regex with explicit delimiters (user can override with explicit flags).
         if ( ! $sku_repo->test_pattern( '/^SP-[0-9]{2}$/', 'regex', 'SP-01' ) ) {
             return new WP_Error( 'regex_delim_fail', 'Regex /^SP-[0-9]{2}$/ should match SP-01.' );
         }
 
-        echo "  Regex match logic verified.\n";
+        echo "  Regex match logic verified (case-insensitive by default).\n";
         return true;
     },
-    'Regex match should correctly apply pattern matching.'
+    'Regex match should correctly apply pattern matching with case-insensitive default.'
 );
 
 // ============================================
@@ -5331,10 +5362,88 @@ run_test(
             return new WP_Error( 'validation_fail', '5-char canonical code should be rejected.' );
         }
 
+        // Test pattern length validation (max 50 chars).
+        $long_pattern = str_repeat( 'X', 51 );
+        $result = $sku_repo->create( array(
+            'legacy_pattern' => $long_pattern,
+            'canonical_code' => 'LONG',
+            'match_type'     => 'exact',
+        ) );
+
+        if ( ! is_wp_error( $result ) ) {
+            $sku_repo->delete( $result );
+            return new WP_Error( 'validation_fail', '51-char pattern should be rejected.' );
+        }
+
+        if ( $result->get_error_code() !== 'pattern_too_long' ) {
+            return new WP_Error(
+                'wrong_error_code',
+                'Expected pattern_too_long. Got: ' . $result->get_error_code()
+            );
+        }
+
         echo "  Canonical code format validation works.\n";
+        echo "  Pattern length validation works (max 50 chars).\n";
         return true;
     },
-    'Canonical code must be exactly 4 alphanumeric characters.'
+    'Canonical code must be exactly 4 alphanumeric characters and pattern max 50 chars.'
+);
+
+// ============================================
+// TC-LEG-008b: Validation - Priority and Revision on Update
+// ============================================
+run_test(
+    'TC-LEG-008b: Validation - priority, revision, is_active on update',
+    function (): bool {
+        $sku_repo = new \Quadica\QSA_Engraving\Database\SKU_Mapping_Repository();
+
+        // Skip if table doesn't exist.
+        if ( ! $sku_repo->table_exists() ) {
+            echo "  Skipping: Table does not exist.\n";
+            return true;
+        }
+
+        // Create a test mapping.
+        $create_result = $sku_repo->create( array(
+            'legacy_pattern' => 'UPDATE-VALID-' . time(),
+            'canonical_code' => 'UPDT',
+            'match_type'     => 'exact',
+        ) );
+
+        if ( is_wp_error( $create_result ) ) {
+            return new WP_Error( 'setup_fail', 'Create failed: ' . $create_result->get_error_message() );
+        }
+
+        $mapping_id = $create_result;
+
+        // Test invalid priority (out of range).
+        $result = $sku_repo->update( $mapping_id, array( 'priority' => 70000 ) );
+        if ( ! is_wp_error( $result ) || $result->get_error_code() !== 'invalid_priority' ) {
+            $sku_repo->delete( $mapping_id );
+            return new WP_Error( 'priority_validation_fail', 'Priority 70000 should be rejected.' );
+        }
+
+        // Test invalid revision (not a single letter).
+        $result = $sku_repo->update( $mapping_id, array( 'revision' => 'AB' ) );
+        if ( ! is_wp_error( $result ) || $result->get_error_code() !== 'invalid_revision' ) {
+            $sku_repo->delete( $mapping_id );
+            return new WP_Error( 'revision_validation_fail', 'Revision "AB" should be rejected.' );
+        }
+
+        // Test invalid is_active (not 0 or 1).
+        $result = $sku_repo->update( $mapping_id, array( 'is_active' => 5 ) );
+        if ( ! is_wp_error( $result ) || $result->get_error_code() !== 'invalid_is_active' ) {
+            $sku_repo->delete( $mapping_id );
+            return new WP_Error( 'is_active_validation_fail', 'is_active=5 should be rejected.' );
+        }
+
+        // Clean up.
+        $sku_repo->delete( $mapping_id );
+
+        echo "  Priority, revision, and is_active validation on update works.\n";
+        return true;
+    },
+    'Update should validate priority (0-65535), revision (single letter), and is_active (0 or 1).'
 );
 
 // ============================================
