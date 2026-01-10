@@ -123,6 +123,22 @@ class SKU_Mapping_Ajax_Handler {
     }
 
     /**
+     * Check if the mapping table exists and send error if not.
+     *
+     * @return bool True if table exists, false if error was sent.
+     */
+    private function require_table_exists(): bool {
+        if ( ! $this->repository->table_exists() ) {
+            $this->send_error(
+                __( 'SKU mappings table does not exist. Please run the database installation script.', 'qsa-engraving' ),
+                'table_missing'
+            );
+            return false;
+        }
+        return true;
+    }
+
+    /**
      * Handle get mappings request.
      *
      * @return void
@@ -138,9 +154,7 @@ class SKU_Mapping_Ajax_Handler {
             return;
         }
 
-        // Check if table exists.
-        if ( ! $this->repository->table_exists() ) {
-            $this->send_error( __( 'SKU mappings table does not exist. Please run the database installation script.', 'qsa-engraving' ), 'table_missing' );
+        if ( ! $this->require_table_exists() ) {
             return;
         }
 
@@ -183,6 +197,10 @@ class SKU_Mapping_Ajax_Handler {
 
         if ( ! $this->user_has_access() ) {
             $this->send_error( __( 'You do not have permission to perform this action.', 'qsa-engraving' ), 'unauthorized' );
+            return;
+        }
+
+        if ( ! $this->require_table_exists() ) {
             return;
         }
 
@@ -229,6 +247,10 @@ class SKU_Mapping_Ajax_Handler {
 
         if ( ! $this->user_has_access() ) {
             $this->send_error( __( 'You do not have permission to perform this action.', 'qsa-engraving' ), 'unauthorized' );
+            return;
+        }
+
+        if ( ! $this->require_table_exists() ) {
             return;
         }
 
@@ -298,6 +320,10 @@ class SKU_Mapping_Ajax_Handler {
             return;
         }
 
+        if ( ! $this->require_table_exists() ) {
+            return;
+        }
+
         // Get mapping ID.
         $id = isset( $_POST['id'] ) ? absint( $_POST['id'] ) : 0;
         if ( 0 === $id ) {
@@ -339,6 +365,10 @@ class SKU_Mapping_Ajax_Handler {
 
         if ( ! $this->user_has_access() ) {
             $this->send_error( __( 'You do not have permission to perform this action.', 'qsa-engraving' ), 'unauthorized' );
+            return;
+        }
+
+        if ( ! $this->require_table_exists() ) {
             return;
         }
 
@@ -385,6 +415,10 @@ class SKU_Mapping_Ajax_Handler {
 
         if ( ! $this->user_has_access() ) {
             $this->send_error( __( 'You do not have permission to perform this action.', 'qsa-engraving' ), 'unauthorized' );
+            return;
+        }
+
+        if ( ! $this->require_table_exists() ) {
             return;
         }
 
