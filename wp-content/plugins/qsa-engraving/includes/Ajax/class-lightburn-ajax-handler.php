@@ -16,6 +16,8 @@ use Quadica\QSA_Engraving\Services\LightBurn_Client;
 use Quadica\QSA_Engraving\Services\SVG_File_Manager;
 use Quadica\QSA_Engraving\Services\SVG_Generator;
 use Quadica\QSA_Engraving\Services\LED_Code_Resolver;
+use Quadica\QSA_Engraving\Services\Config_Loader;
+use Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver;
 use Quadica\QSA_Engraving\Database\Batch_Repository;
 use Quadica\QSA_Engraving\Database\Serial_Repository;
 use Quadica\QSA_Engraving\Database\QSA_Identifier_Repository;
@@ -97,25 +99,38 @@ class LightBurn_Ajax_Handler {
 	private ?QSA_Identifier_Repository $qsa_identifier_repository = null;
 
 	/**
+	 * Legacy SKU Resolver instance.
+	 *
+	 * @var Legacy_SKU_Resolver|null
+	 */
+	private ?Legacy_SKU_Resolver $legacy_resolver = null;
+
+	/**
 	 * Constructor.
 	 *
-	 * @param Batch_Repository              $batch_repository           Batch repository.
-	 * @param Serial_Repository             $serial_repository          Serial repository.
-	 * @param LED_Code_Resolver             $led_code_resolver          LED code resolver.
-	 * @param QSA_Identifier_Repository|null $qsa_identifier_repository QSA identifier repository (optional for backward compatibility).
+	 * @param Batch_Repository               $batch_repository           Batch repository.
+	 * @param Serial_Repository              $serial_repository          Serial repository.
+	 * @param LED_Code_Resolver              $led_code_resolver          LED code resolver.
+	 * @param QSA_Identifier_Repository|null $qsa_identifier_repository  QSA identifier repository (optional).
+	 * @param Legacy_SKU_Resolver|null       $legacy_resolver            Legacy SKU resolver (optional).
 	 */
 	public function __construct(
 		Batch_Repository $batch_repository,
 		Serial_Repository $serial_repository,
 		LED_Code_Resolver $led_code_resolver,
-		?QSA_Identifier_Repository $qsa_identifier_repository = null
+		?QSA_Identifier_Repository $qsa_identifier_repository = null,
+		?Legacy_SKU_Resolver $legacy_resolver = null
 	) {
 		$this->batch_repository          = $batch_repository;
 		$this->serial_repository         = $serial_repository;
 		$this->led_code_resolver         = $led_code_resolver;
 		$this->qsa_identifier_repository = $qsa_identifier_repository;
+		$this->legacy_resolver           = $legacy_resolver;
 		$this->file_manager              = new SVG_File_Manager();
-		$this->svg_generator             = new SVG_Generator();
+
+		// Create Config_Loader with Legacy SKU Resolver for legacy SKU parsing during config lookup.
+		$config_loader = new Config_Loader( null, $legacy_resolver );
+		$this->svg_generator = new SVG_Generator( $config_loader );
 	}
 
 	/**

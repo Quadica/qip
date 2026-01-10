@@ -429,17 +429,31 @@ final class Plugin {
      * @return void
      */
     private function init_services(): void {
-        $this->module_selector   = new Services\Module_Selector( $this->batch_repository );
+        // Initialize Legacy SKU Resolver first (needed by other services).
+        // Inject SKU_Mapping_Repository for proper dependency management.
+        $this->legacy_sku_resolver = new Services\Legacy_SKU_Resolver(
+            $this->sku_mapping_repository
+        );
+
+        // Initialize core services.
         $this->batch_sorter      = new Services\Batch_Sorter();
         $this->led_code_resolver = new Services\LED_Code_Resolver();
 
-        // Initialize AJAX handlers.
+        // Initialize Module Selector with Legacy SKU Resolver for legacy SKU support.
+        $this->module_selector = new Services\Module_Selector(
+            $this->batch_repository,
+            $this->legacy_sku_resolver
+        );
+
+        // Initialize Batch AJAX handler with Legacy SKU Resolver for SKU resolution
+        // during batch creation and module grouping.
         $this->batch_ajax_handler = new Ajax\Batch_Ajax_Handler(
             $this->module_selector,
             $this->batch_sorter,
             $this->batch_repository,
             $this->serial_repository,
-            $this->led_code_resolver
+            $this->led_code_resolver,
+            $this->legacy_sku_resolver
         );
         $this->batch_ajax_handler->register();
 
@@ -451,26 +465,25 @@ final class Plugin {
         );
         $this->queue_ajax_handler->register();
 
-        // Initialize LightBurn AJAX handler (Phase 7).
+        // Initialize LightBurn AJAX handler with Legacy SKU Resolver for config lookup.
+        // The resolver enables legacy SKUs to be parsed when loading QSA configurations.
         $this->lightburn_ajax_handler = new Ajax\LightBurn_Ajax_Handler(
             $this->batch_repository,
             $this->serial_repository,
             $this->led_code_resolver,
-            $this->qsa_identifier_repository
+            $this->qsa_identifier_repository,
+            $this->legacy_sku_resolver
         );
         $this->lightburn_ajax_handler->register();
 
-        // Initialize History AJAX handler (Phase 8).
+        // Initialize History AJAX handler.
         $this->history_ajax_handler = new Ajax\History_Ajax_Handler(
             $this->batch_repository,
             $this->serial_repository
         );
         $this->history_ajax_handler->register();
 
-        // Initialize Legacy SKU Resolver.
-        $this->legacy_sku_resolver = new Services\Legacy_SKU_Resolver();
-
-        // Initialize SKU Mapping AJAX handler (Phase 7 - Legacy SKU Mapping).
+        // Initialize SKU Mapping AJAX handler for admin UI.
         $this->sku_mapping_ajax_handler = new Ajax\SKU_Mapping_Ajax_Handler(
             $this->sku_mapping_repository,
             $this->legacy_sku_resolver
