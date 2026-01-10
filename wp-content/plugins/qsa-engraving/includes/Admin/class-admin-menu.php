@@ -751,7 +751,7 @@ class Admin_Menu {
                 </table>
                 <p class="description" style="margin-top: 8px;">
                     <span class="dashicons dashicons-warning" style="color: #dba617;"></span>
-                    <?php esc_html_e( 'After changing configuration, restart the service for changes to take effect.', 'qsa-engraving' ); ?>
+                    <?php esc_html_e( 'After changing configuration, restart the watcher for changes to take effect.', 'qsa-engraving' ); ?>
                 </p>
             </div>
 
