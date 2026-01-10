@@ -895,7 +895,7 @@ class LightBurn_Ajax_Handler {
 		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce already verified.
 		$position = isset( $_POST['position'] ) ? absint( $_POST['position'] ) : 0;
 
-		if ( empty( $design ) || $position < 1 || $position > 8 ) {
+		if ( empty( $design ) || $position < 0 || $position > 8 ) {
 			$this->send_error( __( 'Invalid design or position.', 'qsa-engraving' ), 'invalid_params' );
 			return;
 		}
@@ -905,13 +905,14 @@ class LightBurn_Ajax_Handler {
 		$config_repo = $plugin->get_config_repository();
 
 		// Query elements for this design/revision/position directly.
+		// Include element_size for design-level elements (QR code).
 		global $wpdb;
 		$table_name = $config_repo->get_table_name();
 
 		if ( ! empty( $revision ) ) {
 			$results = $wpdb->get_results(
 				$wpdb->prepare(
-					"SELECT element_type, origin_x, origin_y, rotation, text_height
+					"SELECT element_type, origin_x, origin_y, rotation, text_height, element_size
 					 FROM {$table_name}
 					 WHERE qsa_design = %s
 					   AND revision = %s
@@ -929,7 +930,7 @@ class LightBurn_Ajax_Handler {
 		} else {
 			$results = $wpdb->get_results(
 				$wpdb->prepare(
-					"SELECT element_type, origin_x, origin_y, rotation, text_height
+					"SELECT element_type, origin_x, origin_y, rotation, text_height, element_size
 					 FROM {$table_name}
 					 WHERE qsa_design = %s
 					   AND revision IS NULL
@@ -959,6 +960,7 @@ class LightBurn_Ajax_Handler {
 				'origin_y'     => (float) $row['origin_y'],
 				'rotation'     => (float) $row['rotation'],
 				'text_height'  => null !== $row['text_height'] ? (float) $row['text_height'] : null,
+				'element_size' => null !== $row['element_size'] ? (float) $row['element_size'] : null,
 			);
 		}
 
@@ -988,7 +990,7 @@ class LightBurn_Ajax_Handler {
 		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce already verified.
 		$elements_json = isset( $_POST['elements'] ) ? sanitize_text_field( wp_unslash( $_POST['elements'] ) ) : '';
 
-		if ( empty( $design ) || $position < 1 || $position > 8 ) {
+		if ( empty( $design ) || $position < 0 || $position > 8 ) {
 			$this->send_error( __( 'Invalid design or position.', 'qsa-engraving' ), 'invalid_params' );
 			return;
 		}
@@ -1013,6 +1015,7 @@ class LightBurn_Ajax_Handler {
 			$origin_y     = (float) ( $element['origin_y'] ?? 0 );
 			$rotation     = (int) ( $element['rotation'] ?? 0 );
 			$text_height  = isset( $element['text_height'] ) ? (float) $element['text_height'] : null;
+			$element_size = isset( $element['element_size'] ) ? (float) $element['element_size'] : null;
 
 			// Validate element type.
 			if ( empty( $element_type ) ) {
@@ -1029,7 +1032,8 @@ class LightBurn_Ajax_Handler {
 				$origin_x,
 				$origin_y,
 				$rotation,
-				$text_height
+				$text_height,
+				$element_size
 			);
 
 			if ( is_wp_error( $result ) ) {

@@ -896,6 +896,7 @@ class Admin_Menu {
                     <label for="qsa-tweaker-position"><?php esc_html_e( 'Position:', 'qsa-engraving' ); ?></label>
                     <select id="qsa-tweaker-position" class="qsa-tweaker-select">
                         <option value=""><?php esc_html_e( '— Select Position —', 'qsa-engraving' ); ?></option>
+                        <option value="0"><?php esc_html_e( '0 (QR Code)', 'qsa-engraving' ); ?></option>
                         <?php for ( $i = 1; $i <= 8; $i++ ) : ?>
                             <option value="<?php echo esc_attr( $i ); ?>"><?php echo esc_html( $i ); ?></option>
                         <?php endfor; ?>
@@ -984,6 +985,7 @@ class Admin_Menu {
 
                 elements.forEach(function(el) {
                     var hasTextHeight = (el.element_type !== 'micro_id' && el.element_type !== 'qr_code');
+                    var hasElementSize = (el.element_type === 'qr_code');
                     var elementLabel = el.element_type.replace(/_/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
 
                     var html = '<div class="qsa-element-group" data-element="' + el.element_type + '">';
@@ -1021,6 +1023,16 @@ class Admin_Menu {
                         html += '</div>';
                     }
 
+                    // Element Size (for QR code)
+                    if (hasElementSize) {
+                        var elementSize = el.element_size !== null ? el.element_size.toFixed(2) : '10.00';
+                        html += '<div class="qsa-field">';
+                        html += '<label><?php echo esc_js( __( 'QR Size', 'qsa-engraving' ) ); ?></label>';
+                        html += '<input type="number" class="qsa-tweaker-input" name="element_size" value="' + elementSize + '" step="0.1" min="5" max="30">';
+                        html += '<span class="qsa-unit">mm</span>';
+                        html += '</div>';
+                    }
+
                     html += '</div>'; // .qsa-element-fields
                     html += '</div>'; // .qsa-element-group
 
@@ -1050,6 +1062,11 @@ class Admin_Menu {
                     var $textHeight = $group.find('input[name="text_height"]');
                     if ($textHeight.length) {
                         data.text_height = parseFloat($textHeight.val()) || null;
+                    }
+
+                    var $elementSize = $group.find('input[name="element_size"]');
+                    if ($elementSize.length) {
+                        data.element_size = parseFloat($elementSize.val()) || null;
                     }
 
                     elements.push(data);
