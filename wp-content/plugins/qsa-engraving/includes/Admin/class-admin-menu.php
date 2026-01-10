@@ -441,22 +441,20 @@ class Admin_Menu {
 
             <!-- System Status -->
             <?php
-            $system_settings   = get_option( 'qsa_engraving_settings', array() );
-            $svg_enabled       = ! empty( $system_settings['lightburn_enabled'] );
-            $keep_svg_files    = ! empty( $system_settings['keep_svg_files'] );
-            $svg_rotation      = isset( $system_settings['svg_rotation'] ) ? (int) $system_settings['svg_rotation'] : 0;
-            $svg_top_offset    = isset( $system_settings['svg_top_offset'] ) ? (float) $system_settings['svg_top_offset'] : 0.0;
+            $system_settings = get_option( 'qsa_engraving_settings', array() );
+            $svg_enabled     = ! empty( $system_settings['lightburn_enabled'] );
+            $keep_svg_files  = ! empty( $system_settings['keep_svg_files'] );
             ?>
             <div class="qsa-widget qsa-status-widget">
                 <h2><?php esc_html_e( 'System Status', 'qsa-engraving' ); ?></h2>
-                <table class="widefat striped">
+                <table class="widefat striped qsa-status-table">
                     <tbody>
                         <tr>
-                            <td><?php esc_html_e( 'Plugin Version', 'qsa-engraving' ); ?></td>
+                            <td class="qsa-status-label"><?php esc_html_e( 'Plugin Version', 'qsa-engraving' ); ?></td>
                             <td><code><?php echo esc_html( QSA_ENGRAVING_VERSION ); ?></code></td>
                         </tr>
                         <tr>
-                            <td>
+                            <td class="qsa-status-label">
                                 <label for="qsa-toggle-svg-generation"><?php esc_html_e( 'SVG Generation', 'qsa-engraving' ); ?></label>
                             </td>
                             <td>
@@ -468,7 +466,7 @@ class Admin_Menu {
                             </td>
                         </tr>
                         <tr>
-                            <td>
+                            <td class="qsa-status-label">
                                 <label for="qsa-toggle-keep-svg"><?php esc_html_e( 'Keep SVG Files', 'qsa-engraving' ); ?></label>
                             </td>
                             <td>
@@ -479,45 +477,14 @@ class Admin_Menu {
                                 <span class="qsa-toggle-status" id="qsa-keep-svg-status"></span>
                             </td>
                         </tr>
-                        <tr id="qsa-svg-rotation-row" <?php echo $svg_enabled ? '' : 'style="display:none;"'; ?>>
-                            <td>
-                                <label for="qsa-svg-rotation"><?php esc_html_e( 'SVG Rotation', 'qsa-engraving' ); ?></label>
-                            </td>
-                            <td>
-                                <select id="qsa-svg-rotation" class="qsa-rotation-select">
-                                    <option value="0" <?php selected( $svg_rotation, 0 ); ?>>0° (No rotation)</option>
-                                    <option value="90" <?php selected( $svg_rotation, 90 ); ?>>90° Clockwise</option>
-                                    <option value="180" <?php selected( $svg_rotation, 180 ); ?>>180°</option>
-                                    <option value="270" <?php selected( $svg_rotation, 270 ); ?>>270° Clockwise</option>
-                                </select>
-                                <span class="qsa-toggle-status" id="qsa-rotation-status"></span>
-                            </td>
-                        </tr>
-                        <tr id="qsa-svg-top-offset-row" <?php echo $svg_enabled ? '' : 'style="display:none;"'; ?>>
-                            <td>
-                                <label for="qsa-svg-top-offset"><?php esc_html_e( 'Top Offset', 'qsa-engraving' ); ?></label>
-                            </td>
-                            <td>
-                                <input type="number" id="qsa-svg-top-offset" class="qsa-offset-input"
-                                    value="<?php echo esc_attr( number_format( $svg_top_offset, 2, '.', '' ) ); ?>"
-                                    min="-5" max="5" step="0.02">
-                                <span class="qsa-offset-unit">mm</span>
-                                <span class="qsa-toggle-status" id="qsa-top-offset-status"></span>
-                            </td>
-                        </tr>
-                        <tr id="qsa-watcher-info-row" <?php echo $svg_enabled ? '' : 'style="display:none;"'; ?>>
-                            <td><?php esc_html_e( 'SVG Delivery', 'qsa-engraving' ); ?></td>
-                            <td>
-                                <span class="qsa-watcher-info">
-                                    <span class="dashicons dashicons-download" style="color: #2271b1;"></span>
-                                    <code style="font-size: 12px;">C:\Users\Production\LightBurn\Incoming</code>
-                                </span>
-                            </td>
-                        </tr>
                     </tbody>
                 </table>
             </div>
             <style>
+                .qsa-status-table .qsa-status-label {
+                    white-space: nowrap;
+                    width: 120px;
+                }
                 .qsa-toggle-switch {
                     position: relative;
                     display: inline-block;
@@ -572,45 +539,6 @@ class Admin_Menu {
                 .qsa-toggle-status.error {
                     color: #d63638;
                 }
-                .qsa-watcher-info {
-                    display: inline-flex;
-                    align-items: center;
-                    gap: 6px;
-                    font-size: 13px;
-                    color: #50575e;
-                }
-                .qsa-rotation-select {
-                    min-width: 160px;
-                    padding: 4px 8px;
-                    border: 1px solid #8c8f94;
-                    border-radius: 4px;
-                    background: #fff;
-                    font-size: 13px;
-                    vertical-align: middle;
-                }
-                .qsa-rotation-select:focus {
-                    border-color: #2271b1;
-                    box-shadow: 0 0 0 1px #2271b1;
-                    outline: none;
-                }
-                .qsa-offset-input {
-                    width: 80px;
-                    padding: 4px 8px;
-                    border: 1px solid #8c8f94;
-                    border-radius: 4px;
-                    font-size: 13px;
-                    text-align: right;
-                }
-                .qsa-offset-input:focus {
-                    border-color: #2271b1;
-                    box-shadow: 0 0 0 1px #2271b1;
-                    outline: none;
-                }
-                .qsa-offset-unit {
-                    margin-left: 4px;
-                    color: #50575e;
-                    font-size: 13px;
-                }
             </style>
             <script>
             jQuery(function($) {
@@ -640,75 +568,12 @@ class Admin_Menu {
 
                 // SVG Generation toggle
                 $('#qsa-toggle-svg-generation').on('change', function() {
-                    var isEnabled = $(this).is(':checked');
-                    saveToggle('lightburn_enabled', isEnabled, $('#qsa-svg-generation-status'));
-
-                    // Show/hide SVG-related rows
-                    if (isEnabled) {
-                        $('#qsa-svg-rotation-row').show();
-                        $('#qsa-svg-top-offset-row').show();
-                        $('#qsa-watcher-info-row').show();
-                    } else {
-                        $('#qsa-svg-rotation-row').hide();
-                        $('#qsa-svg-top-offset-row').hide();
-                        $('#qsa-watcher-info-row').hide();
-                    }
+                    saveToggle('lightburn_enabled', $(this).is(':checked'), $('#qsa-svg-generation-status'));
                 });
 
                 // Keep SVG Files toggle
                 $('#qsa-toggle-keep-svg').on('change', function() {
                     saveToggle('keep_svg_files', $(this).is(':checked'), $('#qsa-keep-svg-status'));
-                });
-
-                // SVG Rotation dropdown
-                $('#qsa-svg-rotation').on('change', function() {
-                    var $status = $('#qsa-rotation-status');
-                    var rotation = $(this).val();
-
-                    $status.removeClass('saved error').addClass('saving').text('<?php echo esc_js( __( 'Saving...', 'qsa-engraving' ) ); ?>');
-
-                    $.post(ajaxUrl, {
-                        action: 'qsa_save_lightburn_settings',
-                        nonce: nonce,
-                        svg_rotation: rotation
-                    }, function(response) {
-                        if (response.success) {
-                            $status.removeClass('saving').addClass('saved').text('<?php echo esc_js( __( 'Saved', 'qsa-engraving' ) ); ?>');
-                            setTimeout(function() { $status.text(''); }, 2000);
-                        } else {
-                            $status.removeClass('saving').addClass('error').text('<?php echo esc_js( __( 'Error', 'qsa-engraving' ) ); ?>');
-                        }
-                    }).fail(function() {
-                        $status.removeClass('saving').addClass('error').text('<?php echo esc_js( __( 'Failed', 'qsa-engraving' ) ); ?>');
-                    });
-                });
-
-                // SVG Top Offset input
-                $('#qsa-svg-top-offset').on('change', function() {
-                    var $status = $('#qsa-top-offset-status');
-                    var offset = parseFloat($(this).val()) || 0;
-
-                    // Clamp to valid range
-                    if (offset < -5) offset = -5;
-                    if (offset > 5) offset = 5;
-                    $(this).val(offset.toFixed(2));
-
-                    $status.removeClass('saved error').addClass('saving').text('<?php echo esc_js( __( 'Saving...', 'qsa-engraving' ) ); ?>');
-
-                    $.post(ajaxUrl, {
-                        action: 'qsa_save_lightburn_settings',
-                        nonce: nonce,
-                        svg_top_offset: offset
-                    }, function(response) {
-                        if (response.success) {
-                            $status.removeClass('saving').addClass('saved').text('<?php echo esc_js( __( 'Saved', 'qsa-engraving' ) ); ?>');
-                            setTimeout(function() { $status.text(''); }, 2000);
-                        } else {
-                            $status.removeClass('saving').addClass('error').text('<?php echo esc_js( __( 'Error', 'qsa-engraving' ) ); ?>');
-                        }
-                    }).fail(function() {
-                        $status.removeClass('saving').addClass('error').text('<?php echo esc_js( __( 'Failed', 'qsa-engraving' ) ); ?>');
-                    });
                 });
             });
             </script>
@@ -1803,6 +1668,8 @@ class Admin_Menu {
             'lightburn_enabled' => false,
             'keep_svg_files'    => true,
             'svg_output_dir'    => '',
+            'svg_rotation'      => 0,
+            'svg_top_offset'    => 0.0,
         );
 
         $settings = wp_parse_args( $settings, $defaults );
@@ -1844,6 +1711,36 @@ class Admin_Menu {
                                 </label>
                                 <p class="description">
                                     <?php esc_html_e( 'When disabled, SVG files are deleted after the batch is completed.', 'qsa-engraving' ); ?>
+                                </p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row">
+                                <label for="svg_rotation"><?php esc_html_e( 'SVG Rotation', 'qsa-engraving' ); ?></label>
+                            </th>
+                            <td>
+                                <select name="svg_rotation" id="svg_rotation">
+                                    <option value="0" <?php selected( $settings['svg_rotation'], 0 ); ?>>0° (No rotation)</option>
+                                    <option value="90" <?php selected( $settings['svg_rotation'], 90 ); ?>>90° Clockwise</option>
+                                    <option value="180" <?php selected( $settings['svg_rotation'], 180 ); ?>>180°</option>
+                                    <option value="270" <?php selected( $settings['svg_rotation'], 270 ); ?>>270° Clockwise</option>
+                                </select>
+                                <p class="description">
+                                    <?php esc_html_e( 'Rotate the SVG output to match laser bed orientation.', 'qsa-engraving' ); ?>
+                                </p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row">
+                                <label for="svg_top_offset"><?php esc_html_e( 'Top Offset', 'qsa-engraving' ); ?></label>
+                            </th>
+                            <td>
+                                <input type="number" name="svg_top_offset" id="svg_top_offset"
+                                    value="<?php echo esc_attr( number_format( (float) $settings['svg_top_offset'], 2, '.', '' ) ); ?>"
+                                    min="-5" max="5" step="0.02" style="width: 80px;">
+                                <span class="description">mm</span>
+                                <p class="description">
+                                    <?php esc_html_e( 'Vertical offset adjustment for laser alignment (-5 to +5 mm).', 'qsa-engraving' ); ?>
                                 </p>
                             </td>
                         </tr>
@@ -1964,7 +1861,9 @@ class Admin_Menu {
                     nonce: nonce,
                     lightburn_enabled: $('#lightburn_enabled').is(':checked') ? 1 : 0,
                     keep_svg_files: $('#keep_svg_files').is(':checked') ? 1 : 0,
-                    svg_output_dir: $('#svg_output_dir').val()
+                    svg_output_dir: $('#svg_output_dir').val(),
+                    svg_rotation: $('#svg_rotation').val(),
+                    svg_top_offset: $('#svg_top_offset').val()
                 };
 
                 $.post(ajaxUrl, data, function(response) {
