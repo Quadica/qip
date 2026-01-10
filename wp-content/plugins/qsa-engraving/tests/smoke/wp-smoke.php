@@ -6730,7 +6730,7 @@ run_test(
         // Check if mapping table exists.
         $table_name = $wpdb->prefix . 'quad_sku_mappings';
         $table_exists = $wpdb->get_var(
-            $wpdb->prepare( 'SHOW TABLES LIKE %s', $table_name )
+            $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $table_name ) )
         ) === $table_name;
 
         if ( ! $table_exists ) {
