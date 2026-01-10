@@ -1422,15 +1422,15 @@ class Admin_Menu {
                         if (data.matched) {
                             $result.removeClass('not-matched').addClass('matched');
                             html += '<strong><?php echo esc_js( __( 'Match Found!', 'qsa-engraving' ) ); ?></strong><br>';
-                            html += '<?php echo esc_js( __( 'Message:', 'qsa-engraving' ) ); ?> ' + data.message + '<br>';
+                            html += '<?php echo esc_js( __( 'Message:', 'qsa-engraving' ) ); ?> ' + escapeHtml(data.message) + '<br>';
 
                             if (data.resolution) {
-                                html += '<?php echo esc_js( __( 'Canonical Code:', 'qsa-engraving' ) ); ?> <code>' + data.resolution.canonical_code + '</code>';
+                                html += '<?php echo esc_js( __( 'Canonical Code:', 'qsa-engraving' ) ); ?> <code>' + escapeHtml(data.resolution.canonical_code) + '</code>';
                                 if (data.resolution.revision) {
-                                    html += ' <?php echo esc_js( __( 'Revision:', 'qsa-engraving' ) ); ?> <code>' + data.resolution.revision + '</code>';
+                                    html += ' <?php echo esc_js( __( 'Revision:', 'qsa-engraving' ) ); ?> <code>' + escapeHtml(data.resolution.revision) + '</code>';
                                 }
                                 html += '<br>';
-                                html += '<?php echo esc_js( __( 'Canonical SKU:', 'qsa-engraving' ) ); ?> <code>' + data.resolution.canonical_sku + '</code><br>';
+                                html += '<?php echo esc_js( __( 'Canonical SKU:', 'qsa-engraving' ) ); ?> <code>' + escapeHtml(data.resolution.canonical_sku) + '</code><br>';
                                 html += '<?php echo esc_js( __( 'Legacy:', 'qsa-engraving' ) ); ?> ' + (data.resolution.is_legacy ? '<?php echo esc_js( __( 'Yes', 'qsa-engraving' ) ); ?>' : '<?php echo esc_js( __( 'No (native QSA)', 'qsa-engraving' ) ); ?>') + '<br>';
                             }
 
@@ -1439,7 +1439,7 @@ class Admin_Menu {
                             }
                         } else {
                             $result.removeClass('matched').addClass('not-matched');
-                            html = '<strong><?php echo esc_js( __( 'No Match', 'qsa-engraving' ) ); ?></strong><br>' + data.message;
+                            html = '<strong><?php echo esc_js( __( 'No Match', 'qsa-engraving' ) ); ?></strong><br>' + escapeHtml(data.message);
                         }
 
                         $result.html(html).show();
