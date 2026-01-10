@@ -6620,6 +6620,226 @@ run_test(
 );
 
 // ============================================
+// Config Loader Integration Tests (TC-CLI-*)
+// ============================================
+echo "\n-------------------------------------------\n";
+echo "Config Loader Integration Tests (TC-CLI-*)\n";
+echo "-------------------------------------------\n\n";
+
+// ============================================
+// TC-CLI-001: Config_Loader accepts Legacy_SKU_Resolver
+// ============================================
+run_test(
+    'TC-CLI-001: Config_Loader constructor accepts Legacy_SKU_Resolver',
+    function (): bool {
+        $resolver = new \Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver();
+
+        // Create with resolver.
+        $loader = new \Quadica\QSA_Engraving\Services\Config_Loader(
+            new \Quadica\QSA_Engraving\Database\Config_Repository(),
+            $resolver
+        );
+
+        if ( null === $loader->get_legacy_resolver() ) {
+            return new WP_Error( 'resolver_null', 'Legacy resolver should not be null.' );
+        }
+
+        echo "  Config_Loader constructed with resolver injection.\n";
+        return true;
+    },
+    'Config_Loader constructor should accept optional Legacy_SKU_Resolver.'
+);
+
+// ============================================
+// TC-CLI-002: Config_Loader backward compatible without resolver
+// ============================================
+run_test(
+    'TC-CLI-002: Config_Loader works without resolver (backward compatible)',
+    function (): bool {
+        // Create without resolver.
+        $loader = new \Quadica\QSA_Engraving\Services\Config_Loader();
+
+        if ( null !== $loader->get_legacy_resolver() ) {
+            return new WP_Error( 'resolver_set', 'Legacy resolver should be null when not provided.' );
+        }
+
+        echo "  Config_Loader backward compatible (no resolver).\n";
+        return true;
+    },
+    'Config_Loader should work without Legacy_SKU_Resolver for backward compatibility.'
+);
+
+// ============================================
+// TC-CLI-003: parse_sku() handles QSA format as before
+// ============================================
+run_test(
+    'TC-CLI-003: parse_sku() parses QSA SKUs correctly',
+    function (): bool {
+        $loader = new \Quadica\QSA_Engraving\Services\Config_Loader();
+
+        // Test with revision.
+        $result = $loader->parse_sku( 'STARa-38546' );
+
+        if ( is_wp_error( $result ) ) {
+            return new WP_Error( 'parse_failed', 'parse_sku failed: ' . $result->get_error_message() );
+        }
+
+        if ( 'STAR' !== $result['design'] ) {
+            return new WP_Error( 'wrong_design', 'design should be STAR.' );
+        }
+
+        if ( 'a' !== $result['revision'] ) {
+            return new WP_Error( 'wrong_revision', 'revision should be a.' );
+        }
+
+        if ( '38546' !== $result['config'] ) {
+            return new WP_Error( 'wrong_config', 'config should be 38546.' );
+        }
+
+        // Test without revision.
+        $result2 = $loader->parse_sku( 'CUBE-91247' );
+
+        if ( is_wp_error( $result2 ) ) {
+            return new WP_Error( 'parse_failed2', 'parse_sku failed for CUBE: ' . $result2->get_error_message() );
+        }
+
+        if ( null !== $result2['revision'] ) {
+            return new WP_Error( 'revision_not_null', 'revision should be null for CUBE-91247.' );
+        }
+
+        echo "  QSA SKUs parsed: STARa-38546 (STAR/a/38546), CUBE-91247 (CUBE/null/91247).\n";
+        return true;
+    },
+    'parse_sku() should correctly parse native QSA format SKUs.'
+);
+
+// ============================================
+// TC-CLI-004: parse_sku() with resolver resolves legacy SKUs
+// ============================================
+run_test(
+    'TC-CLI-004: parse_sku() resolves legacy SKUs when resolver available',
+    function (): bool {
+        global $wpdb;
+
+        $resolver = new \Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver();
+        $loader   = new \Quadica\QSA_Engraving\Services\Config_Loader(
+            new \Quadica\QSA_Engraving\Database\Config_Repository(),
+            $resolver
+        );
+
+        // Check if mapping table exists.
+        $table_name = $wpdb->prefix . 'quad_sku_mappings';
+        $table_exists = $wpdb->get_var(
+            $wpdb->prepare( 'SHOW TABLES LIKE %s', $table_name )
+        ) === $table_name;
+
+        if ( ! $table_exists ) {
+            echo "  [SKIP] Mapping table does not exist - cannot test legacy resolution.\n";
+            return true; // Skip gracefully.
+        }
+
+        // Insert a test mapping.
+        $test_pattern = 'TEST-CLI-' . time();
+        $wpdb->insert(
+            $table_name,
+            array(
+                'legacy_pattern'  => $test_pattern,
+                'match_type'      => 'exact',
+                'canonical_code'  => 'TCLI',
+                'revision'        => 'a',
+                'description'     => 'Test mapping for TC-CLI-004',
+                'priority'        => 100,
+                'is_active'       => 1,
+                'created_by'      => 1,
+            ),
+            array( '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%d' )
+        );
+        $mapping_id = $wpdb->insert_id;
+
+        // Clear resolver cache to pick up new mapping.
+        $resolver->clear_cache();
+
+        // Test parsing the legacy SKU.
+        $result = $loader->parse_sku( $test_pattern );
+
+        // Clean up test mapping.
+        $wpdb->delete( $table_name, array( 'id' => $mapping_id ), array( '%d' ) );
+
+        if ( is_wp_error( $result ) ) {
+            return new WP_Error( 'parse_failed', 'parse_sku failed for legacy SKU: ' . $result->get_error_message() );
+        }
+
+        if ( 'TCLI' !== $result['design'] ) {
+            return new WP_Error( 'wrong_design', 'design should be TCLI, got: ' . $result['design'] );
+        }
+
+        if ( 'a' !== $result['revision'] ) {
+            return new WP_Error( 'wrong_revision', 'revision should be a.' );
+        }
+
+        if ( 'LEGAC' !== $result['config'] ) {
+            return new WP_Error( 'wrong_config', 'config should be LEGAC for legacy SKU.' );
+        }
+
+        echo "  Legacy SKU parsed: {$test_pattern} => design=TCLI, revision=a, config=LEGAC.\n";
+        return true;
+    },
+    'parse_sku() should resolve legacy SKUs to canonical form when resolver is available.'
+);
+
+// ============================================
+// TC-CLI-005: parse_sku() returns error for unmapped SKU without resolver
+// ============================================
+run_test(
+    'TC-CLI-005: parse_sku() returns WP_Error for unknown SKU without resolver',
+    function (): bool {
+        // Create without resolver.
+        $loader = new \Quadica\QSA_Engraving\Services\Config_Loader();
+
+        $result = $loader->parse_sku( 'UNKNOWN-SKU-FORMAT' );
+
+        if ( ! is_wp_error( $result ) ) {
+            return new WP_Error( 'should_error', 'parse_sku should return WP_Error for unknown format.' );
+        }
+
+        if ( 'invalid_sku_format' !== $result->get_error_code() ) {
+            return new WP_Error( 'wrong_code', 'Error code should be invalid_sku_format.' );
+        }
+
+        echo "  Unknown SKU without resolver returns WP_Error (invalid_sku_format).\n";
+        return true;
+    },
+    'parse_sku() should return WP_Error for unknown SKU format when no resolver is available.'
+);
+
+// ============================================
+// TC-CLI-006: set_legacy_resolver() allows late injection
+// ============================================
+run_test(
+    'TC-CLI-006: set_legacy_resolver() allows injecting resolver after construction',
+    function (): bool {
+        // Create without resolver.
+        $loader = new \Quadica\QSA_Engraving\Services\Config_Loader();
+
+        if ( null !== $loader->get_legacy_resolver() ) {
+            return new WP_Error( 'resolver_set', 'Should start with null resolver.' );
+        }
+
+        // Inject resolver.
+        $resolver = new \Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver();
+        $loader->set_legacy_resolver( $resolver );
+
+        if ( null === $loader->get_legacy_resolver() ) {
+            return new WP_Error( 'resolver_null', 'Resolver should be set after injection.' );
+        }
+
+        echo "  Resolver injected via set_legacy_resolver() after construction.\n";
+        return true;
+    },
+    'set_legacy_resolver() should allow injecting resolver after Config_Loader is constructed.'
+);
+
+// ============================================
 // Summary
 // ============================================
 // Re-declare global to ensure PHP 8.1 recognizes the variables in eval-file context.
