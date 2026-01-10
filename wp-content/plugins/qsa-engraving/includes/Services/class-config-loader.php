@@ -136,6 +136,9 @@ class Config_Loader {
      * @return array{design: string, revision: string|null, config: string}|WP_Error Parsed info or error.
      */
     public function parse_sku( string $sku ): array|WP_Error {
+        // Normalize whitespace for consistent handling.
+        $sku = trim( $sku );
+
         // Try native QSA format first (4 uppercase + optional revision + hyphen + 5 digits).
         if ( preg_match( '/^([A-Z]{4})([a-z])?-(\d{5})$/', $sku, $matches ) ) {
             // Note: When optional group doesn't match, it's an empty string, not missing.
