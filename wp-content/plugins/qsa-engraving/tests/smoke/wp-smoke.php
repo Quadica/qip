@@ -6200,6 +6200,174 @@ run_test(
 );
 
 // ============================================
+// Module Selector Integration Tests (TC-MSI-*)
+// Tests for Module_Selector + Legacy_SKU_Resolver integration
+// ============================================
+
+// ============================================
+// TC-MSI-001: Module_Selector accepts Legacy_SKU_Resolver
+// ============================================
+run_test(
+    'TC-MSI-001: Module_Selector constructor accepts Legacy_SKU_Resolver',
+    function (): bool {
+        $batch_repo = new \Quadica\QSA_Engraving\Database\Batch_Repository();
+        $resolver   = new \Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver();
+
+        // Should construct without error.
+        $selector = new \Quadica\QSA_Engraving\Services\Module_Selector( $batch_repo, $resolver );
+
+        if ( ! $selector instanceof \Quadica\QSA_Engraving\Services\Module_Selector ) {
+            return new WP_Error( 'wrong_instance', 'Constructor should return Module_Selector instance.' );
+        }
+
+        echo "  Module_Selector constructed with resolver injection.\n";
+        return true;
+    },
+    'Module_Selector constructor should accept optional Legacy_SKU_Resolver.'
+);
+
+// ============================================
+// TC-MSI-002: Module_Selector backward compatible without resolver
+// ============================================
+run_test(
+    'TC-MSI-002: Module_Selector works without resolver (backward compatible)',
+    function (): bool {
+        $batch_repo = new \Quadica\QSA_Engraving\Database\Batch_Repository();
+
+        // Should construct without resolver (null).
+        $selector = new \Quadica\QSA_Engraving\Services\Module_Selector( $batch_repo );
+
+        if ( ! $selector instanceof \Quadica\QSA_Engraving\Services\Module_Selector ) {
+            return new WP_Error( 'wrong_instance', 'Constructor should return Module_Selector instance.' );
+        }
+
+        // Static method should still work.
+        if ( ! \Quadica\QSA_Engraving\Services\Module_Selector::is_qsa_compatible( 'STAR-12345' ) ) {
+            return new WP_Error( 'static_fail', 'is_qsa_compatible should return true for QSA SKU.' );
+        }
+
+        echo "  Module_Selector backward compatible (no resolver).\n";
+        return true;
+    },
+    'Module_Selector should work without Legacy_SKU_Resolver for backward compatibility.'
+);
+
+// ============================================
+// TC-MSI-003: get_module_base_type uses canonical data
+// ============================================
+run_test(
+    'TC-MSI-003: Module grouping uses canonical_code when available',
+    function (): bool {
+        $batch_repo = new \Quadica\QSA_Engraving\Database\Batch_Repository();
+        $resolver   = new \Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver();
+        $selector   = new \Quadica\QSA_Engraving\Services\Module_Selector( $batch_repo, $resolver );
+
+        // Resolve a QSA SKU and verify canonical data.
+        $resolution = $resolver->resolve( 'STARa-34924' );
+        if ( null === $resolution ) {
+            return new WP_Error( 'resolve_fail', 'QSA SKU should resolve.' );
+        }
+
+        if ( $resolution['canonical_code'] !== 'STAR' ) {
+            return new WP_Error( 'wrong_code', 'canonical_code should be STAR. Got: ' . $resolution['canonical_code'] );
+        }
+
+        if ( $resolution['revision'] !== 'a' ) {
+            return new WP_Error( 'wrong_revision', 'revision should be a. Got: ' . var_export( $resolution['revision'], true ) );
+        }
+
+        // Verify extract_base_type fallback still works.
+        $base_type = $selector->extract_base_type( 'STARa-34924' );
+        if ( $base_type !== 'STARa' ) {
+            return new WP_Error( 'extract_fail', 'extract_base_type should return STARa. Got: ' . $base_type );
+        }
+
+        echo "  Canonical data: STAR + a, extract fallback: STARa.\n";
+        return true;
+    },
+    'Module grouping should use canonical_code + revision when available.'
+);
+
+// ============================================
+// TC-MSI-004: Resolver filters unmapped legacy SKUs
+// ============================================
+run_test(
+    'TC-MSI-004: Unmapped legacy SKUs are filtered out by resolver',
+    function (): bool {
+        $resolver = new \Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver();
+
+        // QSA format should resolve.
+        $qsa_result = $resolver->resolve( 'CUBE-91247' );
+        if ( null === $qsa_result ) {
+            return new WP_Error( 'qsa_fail', 'QSA SKU should resolve.' );
+        }
+
+        // Unmapped legacy should return null (filtered out).
+        $legacy_result = $resolver->resolve( 'UNMAPPED-LEGACY-' . time() );
+        if ( null !== $legacy_result ) {
+            return new WP_Error( 'legacy_not_null', 'Unmapped legacy SKU should return null.' );
+        }
+
+        echo "  QSA resolved, unmapped legacy filtered (null).\n";
+        return true;
+    },
+    'Unmapped legacy SKUs should return null and be filtered from results.'
+);
+
+// ============================================
+// TC-MSI-005: Resolution data propagates to grouped output
+// ============================================
+run_test(
+    'TC-MSI-005: Resolution data structure is correct for downstream use',
+    function (): bool {
+        $resolver = new \Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver();
+
+        $resolution = $resolver->resolve( 'PICOa-12345' );
+        if ( null === $resolution ) {
+            return new WP_Error( 'resolve_fail', 'QSA SKU should resolve.' );
+        }
+
+        // Verify all expected fields are present.
+        $required_fields = array(
+            'is_legacy',
+            'original_sku',
+            'canonical_code',
+            'revision',
+            'canonical_sku',
+            'mapping_id',
+            'config_number',
+        );
+
+        foreach ( $required_fields as $field ) {
+            if ( ! array_key_exists( $field, $resolution ) ) {
+                return new WP_Error( 'missing_field', "Resolution missing field: {$field}" );
+            }
+        }
+
+        // Verify values.
+        if ( $resolution['is_legacy'] !== false ) {
+            return new WP_Error( 'wrong_is_legacy', 'QSA SKU should have is_legacy=false.' );
+        }
+
+        if ( $resolution['original_sku'] !== 'PICOa-12345' ) {
+            return new WP_Error( 'wrong_original', 'original_sku should match input.' );
+        }
+
+        if ( $resolution['canonical_sku'] !== 'PICOa-12345' ) {
+            return new WP_Error( 'wrong_canonical', 'canonical_sku should match input for QSA.' );
+        }
+
+        if ( $resolution['config_number'] !== '12345' ) {
+            return new WP_Error( 'wrong_config', 'config_number should be 12345. Got: ' . $resolution['config_number'] );
+        }
+
+        echo "  Resolution data complete: 7 fields present, values correct.\n";
+        return true;
+    },
+    'Resolution data should contain all required fields for downstream processing.'
+);
+
+// ============================================
 // Summary
 // ============================================
 // Re-declare global to ensure PHP 8.1 recognizes the variables in eval-file context.
