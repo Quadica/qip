@@ -115,14 +115,11 @@ class Module_Selector {
      */
     public function get_modules_awaiting(): array {
         // Check if legacy OMS table exists (no WordPress prefix - see class constant).
-        $oms_table    = self::OMS_BATCH_ITEMS_TABLE;
-        $table_exists = $this->wpdb->get_var(
-            $this->wpdb->prepare( 'SHOW TABLES LIKE %s', $oms_table )
-        );
-
-        if ( $table_exists !== $oms_table ) {
+        if ( ! $this->oms_table_exists() ) {
             return array();
         }
+
+        $oms_table = self::OMS_BATCH_ITEMS_TABLE;
 
         // Check if quad_engraved_modules table exists (used in LEFT JOIN).
         // If the table doesn't exist, return empty to avoid SQL errors.
@@ -447,6 +444,11 @@ class Module_Selector {
      * @return array Array of modules for the order (with resolution data if resolver available).
      */
     public function get_modules_for_order( int $order_id ): array {
+        // Check if legacy OMS table exists before querying.
+        if ( ! $this->oms_table_exists() ) {
+            return array();
+        }
+
         // Use legacy OMS table (no WordPress prefix).
         $oms_table     = self::OMS_BATCH_ITEMS_TABLE;
         $use_resolver  = null !== $this->legacy_resolver;
@@ -523,5 +525,26 @@ class Module_Selector {
     public function get_total_awaiting(): int {
         $counts = $this->get_counts_by_base_type();
         return array_sum( $counts );
+    }
+
+    /**
+     * Check if the legacy OMS batch items table exists.
+     *
+     * Uses esc_like() to properly escape underscores in the table name,
+     * which are SQL wildcards in LIKE queries.
+     *
+     * @return bool True if table exists.
+     */
+    private function oms_table_exists(): bool {
+        $oms_table = self::OMS_BATCH_ITEMS_TABLE;
+
+        // Escape underscores for LIKE query (underscores are SQL wildcards).
+        $escaped_table = $this->wpdb->esc_like( $oms_table );
+
+        $table_exists = $this->wpdb->get_var(
+            $this->wpdb->prepare( 'SHOW TABLES LIKE %s', $escaped_table )
+        );
+
+        return $table_exists === $oms_table;
     }
 }
