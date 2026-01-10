@@ -625,7 +625,7 @@ class Admin_Menu {
                 <ul>
                     <li><?php esc_html_e( 'Check that LightBurn is running on the production computer.', 'qsa-engraving' ); ?></li>
                     <li><?php esc_html_e( 'Verify the LightBurn SFTP Watcher is running (tasklist | findstr node).', 'qsa-engraving' ); ?></li>
-                    <li><?php esc_html_e( 'Check the log file at C:\\Users\\Production\\lightburn-watcher.log for errors.', 'qsa-engraving' ); ?></li>
+                    <li><?php esc_html_e( 'Check the log file at C:\\Users\\Production\\LightBurn\\lightburn-watcher.log for errors.', 'qsa-engraving' ); ?></li>
                     <li><?php esc_html_e( 'Try clicking "Resend" to re-send the current SVG file.', 'qsa-engraving' ); ?></li>
                 </ul>
             </div>
@@ -693,7 +693,7 @@ class Admin_Menu {
                     </tr>
                     <tr>
                         <td><strong><?php esc_html_e( 'Log File:', 'qsa-engraving' ); ?></strong></td>
-                        <td><code>C:\Users\Production\lightburn-watcher.log</code></td>
+                        <td><code>C:\Users\Production\LightBurn\lightburn-watcher.log</code></td>
                     </tr>
                     <tr>
                         <td><strong><?php esc_html_e( 'State File:', 'qsa-engraving' ); ?></strong></td>
@@ -724,7 +724,7 @@ class Admin_Menu {
                     </tr>
                     <tr>
                         <td><strong><?php esc_html_e( 'View Logs:', 'qsa-engraving' ); ?></strong></td>
-                        <td><code>Get-Content ~\lightburn-watcher.log -Tail 50 -Wait</code></td>
+                        <td><code>Get-Content ~\LightBurn\lightburn-watcher.log -Tail 50 -Wait</code></td>
                     </tr>
                 </table>
             </div>
@@ -1783,7 +1783,7 @@ class Admin_Menu {
                             </tr>
                             <tr>
                                 <td><strong><?php esc_html_e( 'Log File:', 'qsa-engraving' ); ?></strong></td>
-                                <td><code>C:\Users\Production\lightburn-watcher.log</code></td>
+                                <td><code>C:\Users\Production\LightBurn\lightburn-watcher.log</code></td>
                             </tr>
                         </table>
                         <p class="description" style="margin-top: 10px;">
