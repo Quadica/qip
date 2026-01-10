@@ -6954,6 +6954,101 @@ run_test(
 );
 
 // ============================================
+// Phase 8: Plugin Wiring Tests
+// ============================================
+
+// TC-PLW-001: Plugin properly wires Legacy_SKU_Resolver with repository
+run_test(
+    'TC-PLW-001: Plugin wires Legacy_SKU_Resolver with SKU_Mapping_Repository',
+    function (): bool {
+        $plugin   = \Quadica\QSA_Engraving\qsa_engraving();
+        $resolver = $plugin->get_legacy_sku_resolver();
+
+        if ( null === $resolver ) {
+            return new WP_Error( 'null_resolver', 'Legacy_SKU_Resolver should not be null.' );
+        }
+
+        if ( ! $resolver instanceof \Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver ) {
+            return new WP_Error( 'wrong_class', 'Should be Legacy_SKU_Resolver instance.' );
+        }
+
+        echo "  Plugin has Legacy_SKU_Resolver instance.\n";
+        return true;
+    },
+    'Plugin should wire Legacy_SKU_Resolver with SKU_Mapping_Repository.'
+);
+
+// TC-PLW-002: Module_Selector has Legacy_SKU_Resolver injected
+run_test(
+    'TC-PLW-002: Module_Selector has Legacy_SKU_Resolver injected',
+    function (): bool {
+        $plugin          = \Quadica\QSA_Engraving\qsa_engraving();
+        $module_selector = $plugin->get_module_selector();
+
+        if ( null === $module_selector ) {
+            return new WP_Error( 'null_selector', 'Module_Selector should not be null.' );
+        }
+
+        // Use reflection to check private property.
+        $reflection = new ReflectionClass( $module_selector );
+        $property   = $reflection->getProperty( 'legacy_resolver' );
+        $property->setAccessible( true );
+        $resolver = $property->getValue( $module_selector );
+
+        if ( null === $resolver ) {
+            return new WP_Error( 'null_resolver', 'Module_Selector should have Legacy_SKU_Resolver injected.' );
+        }
+
+        echo "  Module_Selector has Legacy_SKU_Resolver injected.\n";
+        return true;
+    },
+    'Module_Selector should have Legacy_SKU_Resolver injected for legacy SKU support.'
+);
+
+// TC-PLW-003: LightBurn_Ajax_Handler creates Config_Loader with resolver
+run_test(
+    'TC-PLW-003: LightBurn_Ajax_Handler wires Legacy_SKU_Resolver to Config_Loader',
+    function (): bool {
+        // Create handler with all dependencies including resolver.
+        $batch_repo  = new \Quadica\QSA_Engraving\Database\Batch_Repository();
+        $serial_repo = new \Quadica\QSA_Engraving\Database\Serial_Repository();
+        $led_resolver = new \Quadica\QSA_Engraving\Services\LED_Code_Resolver();
+        $sku_repo    = new \Quadica\QSA_Engraving\Database\SKU_Mapping_Repository();
+        $legacy_resolver = new \Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver( $sku_repo );
+
+        $handler = new \Quadica\QSA_Engraving\Ajax\LightBurn_Ajax_Handler(
+            $batch_repo,
+            $serial_repo,
+            $led_resolver,
+            null,
+            $legacy_resolver
+        );
+
+        // Use reflection to check svg_generator.
+        $reflection = new ReflectionClass( $handler );
+        $property   = $reflection->getProperty( 'svg_generator' );
+        $property->setAccessible( true );
+        $svg_generator = $property->getValue( $handler );
+
+        if ( ! $svg_generator instanceof \Quadica\QSA_Engraving\Services\SVG_Generator ) {
+            return new WP_Error( 'wrong_class', 'Should have SVG_Generator instance.' );
+        }
+
+        // Check that Config_Loader has resolver.
+        $config_loader = $svg_generator->get_config_loader();
+        $legacy_in_loader = $config_loader->get_legacy_resolver();
+
+        if ( null === $legacy_in_loader ) {
+            return new WP_Error( 'null_resolver', 'Config_Loader should have Legacy_SKU_Resolver.' );
+        }
+
+        echo "  LightBurn_Ajax_Handler properly wires resolver to Config_Loader.\n";
+        return true;
+    },
+    'LightBurn_Ajax_Handler should wire Legacy_SKU_Resolver to Config_Loader via SVG_Generator.'
+);
+
+// ============================================
 // Summary
 // ============================================
 // Re-declare global to ensure PHP 8.1 recognizes the variables in eval-file context.
