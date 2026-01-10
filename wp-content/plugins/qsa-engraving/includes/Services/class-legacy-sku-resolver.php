@@ -100,15 +100,15 @@ class Legacy_SKU_Resolver {
      * @return array|null Resolution data or null if unresolvable.
      */
     public function resolve( string $sku ): ?array {
-        // Check cache first.
+        // Normalize whitespace first to ensure consistent cache keys.
+        $sku = trim( $sku );
+
+        // Check cache with normalized key.
         if ( array_key_exists( $sku, $this->cache ) ) {
             return $this->cache[ $sku ];
         }
 
-        // Normalize whitespace.
-        $sku = trim( $sku );
-
-        if ( empty( $sku ) ) {
+        if ( '' === $sku ) {
             $this->cache[ $sku ] = null;
             return null;
         }
