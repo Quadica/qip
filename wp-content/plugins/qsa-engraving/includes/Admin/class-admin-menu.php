@@ -50,21 +50,30 @@ class Admin_Menu {
      * @return void
      */
     public function register(): void {
-        // Add as submenu under WooCommerce.
+        // Add QSA Engraving as a top-level menu, positioned after WooCommerce (position 55).
+        add_menu_page(
+            __( 'QSA Engraving', 'qsa-engraving' ),
+            __( 'QSA Engraving', 'qsa-engraving' ),
+            self::REQUIRED_CAPABILITY,
+            self::MENU_SLUG,
+            array( $this, 'render_main_page' ),
+            'dashicons-art',
+            56
+        );
+
+        // Add submenu pages under QSA Engraving top-level menu.
+        // First submenu repeats the parent to set "Dashboard" as the first item.
         add_submenu_page(
-            'woocommerce',
-            __( 'QSA Engraving', 'qsa-engraving' ),
-            __( 'QSA Engraving', 'qsa-engraving' ),
+            self::MENU_SLUG,
+            __( 'Dashboard', 'qsa-engraving' ),
+            __( 'Dashboard', 'qsa-engraving' ),
             self::REQUIRED_CAPABILITY,
             self::MENU_SLUG,
             array( $this, 'render_main_page' )
         );
 
-        // Add submenu pages directly under WooCommerce.
-        // Note: WordPress doesn't support nested submenus, so all pages must use
-        // 'woocommerce' as parent (not self::MENU_SLUG which is itself a submenu).
         add_submenu_page(
-            'woocommerce',
+            self::MENU_SLUG,
             __( 'Batch Creator', 'qsa-engraving' ),
             __( 'Batch Creator', 'qsa-engraving' ),
             self::REQUIRED_CAPABILITY,
@@ -73,7 +82,7 @@ class Admin_Menu {
         );
 
         add_submenu_page(
-            'woocommerce',
+            self::MENU_SLUG,
             __( 'Engraving Queue', 'qsa-engraving' ),
             __( 'Engraving Queue', 'qsa-engraving' ),
             self::REQUIRED_CAPABILITY,
@@ -82,7 +91,7 @@ class Admin_Menu {
         );
 
         add_submenu_page(
-            'woocommerce',
+            self::MENU_SLUG,
             __( 'Batch History', 'qsa-engraving' ),
             __( 'Batch History', 'qsa-engraving' ),
             self::REQUIRED_CAPABILITY,
@@ -91,7 +100,7 @@ class Admin_Menu {
         );
 
         add_submenu_page(
-            'woocommerce',
+            self::MENU_SLUG,
             __( 'SKU Mappings', 'qsa-engraving' ),
             __( 'SKU Mappings', 'qsa-engraving' ),
             self::REQUIRED_CAPABILITY,
@@ -100,7 +109,7 @@ class Admin_Menu {
         );
 
         add_submenu_page(
-            'woocommerce',
+            self::MENU_SLUG,
             __( 'Settings', 'qsa-engraving' ),
             __( 'Settings', 'qsa-engraving' ),
             self::REQUIRED_CAPABILITY,
