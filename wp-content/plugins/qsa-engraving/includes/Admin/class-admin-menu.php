@@ -603,7 +603,7 @@ class Admin_Menu {
                 <li><strong><?php esc_html_e( 'Go to Engraving Queue', 'qsa-engraving' ); ?></strong> &ndash; <?php esc_html_e( 'Navigate to the queue to see your batch ready for engraving.', 'qsa-engraving' ); ?></li>
                 <li><strong><?php esc_html_e( 'Start Engraving', 'qsa-engraving' ); ?></strong> &ndash; <?php esc_html_e( 'Click "Engrave" to generate the SVG and send it to LightBurn.', 'qsa-engraving' ); ?></li>
                 <li><strong><?php esc_html_e( 'Engrave Array', 'qsa-engraving' ); ?></strong> &ndash; <?php esc_html_e( 'Use the foot switch on the laser to engrave the array.', 'qsa-engraving' ); ?></li>
-                <li><strong><?php esc_html_e( 'Advance', 'qsa-engraving' ); ?></strong> &ndash; <?php esc_html_e( 'Press Spacebar (or click "Next Array") to load the next SVG.', 'qsa-engraving' ); ?></li>
+                <li><strong><?php esc_html_e( 'Advance', 'qsa-engraving' ); ?></strong> &ndash; <?php esc_html_e( 'Click "Next Array" to load the next SVG.', 'qsa-engraving' ); ?></li>
                 <li><strong><?php esc_html_e( 'Complete', 'qsa-engraving' ); ?></strong> &ndash; <?php esc_html_e( 'After the final array, click "Complete" to finish the batch.', 'qsa-engraving' ); ?></li>
             </ol>
         </div>
