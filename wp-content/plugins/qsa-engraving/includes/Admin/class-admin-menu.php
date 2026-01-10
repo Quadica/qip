@@ -713,200 +713,204 @@ class Admin_Menu {
             });
             </script>
 
-            <!-- Information Panel (Full Width) -->
-            <div class="qsa-info-panel-row">
-                <?php $this->render_information_panel(); ?>
+            <!-- Help, Troubleshooting & Setup Panels Row -->
+            <div class="qsa-help-panels-row">
+                <?php $this->render_help_panel(); ?>
+                <?php $this->render_troubleshooting_panel(); ?>
+                <?php $this->render_setup_guide_panel(); ?>
             </div>
         </div>
         <?php
     }
 
     /**
-     * Render the Information Panel.
+     * Render the Help & Information Panel.
      *
      * @return void
      */
-    private function render_information_panel(): void {
+    private function render_help_panel(): void {
         ?>
-        <div class="qsa-widget qsa-info-panel">
+        <div class="qsa-widget qsa-help-panel">
             <h2><?php esc_html_e( 'Help & Information', 'qsa-engraving' ); ?></h2>
+            <ol class="qsa-process-steps">
+                <li><strong><?php esc_html_e( 'Select Modules', 'qsa-engraving' ); ?></strong> &ndash; <?php esc_html_e( 'Use the Batch Creator to select modules from the "Awaiting Engraving" list.', 'qsa-engraving' ); ?></li>
+                <li><strong><?php esc_html_e( 'Create Batch', 'qsa-engraving' ); ?></strong> &ndash; <?php esc_html_e( 'Click "Create Batch" to assign serial numbers and group modules into arrays.', 'qsa-engraving' ); ?></li>
+                <li><strong><?php esc_html_e( 'Go to Engraving Queue', 'qsa-engraving' ); ?></strong> &ndash; <?php esc_html_e( 'Navigate to the queue to see your batch ready for engraving.', 'qsa-engraving' ); ?></li>
+                <li><strong><?php esc_html_e( 'Start Engraving', 'qsa-engraving' ); ?></strong> &ndash; <?php esc_html_e( 'Click "Engrave" to generate the SVG and send it to LightBurn.', 'qsa-engraving' ); ?></li>
+                <li><strong><?php esc_html_e( 'Engrave Array', 'qsa-engraving' ); ?></strong> &ndash; <?php esc_html_e( 'Use the foot switch on the laser to engrave the array.', 'qsa-engraving' ); ?></li>
+                <li><strong><?php esc_html_e( 'Advance', 'qsa-engraving' ); ?></strong> &ndash; <?php esc_html_e( 'Press Spacebar (or click "Next Array") to load the next SVG.', 'qsa-engraving' ); ?></li>
+                <li><strong><?php esc_html_e( 'Complete', 'qsa-engraving' ); ?></strong> &ndash; <?php esc_html_e( 'After the final array, click "Complete" to finish the batch.', 'qsa-engraving' ); ?></li>
+            </ol>
+        </div>
+        <?php
+    }
 
-            <!-- Process Summary -->
-            <div class="qsa-info-section">
-                <h3 class="qsa-info-section-title">
-                    <span class="dashicons dashicons-info-outline"></span>
-                    <?php esc_html_e( 'Process Summary', 'qsa-engraving' ); ?>
-                </h3>
-                <ol class="qsa-process-steps">
-                    <li><strong><?php esc_html_e( 'Select Modules', 'qsa-engraving' ); ?></strong> &ndash; <?php esc_html_e( 'Use the Batch Creator to select modules from the "Awaiting Engraving" list.', 'qsa-engraving' ); ?></li>
-                    <li><strong><?php esc_html_e( 'Create Batch', 'qsa-engraving' ); ?></strong> &ndash; <?php esc_html_e( 'Click "Create Batch" to assign serial numbers and group modules into arrays.', 'qsa-engraving' ); ?></li>
-                    <li><strong><?php esc_html_e( 'Go to Engraving Queue', 'qsa-engraving' ); ?></strong> &ndash; <?php esc_html_e( 'Navigate to the queue to see your batch ready for engraving.', 'qsa-engraving' ); ?></li>
-                    <li><strong><?php esc_html_e( 'Start Engraving', 'qsa-engraving' ); ?></strong> &ndash; <?php esc_html_e( 'Click "Engrave" to generate the SVG and send it to LightBurn.', 'qsa-engraving' ); ?></li>
-                    <li><strong><?php esc_html_e( 'Engrave Array', 'qsa-engraving' ); ?></strong> &ndash; <?php esc_html_e( 'Use the foot switch on the laser to engrave the array.', 'qsa-engraving' ); ?></li>
-                    <li><strong><?php esc_html_e( 'Advance', 'qsa-engraving' ); ?></strong> &ndash; <?php esc_html_e( 'Press Spacebar (or click "Next Array") to load the next SVG.', 'qsa-engraving' ); ?></li>
-                    <li><strong><?php esc_html_e( 'Complete', 'qsa-engraving' ); ?></strong> &ndash; <?php esc_html_e( 'After the final array, click "Complete" to finish the batch.', 'qsa-engraving' ); ?></li>
-                </ol>
+    /**
+     * Render the Troubleshooting Guide Panel.
+     *
+     * @return void
+     */
+    private function render_troubleshooting_panel(): void {
+        ?>
+        <div class="qsa-widget qsa-troubleshooting-panel">
+            <h2><?php esc_html_e( 'Troubleshooting Guide', 'qsa-engraving' ); ?></h2>
+
+            <div class="qsa-troubleshoot-item">
+                <h4><?php esc_html_e( 'SVG Not Appearing in LightBurn', 'qsa-engraving' ); ?></h4>
+                <ul>
+                    <li><?php esc_html_e( 'Check that LightBurn is running on the production computer.', 'qsa-engraving' ); ?></li>
+                    <li><?php esc_html_e( 'Verify the "LightBurn SFTP Watcher" service is running (open services.msc).', 'qsa-engraving' ); ?></li>
+                    <li><?php esc_html_e( 'Check the log file at C:\\Users\\Production\\lightburn-watcher.log for errors.', 'qsa-engraving' ); ?></li>
+                    <li><?php esc_html_e( 'Try clicking "Resend" to re-send the current SVG file.', 'qsa-engraving' ); ?></li>
+                </ul>
             </div>
 
-            <!-- Troubleshooting Guide -->
-            <div class="qsa-info-section">
-                <h3 class="qsa-info-section-title">
-                    <span class="dashicons dashicons-warning"></span>
-                    <?php esc_html_e( 'Troubleshooting Guide', 'qsa-engraving' ); ?>
-                </h3>
-
-                <div class="qsa-troubleshoot-item">
-                    <h4><?php esc_html_e( 'SVG Not Appearing in LightBurn', 'qsa-engraving' ); ?></h4>
-                    <ul>
-                        <li><?php esc_html_e( 'Check that LightBurn is running on the production computer.', 'qsa-engraving' ); ?></li>
-                        <li><?php esc_html_e( 'Verify the "LightBurn SFTP Watcher" service is running (open services.msc).', 'qsa-engraving' ); ?></li>
-                        <li><?php esc_html_e( 'Check the log file at C:\\Users\\Production\\lightburn-watcher.log for errors.', 'qsa-engraving' ); ?></li>
-                        <li><?php esc_html_e( 'Try clicking "Resend" to re-send the current SVG file.', 'qsa-engraving' ); ?></li>
-                    </ul>
-                </div>
-
-                <div class="qsa-troubleshoot-item">
-                    <h4><?php esc_html_e( 'No Modules Available to Engrave', 'qsa-engraving' ); ?></h4>
-                    <ul>
-                        <li><?php esc_html_e( 'Verify modules exist in active production batches.', 'qsa-engraving' ); ?></li>
-                        <li><?php esc_html_e( 'Check that the modules haven\'t already been engraved.', 'qsa-engraving' ); ?></li>
-                        <li><?php esc_html_e( 'Refresh the module list using the refresh button.', 'qsa-engraving' ); ?></li>
-                    </ul>
-                </div>
-
-                <div class="qsa-troubleshoot-item">
-                    <h4><?php esc_html_e( 'LED Code Errors', 'qsa-engraving' ); ?></h4>
-                    <ul>
-                        <li><?php esc_html_e( 'Ensure the Order BOM has LED information populated.', 'qsa-engraving' ); ?></li>
-                        <li><?php esc_html_e( 'Verify LED products have the led_shortcode_3 field set.', 'qsa-engraving' ); ?></li>
-                        <li><?php esc_html_e( 'Contact a manager if data is missing.', 'qsa-engraving' ); ?></li>
-                    </ul>
-                </div>
-
-                <div class="qsa-troubleshoot-item">
-                    <h4><?php esc_html_e( 'Batch Creation Fails', 'qsa-engraving' ); ?></h4>
-                    <ul>
-                        <li><?php esc_html_e( 'Check for validation errors in the error message.', 'qsa-engraving' ); ?></li>
-                        <li><?php esc_html_e( 'Ensure all selected modules have valid configurations.', 'qsa-engraving' ); ?></li>
-                        <li><?php esc_html_e( 'Verify the QSA design has coordinate data configured.', 'qsa-engraving' ); ?></li>
-                    </ul>
-                </div>
+            <div class="qsa-troubleshoot-item">
+                <h4><?php esc_html_e( 'No Modules Available to Engrave', 'qsa-engraving' ); ?></h4>
+                <ul>
+                    <li><?php esc_html_e( 'Verify modules exist in active production batches.', 'qsa-engraving' ); ?></li>
+                    <li><?php esc_html_e( 'Check that the modules haven\'t already been engraved.', 'qsa-engraving' ); ?></li>
+                    <li><?php esc_html_e( 'Refresh the module list using the refresh button.', 'qsa-engraving' ); ?></li>
+                </ul>
             </div>
 
-            <!-- Setup Guide -->
-            <div class="qsa-info-section">
-                <h3 class="qsa-info-section-title">
-                    <span class="dashicons dashicons-admin-tools"></span>
-                    <?php esc_html_e( 'Setup Guide (Technical)', 'qsa-engraving' ); ?>
-                </h3>
+            <div class="qsa-troubleshoot-item">
+                <h4><?php esc_html_e( 'LED Code Errors', 'qsa-engraving' ); ?></h4>
+                <ul>
+                    <li><?php esc_html_e( 'Ensure the Order BOM has LED information populated.', 'qsa-engraving' ); ?></li>
+                    <li><?php esc_html_e( 'Verify LED products have the led_shortcode_3 field set.', 'qsa-engraving' ); ?></li>
+                    <li><?php esc_html_e( 'Contact a manager if data is missing.', 'qsa-engraving' ); ?></li>
+                </ul>
+            </div>
 
-                <div class="qsa-setup-item">
-                    <h4><?php esc_html_e( 'System Overview', 'qsa-engraving' ); ?></h4>
-                    <ul>
-                        <li><?php esc_html_e( 'The QSA Engraving plugin generates SVG files for UV laser engraving.', 'qsa-engraving' ); ?></li>
-                        <li><?php esc_html_e( 'SVG files are saved to the server and delivered to LightBurn via an SFTP watcher service.', 'qsa-engraving' ); ?></li>
-                        <li><?php esc_html_e( 'The watcher runs as a Windows Service on the production workstation.', 'qsa-engraving' ); ?></li>
-                        <li><?php esc_html_e( 'Serial numbers are stored in WordPress database tables.', 'qsa-engraving' ); ?></li>
-                    </ul>
-                </div>
+            <div class="qsa-troubleshoot-item">
+                <h4><?php esc_html_e( 'Batch Creation Fails', 'qsa-engraving' ); ?></h4>
+                <ul>
+                    <li><?php esc_html_e( 'Check for validation errors in the error message.', 'qsa-engraving' ); ?></li>
+                    <li><?php esc_html_e( 'Ensure all selected modules have valid configurations.', 'qsa-engraving' ); ?></li>
+                    <li><?php esc_html_e( 'Verify the QSA design has coordinate data configured.', 'qsa-engraving' ); ?></li>
+                </ul>
+            </div>
+        </div>
+        <?php
+    }
 
-                <div class="qsa-setup-item">
-                    <h4><?php esc_html_e( 'LightBurn Watcher Service', 'qsa-engraving' ); ?></h4>
-                    <table class="qsa-setup-table">
-                        <tr>
-                            <td><strong><?php esc_html_e( 'Service Name:', 'qsa-engraving' ); ?></strong></td>
-                            <td><code>LightBurn SFTP Watcher</code></td>
-                        </tr>
-                        <tr>
-                            <td><strong><?php esc_html_e( 'Install Location:', 'qsa-engraving' ); ?></strong></td>
-                            <td><code>C:\Users\Production\LightBurn\lightburn-watcher\</code></td>
-                        </tr>
-                        <tr>
-                            <td><strong><?php esc_html_e( 'Delivery Path:', 'qsa-engraving' ); ?></strong></td>
-                            <td><code>C:\Users\Production\LightBurn\Incoming</code></td>
-                        </tr>
-                        <tr>
-                            <td><strong><?php esc_html_e( 'Log File:', 'qsa-engraving' ); ?></strong></td>
-                            <td><code>C:\Users\Production\lightburn-watcher.log</code></td>
-                        </tr>
-                        <tr>
-                            <td><strong><?php esc_html_e( 'Poll Interval:', 'qsa-engraving' ); ?></strong></td>
-                            <td><?php esc_html_e( '3 seconds', 'qsa-engraving' ); ?></td>
-                        </tr>
-                    </table>
-                </div>
+    /**
+     * Render the Setup Guide Panel.
+     *
+     * @return void
+     */
+    private function render_setup_guide_panel(): void {
+        ?>
+        <div class="qsa-widget qsa-setup-panel">
+            <h2><?php esc_html_e( 'Setup Guide', 'qsa-engraving' ); ?></h2>
 
-                <div class="qsa-setup-item">
-                    <h4><?php esc_html_e( 'Managing the Watcher Service', 'qsa-engraving' ); ?></h4>
-                    <p class="description"><?php esc_html_e( 'The watcher runs as a Windows Service that starts automatically at boot:', 'qsa-engraving' ); ?></p>
-                    <table class="qsa-setup-table">
-                        <tr>
-                            <td><strong><?php esc_html_e( 'View Status:', 'qsa-engraving' ); ?></strong></td>
-                            <td><?php esc_html_e( 'Open Services (services.msc) and find "LightBurn SFTP Watcher"', 'qsa-engraving' ); ?></td>
-                        </tr>
-                        <tr>
-                            <td><strong><?php esc_html_e( 'Restart:', 'qsa-engraving' ); ?></strong></td>
-                            <td><?php esc_html_e( 'Right-click the service and select "Restart"', 'qsa-engraving' ); ?></td>
-                        </tr>
-                        <tr>
-                            <td><strong><?php esc_html_e( 'Command Line:', 'qsa-engraving' ); ?></strong></td>
-                            <td><code>net stop "LightBurn SFTP Watcher" && net start "LightBurn SFTP Watcher"</code></td>
-                        </tr>
-                        <tr>
-                            <td><strong><?php esc_html_e( 'View Logs:', 'qsa-engraving' ); ?></strong></td>
-                            <td><code>Get-Content ~\lightburn-watcher.log -Tail 50 -Wait</code></td>
-                        </tr>
-                    </table>
-                </div>
+            <div class="qsa-setup-item">
+                <h4><?php esc_html_e( 'System Overview', 'qsa-engraving' ); ?></h4>
+                <ul>
+                    <li><?php esc_html_e( 'The QSA Engraving plugin generates SVG files for UV laser engraving.', 'qsa-engraving' ); ?></li>
+                    <li><?php esc_html_e( 'SVG files are saved to the server and delivered to LightBurn via an SFTP watcher service.', 'qsa-engraving' ); ?></li>
+                    <li><?php esc_html_e( 'The watcher runs as a Windows Service on the production workstation.', 'qsa-engraving' ); ?></li>
+                    <li><?php esc_html_e( 'Serial numbers are stored in WordPress database tables.', 'qsa-engraving' ); ?></li>
+                </ul>
+            </div>
 
-                <div class="qsa-setup-item">
-                    <h4><?php esc_html_e( 'Service Configuration', 'qsa-engraving' ); ?></h4>
-                    <p class="description"><?php esc_html_e( 'Edit lightburn-watcher-service.js to adjust these values:', 'qsa-engraving' ); ?></p>
-                    <table class="qsa-setup-table">
-                        <tr>
-                            <td><code>CONFIG.pollInterval</code></td>
-                            <td><?php esc_html_e( 'How often to check for new files (default: 3000ms)', 'qsa-engraving' ); ?></td>
-                        </tr>
-                        <tr>
-                            <td><code>CONFIG.remoteDir</code></td>
-                            <td><?php esc_html_e( 'Path on server for SVG files', 'qsa-engraving' ); ?></td>
-                        </tr>
-                        <tr>
-                            <td><code>CONFIG.localDir</code></td>
-                            <td><?php esc_html_e( 'Where files are placed for LightBurn', 'qsa-engraving' ); ?></td>
-                        </tr>
-                        <tr>
-                            <td><code>CONFIG.sftp.*</code></td>
-                            <td><?php esc_html_e( 'SFTP connection details (host, port, username)', 'qsa-engraving' ); ?></td>
-                        </tr>
-                    </table>
-                    <p class="description" style="margin-top: 8px;">
-                        <span class="dashicons dashicons-warning" style="color: #dba617;"></span>
-                        <?php esc_html_e( 'After changing configuration, restart the service for changes to take effect.', 'qsa-engraving' ); ?>
-                    </p>
-                </div>
+            <div class="qsa-setup-item">
+                <h4><?php esc_html_e( 'LightBurn Watcher Service', 'qsa-engraving' ); ?></h4>
+                <table class="qsa-setup-table">
+                    <tr>
+                        <td><strong><?php esc_html_e( 'Service Name:', 'qsa-engraving' ); ?></strong></td>
+                        <td><code>LightBurn SFTP Watcher</code></td>
+                    </tr>
+                    <tr>
+                        <td><strong><?php esc_html_e( 'Install Location:', 'qsa-engraving' ); ?></strong></td>
+                        <td><code>C:\Users\Production\LightBurn\lightburn-watcher\</code></td>
+                    </tr>
+                    <tr>
+                        <td><strong><?php esc_html_e( 'Delivery Path:', 'qsa-engraving' ); ?></strong></td>
+                        <td><code>C:\Users\Production\LightBurn\Incoming</code></td>
+                    </tr>
+                    <tr>
+                        <td><strong><?php esc_html_e( 'Log File:', 'qsa-engraving' ); ?></strong></td>
+                        <td><code>C:\Users\Production\lightburn-watcher.log</code></td>
+                    </tr>
+                    <tr>
+                        <td><strong><?php esc_html_e( 'Poll Interval:', 'qsa-engraving' ); ?></strong></td>
+                        <td><?php esc_html_e( '3 seconds', 'qsa-engraving' ); ?></td>
+                    </tr>
+                </table>
+            </div>
 
-                <div class="qsa-setup-item">
-                    <h4><?php esc_html_e( 'Database Tables', 'qsa-engraving' ); ?></h4>
-                    <table class="qsa-setup-table">
-                        <tr>
-                            <td><code>lw_quad_serial_numbers</code></td>
-                            <td><?php esc_html_e( 'Serial number lifecycle tracking', 'qsa-engraving' ); ?></td>
-                        </tr>
-                        <tr>
-                            <td><code>lw_quad_engraving_batches</code></td>
-                            <td><?php esc_html_e( 'Batch metadata', 'qsa-engraving' ); ?></td>
-                        </tr>
-                        <tr>
-                            <td><code>lw_quad_engraved_modules</code></td>
-                            <td><?php esc_html_e( 'Module-to-batch linkage', 'qsa-engraving' ); ?></td>
-                        </tr>
-                        <tr>
-                            <td><code>lw_quad_qsa_config</code></td>
-                            <td><?php esc_html_e( 'Element coordinates per QSA design', 'qsa-engraving' ); ?></td>
-                        </tr>
-                    </table>
-                </div>
+            <div class="qsa-setup-item">
+                <h4><?php esc_html_e( 'Managing the Watcher Service', 'qsa-engraving' ); ?></h4>
+                <p class="description"><?php esc_html_e( 'The watcher runs as a Windows Service that starts automatically at boot:', 'qsa-engraving' ); ?></p>
+                <table class="qsa-setup-table">
+                    <tr>
+                        <td><strong><?php esc_html_e( 'View Status:', 'qsa-engraving' ); ?></strong></td>
+                        <td><?php esc_html_e( 'Open Services (services.msc) and find "LightBurn SFTP Watcher"', 'qsa-engraving' ); ?></td>
+                    </tr>
+                    <tr>
+                        <td><strong><?php esc_html_e( 'Restart:', 'qsa-engraving' ); ?></strong></td>
+                        <td><?php esc_html_e( 'Right-click the service and select "Restart"', 'qsa-engraving' ); ?></td>
+                    </tr>
+                    <tr>
+                        <td><strong><?php esc_html_e( 'Command Line:', 'qsa-engraving' ); ?></strong></td>
+                        <td><code>net stop "LightBurn SFTP Watcher" && net start "LightBurn SFTP Watcher"</code></td>
+                    </tr>
+                    <tr>
+                        <td><strong><?php esc_html_e( 'View Logs:', 'qsa-engraving' ); ?></strong></td>
+                        <td><code>Get-Content ~\lightburn-watcher.log -Tail 50 -Wait</code></td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="qsa-setup-item">
+                <h4><?php esc_html_e( 'Service Configuration', 'qsa-engraving' ); ?></h4>
+                <p class="description"><?php esc_html_e( 'Edit lightburn-watcher-service.js to adjust these values:', 'qsa-engraving' ); ?></p>
+                <table class="qsa-setup-table">
+                    <tr>
+                        <td><code>CONFIG.pollInterval</code></td>
+                        <td><?php esc_html_e( 'How often to check for new files (default: 3000ms)', 'qsa-engraving' ); ?></td>
+                    </tr>
+                    <tr>
+                        <td><code>CONFIG.remoteDir</code></td>
+                        <td><?php esc_html_e( 'Path on server for SVG files', 'qsa-engraving' ); ?></td>
+                    </tr>
+                    <tr>
+                        <td><code>CONFIG.localDir</code></td>
+                        <td><?php esc_html_e( 'Where files are placed for LightBurn', 'qsa-engraving' ); ?></td>
+                    </tr>
+                    <tr>
+                        <td><code>CONFIG.sftp.*</code></td>
+                        <td><?php esc_html_e( 'SFTP connection details (host, port, username)', 'qsa-engraving' ); ?></td>
+                    </tr>
+                </table>
+                <p class="description" style="margin-top: 8px;">
+                    <span class="dashicons dashicons-warning" style="color: #dba617;"></span>
+                    <?php esc_html_e( 'After changing configuration, restart the service for changes to take effect.', 'qsa-engraving' ); ?>
+                </p>
+            </div>
+
+            <div class="qsa-setup-item">
+                <h4><?php esc_html_e( 'Database Tables', 'qsa-engraving' ); ?></h4>
+                <table class="qsa-setup-table">
+                    <tr>
+                        <td><code>lw_quad_serial_numbers</code></td>
+                        <td><?php esc_html_e( 'Serial number lifecycle tracking', 'qsa-engraving' ); ?></td>
+                    </tr>
+                    <tr>
+                        <td><code>lw_quad_engraving_batches</code></td>
+                        <td><?php esc_html_e( 'Batch metadata', 'qsa-engraving' ); ?></td>
+                    </tr>
+                    <tr>
+                        <td><code>lw_quad_engraved_modules</code></td>
+                        <td><?php esc_html_e( 'Module-to-batch linkage', 'qsa-engraving' ); ?></td>
+                    </tr>
+                    <tr>
+                        <td><code>lw_quad_qsa_config</code></td>
+                        <td><?php esc_html_e( 'Element coordinates per QSA design', 'qsa-engraving' ); ?></td>
+                    </tr>
+                </table>
             </div>
         </div>
         <?php
