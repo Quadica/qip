@@ -500,8 +500,15 @@ class Batch_Ajax_Handler {
 			return;
 		}
 
+		// Resolve SKUs to attach canonical fields (required for legacy SKU grouping).
+		$resolved_modules = $this->resolve_module_skus( $source_modules );
+		if ( is_wp_error( $resolved_modules ) ) {
+			$this->send_error( $resolved_modules->get_error_message(), $resolved_modules->get_error_code() );
+			return;
+		}
+
 		// Resolve LED codes for each module group.
-		$modules_with_leds = $this->resolve_led_codes( $source_modules );
+		$modules_with_leds = $this->resolve_led_codes( $resolved_modules );
 		if ( is_wp_error( $modules_with_leds ) ) {
 			$this->send_error( $modules_with_leds->get_error_message(), $modules_with_leds->get_error_code() );
 			return;
@@ -751,6 +758,63 @@ class Batch_Ajax_Handler {
 		}
 
 		return $validated;
+	}
+
+	/**
+	 * Resolve and attach canonical SKU fields to module rows.
+	 *
+	 * When legacy_resolver is available, resolves each module's SKU and attaches
+	 * canonical_code, revision, is_legacy, etc. This ensures legacy SKUs are
+	 * properly grouped by base type in downstream processing.
+	 *
+	 * @param array $modules Array of module rows (e.g., from get_source_batch_modules()).
+	 * @return array|WP_Error Modules enriched with resolution data, or WP_Error if any SKU is unrecognized.
+	 */
+	private function resolve_module_skus( array $modules ): array|WP_Error {
+		// If no resolver, return modules as-is (will use regex fallback).
+		if ( null === $this->legacy_resolver ) {
+			return $modules;
+		}
+
+		$enriched = array();
+		$errors   = array();
+
+		foreach ( $modules as $module ) {
+			$sku        = $module['module_sku'] ?? '';
+			$resolution = $this->legacy_resolver->resolve( $sku );
+
+			if ( null === $resolution ) {
+				$errors[] = sprintf(
+					/* translators: %s: Module SKU */
+					__( 'SKU %s is not recognized', 'qsa-engraving' ),
+					$sku
+				);
+				continue;
+			}
+
+			// Attach resolution data for downstream processing.
+			$module['canonical_code'] = $resolution['canonical_code'];
+			$module['canonical_sku']  = $resolution['canonical_sku'];
+			$module['original_sku']   = $resolution['original_sku'];
+			$module['revision']       = $resolution['revision'];
+			$module['is_legacy']      = $resolution['is_legacy'];
+			$module['config_number']  = $resolution['config_number'];
+
+			$enriched[] = $module;
+		}
+
+		if ( ! empty( $errors ) ) {
+			return new WP_Error(
+				'sku_resolution_failed',
+				sprintf(
+					/* translators: %s: List of error messages */
+					__( 'Cannot process batch - unrecognized SKUs: %s', 'qsa-engraving' ),
+					implode( '; ', $errors )
+				)
+			);
+		}
+
+		return $enriched;
 	}
 
 	/**

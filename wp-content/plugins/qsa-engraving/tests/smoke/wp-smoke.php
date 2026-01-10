@@ -6497,6 +6497,129 @@ run_test(
 );
 
 // ============================================
+// TC-BAI-005: resolve_module_skus enriches legacy SKUs with canonical fields
+// ============================================
+run_test(
+    'TC-BAI-005: resolve_module_skus() enriches modules with canonical fields',
+    function (): bool {
+        // Use reflection to access the private resolve_module_skus method.
+        $resolver = new \Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver();
+
+        // Create handler with resolver.
+        $handler = new \Quadica\QSA_Engraving\Ajax\Batch_Ajax_Handler(
+            new \Quadica\QSA_Engraving\Services\Module_Selector(
+                new \Quadica\QSA_Engraving\Database\Batch_Repository()
+            ),
+            new \Quadica\QSA_Engraving\Services\Batch_Sorter(),
+            new \Quadica\QSA_Engraving\Database\Batch_Repository(),
+            new \Quadica\QSA_Engraving\Database\Serial_Repository(),
+            new \Quadica\QSA_Engraving\Services\LED_Code_Resolver(),
+            $resolver
+        );
+
+        // Use reflection to call private method.
+        $reflection = new \ReflectionClass( $handler );
+        $method     = $reflection->getMethod( 'resolve_module_skus' );
+        $method->setAccessible( true );
+
+        // Test with QSA-format SKU.
+        $modules = array(
+            array(
+                'production_batch_id' => 123,
+                'module_sku'          => 'STARa-38546',
+                'order_id'            => 456,
+                'quantity'            => 2,
+            ),
+        );
+
+        $result = $method->invoke( $handler, $modules );
+
+        if ( is_wp_error( $result ) ) {
+            return new WP_Error( 'resolution_failed', 'resolve_module_skus failed: ' . $result->get_error_message() );
+        }
+
+        if ( ! is_array( $result ) || count( $result ) !== 1 ) {
+            return new WP_Error( 'wrong_count', 'Expected 1 enriched module.' );
+        }
+
+        $enriched = $result[0];
+
+        // Check canonical fields were attached.
+        if ( ! isset( $enriched['canonical_code'] ) || 'STAR' !== $enriched['canonical_code'] ) {
+            return new WP_Error( 'missing_canonical_code', 'canonical_code should be STAR.' );
+        }
+
+        if ( ! isset( $enriched['revision'] ) || 'a' !== $enriched['revision'] ) {
+            return new WP_Error( 'missing_revision', 'revision should be a.' );
+        }
+
+        if ( ! isset( $enriched['is_legacy'] ) || true === $enriched['is_legacy'] ) {
+            return new WP_Error( 'wrong_is_legacy', 'is_legacy should be false for QSA SKU.' );
+        }
+
+        echo "  QSA SKU enriched: canonical_code=STAR, revision=a, is_legacy=false.\n";
+        return true;
+    },
+    'resolve_module_skus() should attach canonical fields to module rows for duplicate batch flow.'
+);
+
+// ============================================
+// TC-BAI-006: resolve_module_skus returns modules unchanged when no resolver
+// ============================================
+run_test(
+    'TC-BAI-006: resolve_module_skus() returns modules unchanged without resolver',
+    function (): bool {
+        // Create handler WITHOUT resolver.
+        $handler = new \Quadica\QSA_Engraving\Ajax\Batch_Ajax_Handler(
+            new \Quadica\QSA_Engraving\Services\Module_Selector(
+                new \Quadica\QSA_Engraving\Database\Batch_Repository()
+            ),
+            new \Quadica\QSA_Engraving\Services\Batch_Sorter(),
+            new \Quadica\QSA_Engraving\Database\Batch_Repository(),
+            new \Quadica\QSA_Engraving\Database\Serial_Repository(),
+            new \Quadica\QSA_Engraving\Services\LED_Code_Resolver()
+            // No resolver passed - null default.
+        );
+
+        // Use reflection to call private method.
+        $reflection = new \ReflectionClass( $handler );
+        $method     = $reflection->getMethod( 'resolve_module_skus' );
+        $method->setAccessible( true );
+
+        $modules = array(
+            array(
+                'production_batch_id' => 123,
+                'module_sku'          => 'STARa-38546',
+                'order_id'            => 456,
+                'quantity'            => 2,
+            ),
+        );
+
+        $result = $method->invoke( $handler, $modules );
+
+        if ( is_wp_error( $result ) ) {
+            return new WP_Error( 'unexpected_error', 'Should not return error without resolver.' );
+        }
+
+        // Modules should be returned unchanged (no canonical fields).
+        if ( ! is_array( $result ) || count( $result ) !== 1 ) {
+            return new WP_Error( 'wrong_count', 'Expected 1 module returned unchanged.' );
+        }
+
+        $returned = $result[0];
+
+        // Should NOT have canonical_code (no resolver to add it).
+        if ( isset( $returned['canonical_code'] ) ) {
+            return new WP_Error( 'unexpected_enrichment', 'Should not have canonical_code without resolver.' );
+        }
+
+        echo "  Modules returned unchanged when resolver is null (backward compatible).\n";
+        return true;
+    },
+    'resolve_module_skus() should pass through modules unchanged when no resolver is available.'
+);
+
+// ============================================
 // Summary
 // ============================================
 // Re-declare global to ensure PHP 8.1 recognizes the variables in eval-file context.
