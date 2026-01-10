@@ -16,6 +16,8 @@ use Quadica\QSA_Engraving\Services\LightBurn_Client;
 use Quadica\QSA_Engraving\Services\SVG_File_Manager;
 use Quadica\QSA_Engraving\Services\SVG_Generator;
 use Quadica\QSA_Engraving\Services\LED_Code_Resolver;
+use Quadica\QSA_Engraving\Services\Config_Loader;
+use Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver;
 use Quadica\QSA_Engraving\Database\Batch_Repository;
 use Quadica\QSA_Engraving\Database\Serial_Repository;
 use Quadica\QSA_Engraving\Database\QSA_Identifier_Repository;
@@ -97,25 +99,38 @@ class LightBurn_Ajax_Handler {
 	private ?QSA_Identifier_Repository $qsa_identifier_repository = null;
 
 	/**
+	 * Legacy SKU Resolver instance.
+	 *
+	 * @var Legacy_SKU_Resolver|null
+	 */
+	private ?Legacy_SKU_Resolver $legacy_resolver = null;
+
+	/**
 	 * Constructor.
 	 *
-	 * @param Batch_Repository              $batch_repository           Batch repository.
-	 * @param Serial_Repository             $serial_repository          Serial repository.
-	 * @param LED_Code_Resolver             $led_code_resolver          LED code resolver.
-	 * @param QSA_Identifier_Repository|null $qsa_identifier_repository QSA identifier repository (optional for backward compatibility).
+	 * @param Batch_Repository               $batch_repository           Batch repository.
+	 * @param Serial_Repository              $serial_repository          Serial repository.
+	 * @param LED_Code_Resolver              $led_code_resolver          LED code resolver.
+	 * @param QSA_Identifier_Repository|null $qsa_identifier_repository  QSA identifier repository (optional).
+	 * @param Legacy_SKU_Resolver|null       $legacy_resolver            Legacy SKU resolver (optional).
 	 */
 	public function __construct(
 		Batch_Repository $batch_repository,
 		Serial_Repository $serial_repository,
 		LED_Code_Resolver $led_code_resolver,
-		?QSA_Identifier_Repository $qsa_identifier_repository = null
+		?QSA_Identifier_Repository $qsa_identifier_repository = null,
+		?Legacy_SKU_Resolver $legacy_resolver = null
 	) {
 		$this->batch_repository          = $batch_repository;
 		$this->serial_repository         = $serial_repository;
 		$this->led_code_resolver         = $led_code_resolver;
 		$this->qsa_identifier_repository = $qsa_identifier_repository;
+		$this->legacy_resolver           = $legacy_resolver;
 		$this->file_manager              = new SVG_File_Manager();
-		$this->svg_generator             = new SVG_Generator();
+
+		// Create Config_Loader with Legacy SKU Resolver for legacy SKU parsing during config lookup.
+		$config_loader = new Config_Loader( null, $legacy_resolver );
+		$this->svg_generator = new SVG_Generator( $config_loader );
 	}
 
 	/**
@@ -895,7 +910,7 @@ class LightBurn_Ajax_Handler {
 		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce already verified.
 		$position = isset( $_POST['position'] ) ? absint( $_POST['position'] ) : 0;
 
-		if ( empty( $design ) || $position < 1 || $position > 8 ) {
+		if ( empty( $design ) || $position < 0 || $position > 8 ) {
 			$this->send_error( __( 'Invalid design or position.', 'qsa-engraving' ), 'invalid_params' );
 			return;
 		}
@@ -905,13 +920,14 @@ class LightBurn_Ajax_Handler {
 		$config_repo = $plugin->get_config_repository();
 
 		// Query elements for this design/revision/position directly.
+		// Include element_size for design-level elements (QR code).
 		global $wpdb;
 		$table_name = $config_repo->get_table_name();
 
 		if ( ! empty( $revision ) ) {
 			$results = $wpdb->get_results(
 				$wpdb->prepare(
-					"SELECT element_type, origin_x, origin_y, rotation, text_height
+					"SELECT element_type, origin_x, origin_y, rotation, text_height, element_size
 					 FROM {$table_name}
 					 WHERE qsa_design = %s
 					   AND revision = %s
@@ -929,7 +945,7 @@ class LightBurn_Ajax_Handler {
 		} else {
 			$results = $wpdb->get_results(
 				$wpdb->prepare(
-					"SELECT element_type, origin_x, origin_y, rotation, text_height
+					"SELECT element_type, origin_x, origin_y, rotation, text_height, element_size
 					 FROM {$table_name}
 					 WHERE qsa_design = %s
 					   AND revision IS NULL
@@ -959,6 +975,7 @@ class LightBurn_Ajax_Handler {
 				'origin_y'     => (float) $row['origin_y'],
 				'rotation'     => (float) $row['rotation'],
 				'text_height'  => null !== $row['text_height'] ? (float) $row['text_height'] : null,
+				'element_size' => null !== $row['element_size'] ? (float) $row['element_size'] : null,
 			);
 		}
 
@@ -988,7 +1005,7 @@ class LightBurn_Ajax_Handler {
 		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce already verified.
 		$elements_json = isset( $_POST['elements'] ) ? sanitize_text_field( wp_unslash( $_POST['elements'] ) ) : '';
 
-		if ( empty( $design ) || $position < 1 || $position > 8 ) {
+		if ( empty( $design ) || $position < 0 || $position > 8 ) {
 			$this->send_error( __( 'Invalid design or position.', 'qsa-engraving' ), 'invalid_params' );
 			return;
 		}
@@ -1013,6 +1030,7 @@ class LightBurn_Ajax_Handler {
 			$origin_y     = (float) ( $element['origin_y'] ?? 0 );
 			$rotation     = (int) ( $element['rotation'] ?? 0 );
 			$text_height  = isset( $element['text_height'] ) ? (float) $element['text_height'] : null;
+			$element_size = isset( $element['element_size'] ) ? (float) $element['element_size'] : null;
 
 			// Validate element type.
 			if ( empty( $element_type ) ) {
@@ -1029,7 +1047,8 @@ class LightBurn_Ajax_Handler {
 				$origin_x,
 				$origin_y,
 				$rotation,
-				$text_height
+				$text_height,
+				$element_size
 			);
 
 			if ( is_wp_error( $result ) ) {

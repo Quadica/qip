@@ -113,6 +113,13 @@ final class Plugin {
     private ?Services\LED_Code_Resolver $led_code_resolver = null;
 
     /**
+     * Legacy SKU Resolver Service instance.
+     *
+     * @var Services\Legacy_SKU_Resolver|null
+     */
+    private ?Services\Legacy_SKU_Resolver $legacy_sku_resolver = null;
+
+    /**
      * Batch AJAX Handler instance.
      *
      * @var Ajax\Batch_Ajax_Handler|null
@@ -139,6 +146,20 @@ final class Plugin {
      * @var Ajax\History_Ajax_Handler|null
      */
     private ?Ajax\History_Ajax_Handler $history_ajax_handler = null;
+
+    /**
+     * SKU Mapping AJAX Handler instance.
+     *
+     * @var Ajax\SKU_Mapping_Ajax_Handler|null
+     */
+    private ?Ajax\SKU_Mapping_Ajax_Handler $sku_mapping_ajax_handler = null;
+
+    /**
+     * SKU Mapping Repository instance.
+     *
+     * @var Database\SKU_Mapping_Repository|null
+     */
+    private ?Database\SKU_Mapping_Repository $sku_mapping_repository = null;
 
     /**
      * QSA Landing Handler instance.
@@ -399,6 +420,7 @@ final class Plugin {
         $this->batch_repository          = new Database\Batch_Repository();
         $this->config_repository         = new Database\Config_Repository();
         $this->qsa_identifier_repository = new Database\QSA_Identifier_Repository();
+        $this->sku_mapping_repository    = new Database\SKU_Mapping_Repository();
     }
 
     /**
@@ -407,17 +429,31 @@ final class Plugin {
      * @return void
      */
     private function init_services(): void {
-        $this->module_selector   = new Services\Module_Selector( $this->batch_repository );
+        // Initialize Legacy SKU Resolver first (needed by other services).
+        // Inject SKU_Mapping_Repository for proper dependency management.
+        $this->legacy_sku_resolver = new Services\Legacy_SKU_Resolver(
+            $this->sku_mapping_repository
+        );
+
+        // Initialize core services.
         $this->batch_sorter      = new Services\Batch_Sorter();
         $this->led_code_resolver = new Services\LED_Code_Resolver();
 
-        // Initialize AJAX handlers.
+        // Initialize Module Selector with Legacy SKU Resolver for legacy SKU support.
+        $this->module_selector = new Services\Module_Selector(
+            $this->batch_repository,
+            $this->legacy_sku_resolver
+        );
+
+        // Initialize Batch AJAX handler with Legacy SKU Resolver for SKU resolution
+        // during batch creation and module grouping.
         $this->batch_ajax_handler = new Ajax\Batch_Ajax_Handler(
             $this->module_selector,
             $this->batch_sorter,
             $this->batch_repository,
             $this->serial_repository,
-            $this->led_code_resolver
+            $this->led_code_resolver,
+            $this->legacy_sku_resolver
         );
         $this->batch_ajax_handler->register();
 
@@ -429,21 +465,30 @@ final class Plugin {
         );
         $this->queue_ajax_handler->register();
 
-        // Initialize LightBurn AJAX handler (Phase 7).
+        // Initialize LightBurn AJAX handler with Legacy SKU Resolver for config lookup.
+        // The resolver enables legacy SKUs to be parsed when loading QSA configurations.
         $this->lightburn_ajax_handler = new Ajax\LightBurn_Ajax_Handler(
             $this->batch_repository,
             $this->serial_repository,
             $this->led_code_resolver,
-            $this->qsa_identifier_repository
+            $this->qsa_identifier_repository,
+            $this->legacy_sku_resolver
         );
         $this->lightburn_ajax_handler->register();
 
-        // Initialize History AJAX handler (Phase 8).
+        // Initialize History AJAX handler.
         $this->history_ajax_handler = new Ajax\History_Ajax_Handler(
             $this->batch_repository,
             $this->serial_repository
         );
         $this->history_ajax_handler->register();
+
+        // Initialize SKU Mapping AJAX handler for admin UI.
+        $this->sku_mapping_ajax_handler = new Ajax\SKU_Mapping_Ajax_Handler(
+            $this->sku_mapping_repository,
+            $this->legacy_sku_resolver
+        );
+        $this->sku_mapping_ajax_handler->register();
 
         // Initialize QSA Landing Handler (Frontend - handles quadi.ca redirects).
         $this->qsa_landing_handler = new Frontend\QSA_Landing_Handler(
@@ -667,6 +712,15 @@ final class Plugin {
      */
     public function get_module_selector(): Services\Module_Selector {
         return $this->module_selector;
+    }
+
+    /**
+     * Get the Legacy SKU Resolver Service instance.
+     *
+     * @return Services\Legacy_SKU_Resolver|null
+     */
+    public function get_legacy_sku_resolver(): ?Services\Legacy_SKU_Resolver {
+        return $this->legacy_sku_resolver;
     }
 
     /**

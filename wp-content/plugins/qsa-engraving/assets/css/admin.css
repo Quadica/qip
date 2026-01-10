@@ -2238,71 +2238,61 @@
 }
 
 /* =========================================
-   Dashboard Panels Row (Information & Tweaker)
+   Dashboard Help Panels Row (3-column)
    ========================================= */
 
-.qsa-panels-row {
+.qsa-help-panels-row {
     grid-column: 1 / -1; /* Span all columns of parent grid */
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(3, 1fr);
     gap: 20px;
     margin-top: 0;
 }
 
-@media screen and (max-width: 1200px) {
-    .qsa-panels-row {
+@media screen and (max-width: 1400px) {
+    .qsa-help-panels-row {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media screen and (max-width: 900px) {
+    .qsa-help-panels-row {
         grid-template-columns: 1fr;
     }
 }
 
-.qsa-panels-row .qsa-widget {
+.qsa-help-panels-row .qsa-widget {
+    margin: 0;
+}
+
+/* Individual panel styles */
+.qsa-help-panel,
+.qsa-troubleshooting-panel,
+.qsa-setup-panel {
+    max-height: none;
+}
+
+/* =========================================
+   Tweak Coords Page
+   ========================================= */
+
+.qsa-tweak-coords-wrap {
+    max-width: 800px;
+}
+
+.qsa-tweak-coords-wrap > .description {
+    margin: 0 0 20px 0;
+    font-size: 14px;
+    color: #50575e;
+}
+
+.qsa-tweak-coords-wrap .qsa-tweaker-panel {
     margin: 0;
 }
 
 /* =========================================
-   Information Panel
+   Help Panels Shared Styles
    ========================================= */
-
-.qsa-info-panel {
-    max-height: none;
-}
-
-.qsa-info-section {
-    margin-bottom: 20px;
-    padding-bottom: 20px;
-    border-bottom: 1px solid #eee;
-}
-
-.qsa-info-section:last-child {
-    margin-bottom: 0;
-    padding-bottom: 0;
-    border-bottom: none;
-}
-
-.qsa-info-section-title {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin: 0 0 12px 0;
-    font-size: 14px;
-    font-weight: 600;
-    color: #1d2327;
-}
-
-.qsa-info-section-title .dashicons {
-    color: #2271b1;
-    font-size: 18px;
-    width: 18px;
-    height: 18px;
-}
-
-.qsa-info-section-title .dashicons-warning {
-    color: #dba617;
-}
-
-.qsa-info-section-title .dashicons-admin-tools {
-    color: #50575e;
-}
 
 .qsa-process-steps {
     margin: 0;

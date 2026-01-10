@@ -422,15 +422,6 @@ export default function QueueItem( {
 						</div>
 					</div>
 
-					<div className="qsa-keyboard-hint">
-						<span className="keyboard-key">SPACEBAR</span>
-						<span>
-							{ isLastArray
-								? __( 'Press spacebar or click Complete to finish', 'qsa-engraving' )
-								: __( 'Press spacebar or click Next Array to advance', 'qsa-engraving' )
-							}
-						</span>
-					</div>
 				</div>
 			) }
 		</div>

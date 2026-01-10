@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace Quadica\QSA_Engraving\Services;
 
 use Quadica\QSA_Engraving\Database\Config_Repository;
+use Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver;
 use WP_Error;
 
 // Prevent direct access.
@@ -40,6 +41,15 @@ class Config_Loader {
      * @var Config_Repository
      */
     private Config_Repository $repository;
+
+    /**
+     * Legacy SKU Resolver instance.
+     *
+     * Used to resolve legacy SKUs to canonical form for config lookup.
+     *
+     * @var Legacy_SKU_Resolver|null
+     */
+    private ?Legacy_SKU_Resolver $legacy_resolver;
 
     /**
      * Runtime cache for loaded configurations.
@@ -77,10 +87,15 @@ class Config_Loader {
     /**
      * Constructor.
      *
-     * @param Config_Repository|null $repository Optional repository instance.
+     * @param Config_Repository|null    $repository      Optional repository instance.
+     * @param Legacy_SKU_Resolver|null  $legacy_resolver Optional legacy SKU resolver.
      */
-    public function __construct( ?Config_Repository $repository = null ) {
-        $this->repository = $repository ?? new Config_Repository();
+    public function __construct(
+        ?Config_Repository $repository = null,
+        ?Legacy_SKU_Resolver $legacy_resolver = null
+    ) {
+        $this->repository      = $repository ?? new Config_Repository();
+        $this->legacy_resolver = $legacy_resolver;
     }
 
     /**
@@ -109,32 +124,54 @@ class Config_Loader {
     /**
      * Parse QSA design and revision from a module SKU.
      *
-     * SKU format: 4 uppercase letters + lowercase revision + hyphen + 5 digits
-     * Example: "STARa-38546" => design="STAR", revision="a"
+     * Supports both native QSA format and legacy SKUs (via Legacy_SKU_Resolver).
+     *
+     * Native QSA format: 4 uppercase letters + optional lowercase revision + hyphen + 5 digits
+     * Example: "STARa-38546" => design="STAR", revision="a", config="38546"
+     *
+     * Legacy format: Resolved via mapping table to canonical form.
+     * Example: "SP-01" => design="SP01", revision=null, config="LEGAC"
      *
      * @param string $sku Module SKU.
-     * @return array{design: string, revision: string|null}|WP_Error Parsed info or error.
+     * @return array{design: string, revision: string|null, config: string}|WP_Error Parsed info or error.
      */
     public function parse_sku( string $sku ): array|WP_Error {
-        // Pattern: 4 uppercase + 1 lowercase + hyphen + 5 digits.
-        if ( ! preg_match( '/^([A-Z]{4})([a-z])?-(\d{5})$/', $sku, $matches ) ) {
-            return new WP_Error(
-                'invalid_sku_format',
-                sprintf(
-                    /* translators: %s: SKU */
-                    __( 'SKU "%s" does not match QSA format (e.g., STARa-38546).', 'qsa-engraving' ),
-                    $sku
-                )
+        // Normalize whitespace for consistent handling.
+        $sku = trim( $sku );
+
+        // Try native QSA format first (4 uppercase + optional revision + hyphen + 5 digits).
+        if ( preg_match( '/^([A-Z]{4})([a-z])?-(\d{5})$/', $sku, $matches ) ) {
+            // Note: When optional group doesn't match, it's an empty string, not missing.
+            $revision = isset( $matches[2] ) && '' !== $matches[2] ? $matches[2] : null;
+
+            return array(
+                'design'   => $matches[1],
+                'revision' => $revision,
+                'config'   => $matches[3],
             );
         }
 
-        // Note: When optional group doesn't match, it's an empty string, not missing.
-        $revision = isset( $matches[2] ) && '' !== $matches[2] ? $matches[2] : null;
+        // Try legacy resolution if resolver is available.
+        if ( null !== $this->legacy_resolver ) {
+            $resolution = $this->legacy_resolver->resolve( $sku );
 
-        return array(
-            'design'   => $matches[1],
-            'revision' => $revision,
-            'config'   => $matches[3],
+            if ( null !== $resolution && $resolution['is_legacy'] ) {
+                return array(
+                    'design'   => $resolution['canonical_code'],
+                    'revision' => $resolution['revision'],
+                    'config'   => $resolution['config_number'], // 'LEGAC'
+                );
+            }
+        }
+
+        // SKU is neither QSA format nor a mapped legacy SKU.
+        return new WP_Error(
+            'invalid_sku_format',
+            sprintf(
+                /* translators: %s: SKU */
+                __( 'SKU "%s" does not match QSA format and has no legacy mapping.', 'qsa-engraving' ),
+                $sku
+            )
         );
     }
 
@@ -346,5 +383,26 @@ class Config_Loader {
      */
     public function get_repository(): Config_Repository {
         return $this->repository;
+    }
+
+    /**
+     * Get the Legacy SKU Resolver instance.
+     *
+     * @return Legacy_SKU_Resolver|null
+     */
+    public function get_legacy_resolver(): ?Legacy_SKU_Resolver {
+        return $this->legacy_resolver;
+    }
+
+    /**
+     * Set the Legacy SKU Resolver instance.
+     *
+     * Allows injecting resolver after construction for backward compatibility.
+     *
+     * @param Legacy_SKU_Resolver|null $resolver The resolver instance.
+     * @return void
+     */
+    public function set_legacy_resolver( ?Legacy_SKU_Resolver $resolver ): void {
+        $this->legacy_resolver = $resolver;
     }
 }

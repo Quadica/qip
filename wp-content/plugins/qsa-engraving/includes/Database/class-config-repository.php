@@ -303,6 +303,7 @@ class Config_Repository {
      * @param float       $origin_y The Y coordinate.
      * @param int         $rotation The rotation in degrees.
      * @param float|null  $text_height The text height for text elements.
+     * @param float|null  $element_size The element size for design-level elements (e.g., QR code).
      * @return int|WP_Error The config ID or WP_Error on failure.
      */
     public function set_element_config(
@@ -313,7 +314,8 @@ class Config_Repository {
         float $origin_x,
         float $origin_y,
         int $rotation = 0,
-        ?float $text_height = null
+        ?float $text_height = null,
+        ?float $element_size = null
     ): int|WP_Error {
         // Validate element type.
         if ( ! in_array( $element_type, self::ELEMENT_TYPES, true ) ) {
@@ -387,7 +389,7 @@ class Config_Repository {
 
         if ( $existing ) {
             // Update existing.
-            // Build data and format arrays conditionally to handle NULL text_height.
+            // Build data and format arrays conditionally to handle NULL values.
             $update_data = array(
                 'origin_x'  => $origin_x,
                 'origin_y'  => $origin_y,
@@ -409,6 +411,20 @@ class Config_Repository {
                 $update_data['text_height'] = $text_height;
                 // Insert format at position 3 (after rotation).
                 array_splice( $update_format, 3, 0, '%f' );
+            }
+
+            // Handle element_size: use raw SQL for NULL, or add to data array.
+            if ( is_null( $element_size ) ) {
+                // Set element_size to NULL explicitly via raw query update.
+                $this->wpdb->query(
+                    $this->wpdb->prepare(
+                        "UPDATE {$this->table_name} SET element_size = NULL WHERE id = %d",
+                        $existing
+                    )
+                );
+            } else {
+                $update_data['element_size'] = $element_size;
+                $update_format[]             = '%f';
             }
 
             $result = $this->wpdb->update(
@@ -451,6 +467,13 @@ class Config_Repository {
             array_splice( $insert_format, 7, 0, '%f' );
         }
         // If text_height is NULL, omit from insert - database column default handles it.
+
+        // Handle element_size: only add if not NULL.
+        if ( ! is_null( $element_size ) ) {
+            $insert_data['element_size'] = $element_size;
+            $insert_format[]             = '%f';
+        }
+        // If element_size is NULL, omit from insert - database column default handles it.
 
         $result = $this->wpdb->insert(
             $this->table_name,

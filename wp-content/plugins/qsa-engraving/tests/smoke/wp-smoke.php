@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 echo "\n";
 echo "================================================================\n";
-echo "QSA Engraving Plugin - Phase 1-9 + Landing Handler Smoke Tests\n";
+echo "QSA Engraving Plugin - Phase 1-9 + Legacy SKU Mapping Smoke Tests\n";
 echo "================================================================\n\n";
 
 $tests_passed = 0;
@@ -5095,6 +5095,1957 @@ run_test(
         return true;
     },
     'Landing Handler registers the qsa_lookup query variable.'
+);
+
+// ============================================
+// Legacy SKU Mapping Tests (Phase 1)
+// ============================================
+
+// ============================================
+// TC-LEG-001: SKU Mappings Table Exists
+// ============================================
+run_test(
+    'TC-LEG-001: SKU mappings table exists',
+    function (): bool {
+        $sku_repo = new \Quadica\QSA_Engraving\Database\SKU_Mapping_Repository();
+
+        if ( ! $sku_repo->table_exists() ) {
+            return new WP_Error(
+                'table_missing',
+                'Table lw_quad_sku_mappings does not exist. ' .
+                'Run docs/database/install/10-sku-mappings-schema.sql via phpMyAdmin.'
+            );
+        }
+
+        echo "  Table exists: " . $sku_repo->get_table_name() . "\n";
+        return true;
+    },
+    'SKU mappings table should exist after schema installation.'
+);
+
+// ============================================
+// TC-LEG-002: SKU Mapping Repository Instantiates
+// ============================================
+run_test(
+    'TC-LEG-002: SKU_Mapping_Repository class instantiates',
+    function (): bool {
+        $sku_repo = new \Quadica\QSA_Engraving\Database\SKU_Mapping_Repository();
+
+        // Check required methods exist.
+        $required_methods = array(
+            'find_mapping',
+            'get_all',
+            'get',
+            'create',
+            'update',
+            'delete',
+            'test_pattern',
+            'table_exists',
+        );
+
+        foreach ( $required_methods as $method ) {
+            if ( ! method_exists( $sku_repo, $method ) ) {
+                return new WP_Error( 'missing_method', "Method {$method}() not found." );
+            }
+        }
+
+        echo "  All required methods present.\n";
+        return true;
+    },
+    'SKU_Mapping_Repository should have all required CRUD methods.'
+);
+
+// ============================================
+// TC-LEG-003: Match Type Constants Defined
+// ============================================
+run_test(
+    'TC-LEG-003: Match type and validation constants defined',
+    function (): bool {
+        $match_types = \Quadica\QSA_Engraving\Database\SKU_Mapping_Repository::MATCH_TYPES;
+        $max_pattern = \Quadica\QSA_Engraving\Database\SKU_Mapping_Repository::MAX_PATTERN_LENGTH;
+        $max_priority = \Quadica\QSA_Engraving\Database\SKU_Mapping_Repository::MAX_PRIORITY;
+
+        $expected = array( 'exact', 'prefix', 'suffix', 'regex' );
+
+        if ( $match_types !== $expected ) {
+            return new WP_Error(
+                'wrong_match_types',
+                'Expected: ' . implode( ', ', $expected ) . '. Got: ' . implode( ', ', $match_types )
+            );
+        }
+
+        if ( $max_pattern !== 50 ) {
+            return new WP_Error( 'wrong_max_pattern', 'MAX_PATTERN_LENGTH should be 50. Got: ' . $max_pattern );
+        }
+
+        if ( $max_priority !== 65535 ) {
+            return new WP_Error( 'wrong_max_priority', 'MAX_PRIORITY should be 65535. Got: ' . $max_priority );
+        }
+
+        echo "  Match types: " . implode( ', ', $match_types ) . "\n";
+        echo "  MAX_PATTERN_LENGTH: {$max_pattern}, MAX_PRIORITY: {$max_priority}\n";
+        return true;
+    },
+    'Repository should define all constants for match types and validation.'
+);
+
+// ============================================
+// TC-LEG-004: Test Pattern - Exact Match
+// ============================================
+run_test(
+    'TC-LEG-004: test_pattern - exact match (case-insensitive)',
+    function (): bool {
+        $sku_repo = new \Quadica\QSA_Engraving\Database\SKU_Mapping_Repository();
+
+        // Test exact match (case-insensitive per database collation).
+        if ( ! $sku_repo->test_pattern( 'SP-01', 'exact', 'SP-01' ) ) {
+            return new WP_Error( 'exact_fail', 'Exact match SP-01 should match SP-01.' );
+        }
+
+        // Case-insensitive: sp-01 should match SP-01.
+        if ( ! $sku_repo->test_pattern( 'sp-01', 'exact', 'SP-01' ) ) {
+            return new WP_Error( 'exact_case_fail', 'Exact match sp-01 should match SP-01 (case-insensitive).' );
+        }
+
+        if ( $sku_repo->test_pattern( 'SP-01', 'exact', 'SP-02' ) ) {
+            return new WP_Error( 'exact_false_positive', 'Exact match SP-01 should NOT match SP-02.' );
+        }
+
+        if ( $sku_repo->test_pattern( 'SP-01', 'exact', 'SP-01-XYZ' ) ) {
+            return new WP_Error( 'exact_false_positive', 'Exact match SP-01 should NOT match SP-01-XYZ.' );
+        }
+
+        echo "  Exact match logic verified (case-insensitive).\n";
+        return true;
+    },
+    'Exact match should match strings case-insensitively (per database collation).'
+);
+
+// ============================================
+// TC-LEG-005: Test Pattern - Prefix Match
+// ============================================
+run_test(
+    'TC-LEG-005: test_pattern - prefix match (case-insensitive)',
+    function (): bool {
+        $sku_repo = new \Quadica\QSA_Engraving\Database\SKU_Mapping_Repository();
+
+        // Test prefix match (case-insensitive).
+        if ( ! $sku_repo->test_pattern( 'SP-', 'prefix', 'SP-01' ) ) {
+            return new WP_Error( 'prefix_fail', 'Prefix SP- should match SP-01.' );
+        }
+
+        // Case-insensitive: sp- should match SP-01.
+        if ( ! $sku_repo->test_pattern( 'sp-', 'prefix', 'SP-01' ) ) {
+            return new WP_Error( 'prefix_case_fail', 'Prefix sp- should match SP-01 (case-insensitive).' );
+        }
+
+        if ( ! $sku_repo->test_pattern( 'SP-', 'prefix', 'SP-02-XYZ' ) ) {
+            return new WP_Error( 'prefix_fail', 'Prefix SP- should match SP-02-XYZ.' );
+        }
+
+        if ( $sku_repo->test_pattern( 'SP-', 'prefix', 'XSP-01' ) ) {
+            return new WP_Error( 'prefix_false_positive', 'Prefix SP- should NOT match XSP-01.' );
+        }
+
+        echo "  Prefix match logic verified (case-insensitive).\n";
+        return true;
+    },
+    'Prefix match should match SKUs starting with pattern (case-insensitive).'
+);
+
+// ============================================
+// TC-LEG-006: Test Pattern - Suffix Match
+// ============================================
+run_test(
+    'TC-LEG-006: test_pattern - suffix match (case-insensitive)',
+    function (): bool {
+        $sku_repo = new \Quadica\QSA_Engraving\Database\SKU_Mapping_Repository();
+
+        // Test suffix match (case-insensitive).
+        if ( ! $sku_repo->test_pattern( '-10S', 'suffix', 'MR-001-10S' ) ) {
+            return new WP_Error( 'suffix_fail', 'Suffix -10S should match MR-001-10S.' );
+        }
+
+        // Case-insensitive: -10s should match -10S.
+        if ( ! $sku_repo->test_pattern( '-10s', 'suffix', 'MR-001-10S' ) ) {
+            return new WP_Error( 'suffix_case_fail', 'Suffix -10s should match MR-001-10S (case-insensitive).' );
+        }
+
+        if ( ! $sku_repo->test_pattern( '-10S', 'suffix', 'ABC-10S' ) ) {
+            return new WP_Error( 'suffix_fail', 'Suffix -10S should match ABC-10S.' );
+        }
+
+        if ( $sku_repo->test_pattern( '-10S', 'suffix', 'MR-10S-001' ) ) {
+            return new WP_Error( 'suffix_false_positive', 'Suffix -10S should NOT match MR-10S-001.' );
+        }
+
+        echo "  Suffix match logic verified (case-insensitive).\n";
+        return true;
+    },
+    'Suffix match should match SKUs ending with pattern (case-insensitive).'
+);
+
+// ============================================
+// TC-LEG-007: Test Pattern - Regex Match
+// ============================================
+run_test(
+    'TC-LEG-007: test_pattern - regex match (case-insensitive by default)',
+    function (): bool {
+        $sku_repo = new \Quadica\QSA_Engraving\Database\SKU_Mapping_Repository();
+
+        // Test regex match (without delimiters - repo adds /i flag for case-insensitivity).
+        if ( ! $sku_repo->test_pattern( '^MR-[0-9]+-10S$', 'regex', 'MR-001-10S' ) ) {
+            return new WP_Error( 'regex_fail', 'Regex ^MR-[0-9]+-10S$ should match MR-001-10S.' );
+        }
+
+        // Case-insensitive: lowercase should match uppercase pattern.
+        if ( ! $sku_repo->test_pattern( '^MR-[0-9]+-10S$', 'regex', 'mr-001-10s' ) ) {
+            return new WP_Error( 'regex_case_fail', 'Regex ^MR-[0-9]+-10S$ should match mr-001-10s (case-insensitive).' );
+        }
+
+        if ( ! $sku_repo->test_pattern( '^MR-[0-9]+-10S$', 'regex', 'MR-99999-10S' ) ) {
+            return new WP_Error( 'regex_fail', 'Regex ^MR-[0-9]+-10S$ should match MR-99999-10S.' );
+        }
+
+        if ( $sku_repo->test_pattern( '^MR-[0-9]+-10S$', 'regex', 'MR-ABC-10S' ) ) {
+            return new WP_Error( 'regex_false_positive', 'Regex ^MR-[0-9]+-10S$ should NOT match MR-ABC-10S.' );
+        }
+
+        // Test regex with explicit delimiters (user can override with explicit flags).
+        if ( ! $sku_repo->test_pattern( '/^SP-[0-9]{2}$/', 'regex', 'SP-01' ) ) {
+            return new WP_Error( 'regex_delim_fail', 'Regex /^SP-[0-9]{2}$/ should match SP-01.' );
+        }
+
+        echo "  Regex match logic verified (case-insensitive by default).\n";
+        return true;
+    },
+    'Regex match should correctly apply pattern matching with case-insensitive default.'
+);
+
+// ============================================
+// TC-LEG-008: Validation - Canonical Code Format
+// ============================================
+run_test(
+    'TC-LEG-008: Validation - canonical code format',
+    function (): bool {
+        $sku_repo = new \Quadica\QSA_Engraving\Database\SKU_Mapping_Repository();
+
+        // Test with invalid canonical code (too short).
+        $result = $sku_repo->create( array(
+            'legacy_pattern' => 'TEST-INVALID',
+            'canonical_code' => 'ABC', // Only 3 chars.
+            'match_type'     => 'exact',
+        ) );
+
+        if ( ! is_wp_error( $result ) ) {
+            // Clean up if it was created.
+            $sku_repo->delete( $result );
+            return new WP_Error( 'validation_fail', '3-char canonical code should be rejected.' );
+        }
+
+        if ( $result->get_error_code() !== 'invalid_canonical_code' ) {
+            return new WP_Error(
+                'wrong_error_code',
+                'Expected error code: invalid_canonical_code. Got: ' . $result->get_error_code()
+            );
+        }
+
+        // Test with invalid canonical code (too long).
+        $result = $sku_repo->create( array(
+            'legacy_pattern' => 'TEST-INVALID2',
+            'canonical_code' => 'ABCDE', // 5 chars.
+            'match_type'     => 'exact',
+        ) );
+
+        if ( ! is_wp_error( $result ) ) {
+            $sku_repo->delete( $result );
+            return new WP_Error( 'validation_fail', '5-char canonical code should be rejected.' );
+        }
+
+        // Test pattern length validation (max 50 chars).
+        $long_pattern = str_repeat( 'X', 51 );
+        $result = $sku_repo->create( array(
+            'legacy_pattern' => $long_pattern,
+            'canonical_code' => 'LONG',
+            'match_type'     => 'exact',
+        ) );
+
+        if ( ! is_wp_error( $result ) ) {
+            $sku_repo->delete( $result );
+            return new WP_Error( 'validation_fail', '51-char pattern should be rejected.' );
+        }
+
+        if ( $result->get_error_code() !== 'pattern_too_long' ) {
+            return new WP_Error(
+                'wrong_error_code',
+                'Expected pattern_too_long. Got: ' . $result->get_error_code()
+            );
+        }
+
+        echo "  Canonical code format validation works.\n";
+        echo "  Pattern length validation works (max 50 chars).\n";
+        return true;
+    },
+    'Canonical code must be exactly 4 alphanumeric characters and pattern max 50 chars.'
+);
+
+// ============================================
+// TC-LEG-008b: Validation - Priority and Revision on Update
+// ============================================
+run_test(
+    'TC-LEG-008b: Validation - priority, revision, is_active on update',
+    function (): bool {
+        $sku_repo = new \Quadica\QSA_Engraving\Database\SKU_Mapping_Repository();
+
+        // Skip if table doesn't exist.
+        if ( ! $sku_repo->table_exists() ) {
+            echo "  Skipping: Table does not exist.\n";
+            return true;
+        }
+
+        // Create a test mapping.
+        $create_result = $sku_repo->create( array(
+            'legacy_pattern' => 'UPDATE-VALID-' . time(),
+            'canonical_code' => 'UPDT',
+            'match_type'     => 'exact',
+        ) );
+
+        if ( is_wp_error( $create_result ) ) {
+            return new WP_Error( 'setup_fail', 'Create failed: ' . $create_result->get_error_message() );
+        }
+
+        $mapping_id = $create_result;
+
+        // Test invalid priority (out of range).
+        $result = $sku_repo->update( $mapping_id, array( 'priority' => 70000 ) );
+        if ( ! is_wp_error( $result ) || $result->get_error_code() !== 'invalid_priority' ) {
+            $sku_repo->delete( $mapping_id );
+            return new WP_Error( 'priority_validation_fail', 'Priority 70000 should be rejected.' );
+        }
+
+        // Test invalid revision (not a single letter).
+        $result = $sku_repo->update( $mapping_id, array( 'revision' => 'AB' ) );
+        if ( ! is_wp_error( $result ) || $result->get_error_code() !== 'invalid_revision' ) {
+            $sku_repo->delete( $mapping_id );
+            return new WP_Error( 'revision_validation_fail', 'Revision "AB" should be rejected.' );
+        }
+
+        // Test invalid is_active (not 0 or 1).
+        $result = $sku_repo->update( $mapping_id, array( 'is_active' => 5 ) );
+        if ( ! is_wp_error( $result ) || $result->get_error_code() !== 'invalid_is_active' ) {
+            $sku_repo->delete( $mapping_id );
+            return new WP_Error( 'is_active_validation_fail', 'is_active=5 should be rejected.' );
+        }
+
+        // Clean up.
+        $sku_repo->delete( $mapping_id );
+
+        echo "  Priority, revision, and is_active validation on update works.\n";
+        return true;
+    },
+    'Update should validate priority (0-65535), revision (single letter), and is_active (0 or 1).'
+);
+
+// ============================================
+// TC-LEG-009: CRUD Operations Work
+// ============================================
+run_test(
+    'TC-LEG-009: CRUD operations work',
+    function (): bool {
+        $sku_repo = new \Quadica\QSA_Engraving\Database\SKU_Mapping_Repository();
+
+        // Skip if table doesn't exist.
+        if ( ! $sku_repo->table_exists() ) {
+            echo "  Skipping: Table does not exist.\n";
+            return true;
+        }
+
+        // Create a test mapping.
+        $create_result = $sku_repo->create( array(
+            'legacy_pattern' => 'SMOKE-TEST-' . time(),
+            'canonical_code' => 'SMOK',
+            'match_type'     => 'exact',
+            'description'    => 'Smoke test mapping - safe to delete',
+            'priority'       => 999,
+        ) );
+
+        if ( is_wp_error( $create_result ) ) {
+            return new WP_Error( 'create_fail', 'Create failed: ' . $create_result->get_error_message() );
+        }
+
+        $mapping_id = $create_result;
+        echo "  Created mapping ID: {$mapping_id}\n";
+
+        // Read the mapping.
+        $mapping = $sku_repo->get( $mapping_id );
+        if ( ! $mapping ) {
+            $sku_repo->delete( $mapping_id );
+            return new WP_Error( 'read_fail', 'Failed to read created mapping.' );
+        }
+
+        if ( $mapping['canonical_code'] !== 'SMOK' ) {
+            $sku_repo->delete( $mapping_id );
+            return new WP_Error( 'read_mismatch', 'Canonical code mismatch after read.' );
+        }
+
+        // Update the mapping.
+        $update_result = $sku_repo->update( $mapping_id, array(
+            'description' => 'Updated smoke test',
+            'priority'    => 998,
+        ) );
+
+        if ( is_wp_error( $update_result ) ) {
+            $sku_repo->delete( $mapping_id );
+            return new WP_Error( 'update_fail', 'Update failed: ' . $update_result->get_error_message() );
+        }
+
+        $updated = $sku_repo->get( $mapping_id );
+        if ( (int) $updated['priority'] !== 998 ) {
+            $sku_repo->delete( $mapping_id );
+            return new WP_Error( 'update_mismatch', 'Priority not updated correctly.' );
+        }
+
+        // Delete the mapping.
+        $delete_result = $sku_repo->delete( $mapping_id );
+        if ( ! $delete_result ) {
+            return new WP_Error( 'delete_fail', 'Delete returned false.' );
+        }
+
+        // Verify deletion.
+        $deleted = $sku_repo->get( $mapping_id );
+        if ( $deleted !== null ) {
+            return new WP_Error( 'delete_verify_fail', 'Mapping still exists after delete.' );
+        }
+
+        echo "  CRUD operations verified successfully.\n";
+        return true;
+    },
+    'Create, read, update, delete operations should work correctly.'
+);
+
+// ============================================
+// TC-LEG-010: Find Mapping - Priority Order
+// ============================================
+run_test(
+    'TC-LEG-010: find_mapping respects priority order',
+    function (): bool {
+        $sku_repo = new \Quadica\QSA_Engraving\Database\SKU_Mapping_Repository();
+
+        // Skip if table doesn't exist.
+        if ( ! $sku_repo->table_exists() ) {
+            echo "  Skipping: Table does not exist.\n";
+            return true;
+        }
+
+        $timestamp = time();
+        $test_sku  = 'PRIORITY-TEST-' . $timestamp;
+
+        // Create two mappings for the same SKU with different priorities.
+        $high_priority_id = $sku_repo->create( array(
+            'legacy_pattern' => $test_sku,
+            'canonical_code' => 'HIGH',
+            'match_type'     => 'exact',
+            'priority'       => 10, // Higher priority (lower number).
+        ) );
+
+        if ( is_wp_error( $high_priority_id ) ) {
+            return new WP_Error( 'setup_fail', 'Failed to create high priority mapping.' );
+        }
+
+        // Create prefix match with lower priority (higher number).
+        $low_priority_id = $sku_repo->create( array(
+            'legacy_pattern' => 'PRIORITY-',
+            'canonical_code' => 'LOWP',
+            'match_type'     => 'prefix',
+            'priority'       => 100, // Lower priority.
+        ) );
+
+        if ( is_wp_error( $low_priority_id ) ) {
+            $sku_repo->delete( $high_priority_id );
+            return new WP_Error( 'setup_fail', 'Failed to create low priority mapping.' );
+        }
+
+        // Find mapping - should return exact match due to match type priority.
+        $found = $sku_repo->find_mapping( $test_sku );
+
+        // Clean up first.
+        $sku_repo->delete( $high_priority_id );
+        $sku_repo->delete( $low_priority_id );
+
+        if ( ! $found ) {
+            return new WP_Error( 'find_fail', 'No mapping found.' );
+        }
+
+        // Exact match should win over prefix, regardless of priority.
+        if ( $found['canonical_code'] !== 'HIGH' ) {
+            return new WP_Error(
+                'priority_fail',
+                'Expected HIGH (exact match), got ' . $found['canonical_code']
+            );
+        }
+
+        echo "  Priority and match type ordering verified.\n";
+        return true;
+    },
+    'find_mapping should respect match type precedence and priority.'
+);
+
+// ============================================
+// TC-LEG-011: Duplicate Pattern Prevention
+// ============================================
+run_test(
+    'TC-LEG-011: Duplicate pattern prevention',
+    function (): bool {
+        $sku_repo = new \Quadica\QSA_Engraving\Database\SKU_Mapping_Repository();
+
+        // Skip if table doesn't exist.
+        if ( ! $sku_repo->table_exists() ) {
+            echo "  Skipping: Table does not exist.\n";
+            return true;
+        }
+
+        $timestamp    = time();
+        $test_pattern = 'DUP-TEST-' . $timestamp;
+
+        // Create first mapping.
+        $first_id = $sku_repo->create( array(
+            'legacy_pattern' => $test_pattern,
+            'canonical_code' => 'DUP1',
+            'match_type'     => 'exact',
+        ) );
+
+        if ( is_wp_error( $first_id ) ) {
+            return new WP_Error( 'setup_fail', 'Failed to create first mapping.' );
+        }
+
+        // Try to create duplicate.
+        $duplicate = $sku_repo->create( array(
+            'legacy_pattern' => $test_pattern,
+            'canonical_code' => 'DUP2',
+            'match_type'     => 'exact', // Same pattern + match_type.
+        ) );
+
+        // Clean up.
+        $sku_repo->delete( $first_id );
+
+        if ( ! is_wp_error( $duplicate ) ) {
+            $sku_repo->delete( $duplicate );
+            return new WP_Error( 'duplicate_allowed', 'Duplicate pattern should be rejected.' );
+        }
+
+        if ( $duplicate->get_error_code() !== 'duplicate_pattern' ) {
+            return new WP_Error(
+                'wrong_error_code',
+                'Expected duplicate_pattern error. Got: ' . $duplicate->get_error_code()
+            );
+        }
+
+        echo "  Duplicate pattern prevention verified.\n";
+        return true;
+    },
+    'Creating duplicate pattern + match_type should fail.'
+);
+
+// ============================================
+// TC-LEG-012: Original SKU Column Exists
+// ============================================
+run_test(
+    'TC-LEG-012: original_sku column exists in engraved_modules',
+    function (): bool {
+        global $wpdb;
+
+        $table = $wpdb->prefix . 'quad_engraved_modules';
+
+        // Check if column exists.
+        $columns = $wpdb->get_results(
+            $wpdb->prepare(
+                "SHOW COLUMNS FROM {$table} LIKE %s",
+                'original_sku'
+            ),
+            ARRAY_A
+        );
+
+        if ( empty( $columns ) ) {
+            return new WP_Error(
+                'column_missing',
+                'Column original_sku does not exist in ' . $table . '. ' .
+                'Run docs/database/install/10-sku-mappings-schema.sql via phpMyAdmin.'
+            );
+        }
+
+        $column = $columns[0];
+
+        // Verify column type.
+        if ( stripos( $column['Type'], 'varchar' ) === false ) {
+            return new WP_Error(
+                'wrong_type',
+                'original_sku should be VARCHAR. Got: ' . $column['Type']
+            );
+        }
+
+        // Verify nullable.
+        if ( $column['Null'] !== 'YES' ) {
+            return new WP_Error(
+                'not_nullable',
+                'original_sku should be nullable.'
+            );
+        }
+
+        echo "  Column original_sku exists with correct type.\n";
+        return true;
+    },
+    'engraved_modules table should have original_sku column for legacy SKU traceability.'
+);
+
+// ============================================
+// Legacy SKU Resolver Tests (Phase 3)
+// ============================================
+
+// ============================================
+// TC-RES-001: Legacy_SKU_Resolver Class Exists
+// ============================================
+run_test(
+    'TC-RES-001: Legacy_SKU_Resolver class exists',
+    function (): bool {
+        if ( ! class_exists( '\Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver' ) ) {
+            return new WP_Error(
+                'class_missing',
+                'Legacy_SKU_Resolver class not found.'
+            );
+        }
+
+        $resolver = new \Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver();
+
+        // Check required methods exist.
+        $required_methods = array(
+            'resolve',
+            'is_qsa_sku',
+            'is_legacy_sku',
+            'clear_cache',
+            'get_base_type',
+            'resolve_batch',
+            'filter_resolvable',
+        );
+
+        foreach ( $required_methods as $method ) {
+            if ( ! method_exists( $resolver, $method ) ) {
+                return new WP_Error( 'missing_method', "Method {$method}() not found." );
+            }
+        }
+
+        echo "  Legacy_SKU_Resolver class exists with all methods.\n";
+        return true;
+    },
+    'Legacy_SKU_Resolver should exist and have all required methods.'
+);
+
+// ============================================
+// TC-RES-002: Resolver Constants Defined
+// ============================================
+run_test(
+    'TC-RES-002: Resolver constants defined',
+    function (): bool {
+        $pattern = \Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver::QSA_SKU_PATTERN;
+        $suffix  = \Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver::LEGACY_CONFIG_SUFFIX;
+
+        if ( empty( $pattern ) ) {
+            return new WP_Error( 'missing_pattern', 'QSA_SKU_PATTERN constant not defined.' );
+        }
+
+        if ( 'LEGAC' !== $suffix ) {
+            return new WP_Error( 'wrong_suffix', 'LEGACY_CONFIG_SUFFIX should be LEGAC. Got: ' . $suffix );
+        }
+
+        echo "  QSA_SKU_PATTERN: {$pattern}\n";
+        echo "  LEGACY_CONFIG_SUFFIX: {$suffix}\n";
+        return true;
+    },
+    'Resolver should define pattern and suffix constants.'
+);
+
+// ============================================
+// TC-RES-003: is_qsa_sku Validates QSA Format
+// ============================================
+run_test(
+    'TC-RES-003: is_qsa_sku validates QSA format',
+    function (): bool {
+        $resolver = new \Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver();
+
+        // Valid QSA SKUs.
+        $valid = array(
+            'STAR-12345',
+            'STARa-34924',
+            'CUBE-91247',
+            'PICO-00001',
+            'COREz-99999',
+        );
+
+        foreach ( $valid as $sku ) {
+            if ( ! $resolver->is_qsa_sku( $sku ) ) {
+                return new WP_Error( 'qsa_check_fail', "Should recognize {$sku} as QSA format." );
+            }
+        }
+
+        // Invalid QSA SKUs (legacy format).
+        $invalid = array(
+            'SP-01',
+            'SZ-01',
+            'MR-001-10S',
+            '234356-1',
+            'STAR',  // No hyphen/config.
+            'star-12345', // Lowercase design.
+            'STAR-1234', // Only 4 digits.
+            'STARAA-12345', // Two uppercase after design.
+        );
+
+        foreach ( $invalid as $sku ) {
+            if ( $resolver->is_qsa_sku( $sku ) ) {
+                return new WP_Error( 'qsa_false_positive', "Should NOT recognize {$sku} as QSA format." );
+            }
+        }
+
+        echo "  Valid QSA: " . implode( ', ', $valid ) . "\n";
+        echo "  Invalid (legacy): " . implode( ', ', array_slice( $invalid, 0, 4 ) ) . "\n";
+        return true;
+    },
+    'is_qsa_sku should correctly identify QSA format SKUs.'
+);
+
+// ============================================
+// TC-RES-004: Resolve QSA SKU Without Mapping
+// ============================================
+run_test(
+    'TC-RES-004: resolve() handles QSA SKUs directly',
+    function (): bool {
+        $resolver = new \Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver();
+
+        // Test QSA SKU resolution.
+        $result = $resolver->resolve( 'STARa-34924' );
+
+        if ( null === $result ) {
+            return new WP_Error( 'resolve_fail', 'resolve() returned null for QSA SKU.' );
+        }
+
+        // Verify resolution structure.
+        if ( $result['is_legacy'] !== false ) {
+            return new WP_Error( 'wrong_is_legacy', 'is_legacy should be false for QSA SKU.' );
+        }
+
+        if ( $result['original_sku'] !== 'STARa-34924' ) {
+            return new WP_Error( 'wrong_original', 'original_sku mismatch.' );
+        }
+
+        if ( $result['canonical_code'] !== 'STAR' ) {
+            return new WP_Error( 'wrong_code', 'canonical_code should be STAR. Got: ' . $result['canonical_code'] );
+        }
+
+        if ( $result['revision'] !== 'a' ) {
+            return new WP_Error( 'wrong_revision', 'revision should be a. Got: ' . ( $result['revision'] ?? 'null' ) );
+        }
+
+        if ( $result['canonical_sku'] !== 'STARa-34924' ) {
+            return new WP_Error( 'wrong_canonical', 'canonical_sku mismatch.' );
+        }
+
+        if ( $result['mapping_id'] !== null ) {
+            return new WP_Error( 'wrong_mapping_id', 'mapping_id should be null for QSA SKU.' );
+        }
+
+        // Test without revision.
+        $result2 = $resolver->resolve( 'CUBE-91247' );
+        if ( $result2['revision'] !== null ) {
+            return new WP_Error( 'revision_not_null', 'revision should be null for CUBE-91247.' );
+        }
+
+        echo "  Resolved STARa-34924: code=STAR, rev=a, canonical_sku=STARa-34924\n";
+        echo "  Resolved CUBE-91247: code=CUBE, rev=null\n";
+        return true;
+    },
+    'resolve() should handle QSA SKUs directly without database lookup.'
+);
+
+// ============================================
+// TC-RES-005: Resolve Legacy SKU With Mapping
+// ============================================
+run_test(
+    'TC-RES-005: resolve() handles legacy SKU with mapping',
+    function (): bool {
+        $sku_repo = new \Quadica\QSA_Engraving\Database\SKU_Mapping_Repository();
+
+        // Skip if table doesn't exist.
+        if ( ! $sku_repo->table_exists() ) {
+            echo "  Skipping: Mapping table does not exist.\n";
+            return true;
+        }
+
+        // Create a test mapping.
+        $timestamp = time();
+        $test_sku  = 'RESOLVER-TEST-' . $timestamp;
+
+        $mapping_id = $sku_repo->create( array(
+            'legacy_pattern' => $test_sku,
+            'canonical_code' => 'RSLV',
+            'revision'       => 'b',
+            'match_type'     => 'exact',
+            'description'    => 'Resolver smoke test',
+        ) );
+
+        if ( is_wp_error( $mapping_id ) ) {
+            return new WP_Error( 'setup_fail', 'Failed to create test mapping.' );
+        }
+
+        $resolver = new \Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver();
+
+        // Resolve the legacy SKU.
+        $result = $resolver->resolve( $test_sku );
+
+        // Clean up.
+        $sku_repo->delete( $mapping_id );
+
+        if ( null === $result ) {
+            return new WP_Error( 'resolve_fail', 'resolve() returned null for mapped legacy SKU.' );
+        }
+
+        // Verify resolution structure.
+        if ( $result['is_legacy'] !== true ) {
+            return new WP_Error( 'wrong_is_legacy', 'is_legacy should be true for legacy SKU.' );
+        }
+
+        if ( $result['original_sku'] !== $test_sku ) {
+            return new WP_Error( 'wrong_original', 'original_sku mismatch.' );
+        }
+
+        if ( $result['canonical_code'] !== 'RSLV' ) {
+            return new WP_Error( 'wrong_code', 'canonical_code should be RSLV. Got: ' . $result['canonical_code'] );
+        }
+
+        if ( $result['revision'] !== 'b' ) {
+            return new WP_Error( 'wrong_revision', 'revision should be b. Got: ' . ( $result['revision'] ?? 'null' ) );
+        }
+
+        if ( $result['canonical_sku'] !== 'RSLVb-LEGAC' ) {
+            return new WP_Error( 'wrong_canonical', 'canonical_sku should be RSLVb-LEGAC. Got: ' . $result['canonical_sku'] );
+        }
+
+        if ( $result['mapping_id'] !== $mapping_id ) {
+            return new WP_Error( 'wrong_mapping_id', 'mapping_id mismatch.' );
+        }
+
+        echo "  Resolved {$test_sku}: code=RSLV, rev=b, canonical_sku=RSLVb-LEGAC\n";
+        return true;
+    },
+    'resolve() should use mapping table for legacy SKUs.'
+);
+
+// ============================================
+// TC-RES-006: Unmapped Legacy SKU Returns Null
+// ============================================
+run_test(
+    'TC-RES-006: resolve() returns null for unmapped legacy SKU',
+    function (): bool {
+        $resolver = new \Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver();
+
+        // Use a SKU that definitely won't have a mapping.
+        $result = $resolver->resolve( 'UNMAPPED-NONEXISTENT-' . time() );
+
+        if ( null !== $result ) {
+            return new WP_Error(
+                'should_be_null',
+                'resolve() should return null for unmapped legacy SKU.'
+            );
+        }
+
+        echo "  Unmapped legacy SKU correctly returns null.\n";
+        return true;
+    },
+    'resolve() should return null for unmapped legacy SKUs (ignored by workflow).'
+);
+
+// ============================================
+// TC-RES-007: Resolution Cache Works
+// ============================================
+run_test(
+    'TC-RES-007: Resolution cache works',
+    function (): bool {
+        $resolver = new \Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver();
+
+        // Clear cache first.
+        $resolver->clear_cache();
+
+        if ( $resolver->get_cache_count() !== 0 ) {
+            return new WP_Error( 'cache_not_empty', 'Cache should be empty after clear.' );
+        }
+
+        // Resolve a SKU.
+        $resolver->resolve( 'STAR-12345' );
+
+        if ( $resolver->get_cache_count() !== 1 ) {
+            return new WP_Error( 'cache_count_wrong', 'Cache should have 1 entry.' );
+        }
+
+        // Resolve same SKU again (should use cache).
+        $resolver->resolve( 'STAR-12345' );
+
+        if ( $resolver->get_cache_count() !== 1 ) {
+            return new WP_Error( 'cache_doubled', 'Cache should still have 1 entry (cached).' );
+        }
+
+        // Resolve different SKU.
+        $resolver->resolve( 'CUBE-91247' );
+
+        if ( $resolver->get_cache_count() !== 2 ) {
+            return new WP_Error( 'cache_count_wrong2', 'Cache should have 2 entries.' );
+        }
+
+        // Clear cache.
+        $resolver->clear_cache();
+
+        if ( $resolver->get_cache_count() !== 0 ) {
+            return new WP_Error( 'cache_not_cleared', 'Cache should be empty after clear.' );
+        }
+
+        echo "  Cache correctly stores and clears resolutions.\n";
+        return true;
+    },
+    'Resolution cache should store and clear correctly.'
+);
+
+// ============================================
+// TC-RES-008: get_base_type Returns Correct Value
+// ============================================
+run_test(
+    'TC-RES-008: get_base_type returns correct value',
+    function (): bool {
+        $resolver = new \Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver();
+
+        // Test QSA SKU with revision.
+        $base = $resolver->get_base_type( 'STARa-34924' );
+        if ( 'STARa' !== $base ) {
+            return new WP_Error( 'wrong_base1', 'Expected STARa. Got: ' . ( $base ?? 'null' ) );
+        }
+
+        // Test QSA SKU without revision.
+        $base = $resolver->get_base_type( 'CUBE-91247' );
+        if ( 'CUBE' !== $base ) {
+            return new WP_Error( 'wrong_base2', 'Expected CUBE. Got: ' . ( $base ?? 'null' ) );
+        }
+
+        // Test unmapped SKU.
+        $base = $resolver->get_base_type( 'UNMAPPED-' . time() );
+        if ( null !== $base ) {
+            return new WP_Error( 'should_be_null', 'Unmapped SKU should return null base type.' );
+        }
+
+        echo "  Base types: STARa-34924 -> STARa, CUBE-91247 -> CUBE\n";
+        return true;
+    },
+    'get_base_type should return canonical_code + revision.'
+);
+
+// ============================================
+// TC-RES-009: resolve_batch Resolves Multiple SKUs
+// ============================================
+run_test(
+    'TC-RES-009: resolve_batch handles multiple SKUs',
+    function (): bool {
+        $resolver = new \Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver();
+
+        $skus = array(
+            'STAR-12345',
+            'CUBE-91247',
+            'UNMAPPED-' . time(),
+        );
+
+        $results = $resolver->resolve_batch( $skus );
+
+        if ( count( $results ) !== 3 ) {
+            return new WP_Error( 'wrong_count', 'Should return 3 results.' );
+        }
+
+        if ( ! isset( $results['STAR-12345'] ) || null === $results['STAR-12345'] ) {
+            return new WP_Error( 'star_missing', 'STAR-12345 should resolve.' );
+        }
+
+        if ( ! isset( $results['CUBE-91247'] ) || null === $results['CUBE-91247'] ) {
+            return new WP_Error( 'cube_missing', 'CUBE-91247 should resolve.' );
+        }
+
+        // Unmapped SKU should be in results but with null value.
+        $unmapped_key = $skus[2];
+        if ( ! array_key_exists( $unmapped_key, $results ) ) {
+            return new WP_Error( 'unmapped_missing', 'Unmapped SKU should be in results.' );
+        }
+
+        if ( $results[ $unmapped_key ] !== null ) {
+            return new WP_Error( 'unmapped_not_null', 'Unmapped SKU should have null value.' );
+        }
+
+        echo "  Batch resolved: 2 QSA SKUs + 1 null (unmapped)\n";
+        return true;
+    },
+    'resolve_batch should handle multiple SKUs efficiently.'
+);
+
+// ============================================
+// TC-RES-010: filter_resolvable Filters Correctly
+// ============================================
+run_test(
+    'TC-RES-010: filter_resolvable filters correctly',
+    function (): bool {
+        $resolver = new \Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver();
+
+        $skus = array(
+            'STAR-12345',
+            'CUBE-91247',
+            'UNMAPPED-' . time(),
+            'ANOTHER-UNMAPPED-' . time(),
+        );
+
+        $filtered = $resolver->filter_resolvable( $skus );
+
+        if ( count( $filtered ) !== 2 ) {
+            return new WP_Error( 'wrong_count', 'Should filter to 2 resolvable SKUs. Got: ' . count( $filtered ) );
+        }
+
+        if ( ! in_array( 'STAR-12345', $filtered, true ) || ! in_array( 'CUBE-91247', $filtered, true ) ) {
+            return new WP_Error( 'wrong_skus', 'Filtered list should contain STAR-12345 and CUBE-91247.' );
+        }
+
+        echo "  Filtered 4 SKUs to 2 resolvable.\n";
+        return true;
+    },
+    'filter_resolvable should only return resolvable SKUs.'
+);
+
+// ============================================
+// TC-RES-011: Empty and Whitespace SKUs
+// ============================================
+run_test(
+    'TC-RES-011: resolve() handles empty and whitespace SKUs',
+    function (): bool {
+        $resolver = new \Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver();
+
+        // Empty string.
+        $result = $resolver->resolve( '' );
+        if ( null !== $result ) {
+            return new WP_Error( 'empty_not_null', 'Empty SKU should return null.' );
+        }
+
+        // Whitespace only.
+        $result = $resolver->resolve( '   ' );
+        if ( null !== $result ) {
+            return new WP_Error( 'whitespace_not_null', 'Whitespace-only SKU should return null.' );
+        }
+
+        // SKU with leading/trailing whitespace (should be trimmed).
+        $result = $resolver->resolve( '  STAR-12345  ' );
+        if ( null === $result || $result['canonical_code'] !== 'STAR' ) {
+            return new WP_Error( 'trim_fail', 'SKU with whitespace should be trimmed and resolved.' );
+        }
+
+        echo "  Empty, whitespace, and trimmed SKUs handled correctly.\n";
+        return true;
+    },
+    'resolve() should handle edge cases for empty/whitespace SKUs.'
+);
+
+// ============================================
+// TC-RES-012: Cache Key Normalization
+// ============================================
+run_test(
+    'TC-RES-012: Cache key uses normalized (trimmed) SKU',
+    function (): bool {
+        $resolver = new \Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver();
+
+        // Clear cache to start fresh.
+        $resolver->clear_cache();
+
+        // Resolve with whitespace - should cache under trimmed key.
+        $result1 = $resolver->resolve( '  STAR-12345  ' );
+        if ( null === $result1 ) {
+            return new WP_Error( 'resolve_fail', 'First resolve should succeed.' );
+        }
+
+        // Cache should have 1 entry (the trimmed key).
+        if ( $resolver->get_cache_count() !== 1 ) {
+            return new WP_Error( 'cache_wrong', 'Cache should have 1 entry after first resolve. Got: ' . $resolver->get_cache_count() );
+        }
+
+        // Resolve with different whitespace - should hit cache (normalized to same key).
+        $result2 = $resolver->resolve( "\t STAR-12345\n" );
+        if ( null === $result2 ) {
+            return new WP_Error( 'cache_miss', 'Second resolve with different whitespace should hit cache.' );
+        }
+
+        // Cache should still have 1 entry (same normalized key).
+        if ( $resolver->get_cache_count() !== 1 ) {
+            return new WP_Error( 'cache_grew', 'Cache should still have 1 entry (cache hit). Got: ' . $resolver->get_cache_count() );
+        }
+
+        // Resolve trimmed version - should also hit cache.
+        $result3 = $resolver->resolve( 'STAR-12345' );
+        if ( $resolver->get_cache_count() !== 1 ) {
+            return new WP_Error( 'cache_grew2', 'Trimmed version should hit cache. Got: ' . $resolver->get_cache_count() );
+        }
+
+        // Verify all results are identical.
+        if ( $result1 !== $result2 || $result2 !== $result3 ) {
+            return new WP_Error( 'results_differ', 'All results should be identical (same cache entry).' );
+        }
+
+        echo "  Cache key normalized: 3 calls with varied whitespace = 1 cache entry.\n";
+        return true;
+    },
+    'Cache should use normalized (trimmed) SKU as key for consistent hits.'
+);
+
+// ============================================
+// Module Selector Integration Tests (TC-MSI-*)
+// Tests for Module_Selector + Legacy_SKU_Resolver integration
+// ============================================
+
+// ============================================
+// TC-MSI-001: Module_Selector accepts Legacy_SKU_Resolver
+// ============================================
+run_test(
+    'TC-MSI-001: Module_Selector constructor accepts Legacy_SKU_Resolver',
+    function (): bool {
+        $batch_repo = new \Quadica\QSA_Engraving\Database\Batch_Repository();
+        $resolver   = new \Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver();
+
+        // Should construct without error.
+        $selector = new \Quadica\QSA_Engraving\Services\Module_Selector( $batch_repo, $resolver );
+
+        if ( ! $selector instanceof \Quadica\QSA_Engraving\Services\Module_Selector ) {
+            return new WP_Error( 'wrong_instance', 'Constructor should return Module_Selector instance.' );
+        }
+
+        echo "  Module_Selector constructed with resolver injection.\n";
+        return true;
+    },
+    'Module_Selector constructor should accept optional Legacy_SKU_Resolver.'
+);
+
+// ============================================
+// TC-MSI-002: Module_Selector backward compatible without resolver
+// ============================================
+run_test(
+    'TC-MSI-002: Module_Selector works without resolver (backward compatible)',
+    function (): bool {
+        $batch_repo = new \Quadica\QSA_Engraving\Database\Batch_Repository();
+
+        // Should construct without resolver (null).
+        $selector = new \Quadica\QSA_Engraving\Services\Module_Selector( $batch_repo );
+
+        if ( ! $selector instanceof \Quadica\QSA_Engraving\Services\Module_Selector ) {
+            return new WP_Error( 'wrong_instance', 'Constructor should return Module_Selector instance.' );
+        }
+
+        // Static method should still work.
+        if ( ! \Quadica\QSA_Engraving\Services\Module_Selector::is_qsa_compatible( 'STAR-12345' ) ) {
+            return new WP_Error( 'static_fail', 'is_qsa_compatible should return true for QSA SKU.' );
+        }
+
+        echo "  Module_Selector backward compatible (no resolver).\n";
+        return true;
+    },
+    'Module_Selector should work without Legacy_SKU_Resolver for backward compatibility.'
+);
+
+// ============================================
+// TC-MSI-003: get_module_base_type uses canonical data
+// ============================================
+run_test(
+    'TC-MSI-003: Module grouping uses canonical_code when available',
+    function (): bool {
+        $batch_repo = new \Quadica\QSA_Engraving\Database\Batch_Repository();
+        $resolver   = new \Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver();
+        $selector   = new \Quadica\QSA_Engraving\Services\Module_Selector( $batch_repo, $resolver );
+
+        // Resolve a QSA SKU and verify canonical data.
+        $resolution = $resolver->resolve( 'STARa-34924' );
+        if ( null === $resolution ) {
+            return new WP_Error( 'resolve_fail', 'QSA SKU should resolve.' );
+        }
+
+        if ( $resolution['canonical_code'] !== 'STAR' ) {
+            return new WP_Error( 'wrong_code', 'canonical_code should be STAR. Got: ' . $resolution['canonical_code'] );
+        }
+
+        if ( $resolution['revision'] !== 'a' ) {
+            return new WP_Error( 'wrong_revision', 'revision should be a. Got: ' . var_export( $resolution['revision'], true ) );
+        }
+
+        // Verify extract_base_type fallback still works.
+        $base_type = $selector->extract_base_type( 'STARa-34924' );
+        if ( $base_type !== 'STARa' ) {
+            return new WP_Error( 'extract_fail', 'extract_base_type should return STARa. Got: ' . $base_type );
+        }
+
+        echo "  Canonical data: STAR + a, extract fallback: STARa.\n";
+        return true;
+    },
+    'Module grouping should use canonical_code + revision when available.'
+);
+
+// ============================================
+// TC-MSI-004: Resolver filters unmapped legacy SKUs
+// ============================================
+run_test(
+    'TC-MSI-004: Unmapped legacy SKUs are filtered out by resolver',
+    function (): bool {
+        $resolver = new \Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver();
+
+        // QSA format should resolve.
+        $qsa_result = $resolver->resolve( 'CUBE-91247' );
+        if ( null === $qsa_result ) {
+            return new WP_Error( 'qsa_fail', 'QSA SKU should resolve.' );
+        }
+
+        // Unmapped legacy should return null (filtered out).
+        $legacy_result = $resolver->resolve( 'UNMAPPED-LEGACY-' . time() );
+        if ( null !== $legacy_result ) {
+            return new WP_Error( 'legacy_not_null', 'Unmapped legacy SKU should return null.' );
+        }
+
+        echo "  QSA resolved, unmapped legacy filtered (null).\n";
+        return true;
+    },
+    'Unmapped legacy SKUs should return null and be filtered from results.'
+);
+
+// ============================================
+// TC-MSI-005: Resolution data propagates to grouped output
+// ============================================
+run_test(
+    'TC-MSI-005: Resolution data structure is correct for downstream use',
+    function (): bool {
+        $resolver = new \Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver();
+
+        $resolution = $resolver->resolve( 'PICOa-12345' );
+        if ( null === $resolution ) {
+            return new WP_Error( 'resolve_fail', 'QSA SKU should resolve.' );
+        }
+
+        // Verify all expected fields are present.
+        $required_fields = array(
+            'is_legacy',
+            'original_sku',
+            'canonical_code',
+            'revision',
+            'canonical_sku',
+            'mapping_id',
+            'config_number',
+        );
+
+        foreach ( $required_fields as $field ) {
+            if ( ! array_key_exists( $field, $resolution ) ) {
+                return new WP_Error( 'missing_field', "Resolution missing field: {$field}" );
+            }
+        }
+
+        // Verify values.
+        if ( $resolution['is_legacy'] !== false ) {
+            return new WP_Error( 'wrong_is_legacy', 'QSA SKU should have is_legacy=false.' );
+        }
+
+        if ( $resolution['original_sku'] !== 'PICOa-12345' ) {
+            return new WP_Error( 'wrong_original', 'original_sku should match input.' );
+        }
+
+        if ( $resolution['canonical_sku'] !== 'PICOa-12345' ) {
+            return new WP_Error( 'wrong_canonical', 'canonical_sku should match input for QSA.' );
+        }
+
+        if ( $resolution['config_number'] !== '12345' ) {
+            return new WP_Error( 'wrong_config', 'config_number should be 12345. Got: ' . $resolution['config_number'] );
+        }
+
+        echo "  Resolution data complete: 7 fields present, values correct.\n";
+        return true;
+    },
+    'Resolution data should contain all required fields for downstream processing.'
+);
+
+// ============================================
+// Batch Ajax Handler Integration Tests (TC-BAI-*)
+// Tests for Batch_Ajax_Handler + Legacy_SKU_Resolver integration
+// ============================================
+
+// ============================================
+// TC-BAI-001: Batch_Ajax_Handler accepts Legacy_SKU_Resolver
+// ============================================
+run_test(
+    'TC-BAI-001: Batch_Ajax_Handler constructor accepts Legacy_SKU_Resolver',
+    function (): bool {
+        $batch_repo   = new \Quadica\QSA_Engraving\Database\Batch_Repository();
+        $serial_repo  = new \Quadica\QSA_Engraving\Database\Serial_Repository();
+        $resolver     = new \Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver();
+        $module_sel   = new \Quadica\QSA_Engraving\Services\Module_Selector( $batch_repo, $resolver );
+        $batch_sorter = new \Quadica\QSA_Engraving\Services\Batch_Sorter();
+        $led_resolver = new \Quadica\QSA_Engraving\Services\LED_Code_Resolver();
+
+        // Should construct without error with resolver.
+        $handler = new \Quadica\QSA_Engraving\Ajax\Batch_Ajax_Handler(
+            $module_sel,
+            $batch_sorter,
+            $batch_repo,
+            $serial_repo,
+            $led_resolver,
+            $resolver
+        );
+
+        if ( ! $handler instanceof \Quadica\QSA_Engraving\Ajax\Batch_Ajax_Handler ) {
+            return new WP_Error( 'wrong_instance', 'Constructor should return Batch_Ajax_Handler instance.' );
+        }
+
+        echo "  Batch_Ajax_Handler constructed with resolver injection.\n";
+        return true;
+    },
+    'Batch_Ajax_Handler constructor should accept optional Legacy_SKU_Resolver.'
+);
+
+// ============================================
+// TC-BAI-002: Batch_Ajax_Handler backward compatible without resolver
+// ============================================
+run_test(
+    'TC-BAI-002: Batch_Ajax_Handler works without resolver (backward compatible)',
+    function (): bool {
+        $batch_repo   = new \Quadica\QSA_Engraving\Database\Batch_Repository();
+        $serial_repo  = new \Quadica\QSA_Engraving\Database\Serial_Repository();
+        $module_sel   = new \Quadica\QSA_Engraving\Services\Module_Selector( $batch_repo );
+        $batch_sorter = new \Quadica\QSA_Engraving\Services\Batch_Sorter();
+        $led_resolver = new \Quadica\QSA_Engraving\Services\LED_Code_Resolver();
+
+        // Should construct without resolver (null default).
+        $handler = new \Quadica\QSA_Engraving\Ajax\Batch_Ajax_Handler(
+            $module_sel,
+            $batch_sorter,
+            $batch_repo,
+            $serial_repo,
+            $led_resolver
+        );
+
+        if ( ! $handler instanceof \Quadica\QSA_Engraving\Ajax\Batch_Ajax_Handler ) {
+            return new WP_Error( 'wrong_instance', 'Constructor should return Batch_Ajax_Handler instance.' );
+        }
+
+        echo "  Batch_Ajax_Handler backward compatible (no resolver).\n";
+        return true;
+    },
+    'Batch_Ajax_Handler should work without Legacy_SKU_Resolver for backward compatibility.'
+);
+
+// ============================================
+// TC-BAI-003: Resolution data flows through validate_selection
+// ============================================
+run_test(
+    'TC-BAI-003: Resolver validates SKU and attaches canonical data',
+    function (): bool {
+        $resolver = new \Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver();
+
+        // Simulate what validate_selection does when resolver is available.
+        $sku = 'STARa-34924';
+        $resolution = $resolver->resolve( $sku );
+
+        if ( null === $resolution ) {
+            return new WP_Error( 'resolve_fail', 'QSA SKU should resolve.' );
+        }
+
+        // Verify the fields that would be attached to validated selection.
+        if ( $resolution['canonical_code'] !== 'STAR' ) {
+            return new WP_Error( 'wrong_code', 'canonical_code should be STAR.' );
+        }
+
+        if ( $resolution['canonical_sku'] !== 'STARa-34924' ) {
+            return new WP_Error( 'wrong_canonical_sku', 'canonical_sku should match for QSA SKUs.' );
+        }
+
+        if ( $resolution['revision'] !== 'a' ) {
+            return new WP_Error( 'wrong_revision', 'revision should be a.' );
+        }
+
+        if ( $resolution['is_legacy'] !== false ) {
+            return new WP_Error( 'wrong_is_legacy', 'QSA SKU should have is_legacy=false.' );
+        }
+
+        echo "  Resolution provides: canonical_code=STAR, revision=a, is_legacy=false.\n";
+        return true;
+    },
+    'Resolver should provide canonical data for validate_selection to attach.'
+);
+
+// ============================================
+// TC-BAI-004: Unmapped SKU rejected with clear error
+// ============================================
+run_test(
+    'TC-BAI-004: Unmapped legacy SKU returns null for rejection',
+    function (): bool {
+        $resolver = new \Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver();
+
+        // Unmapped legacy SKU should return null (validate_selection returns WP_Error).
+        $result = $resolver->resolve( 'UNMAPPED-LEGACY-SKU-' . time() );
+
+        if ( null !== $result ) {
+            return new WP_Error( 'should_be_null', 'Unmapped legacy SKU should return null.' );
+        }
+
+        echo "  Unmapped legacy SKU returns null (causes WP_Error in validate_selection).\n";
+        return true;
+    },
+    'Unmapped legacy SKU should return null for validate_selection to reject.'
+);
+
+// ============================================
+// TC-BAI-005: resolve_module_skus enriches legacy SKUs with canonical fields
+// ============================================
+run_test(
+    'TC-BAI-005: resolve_module_skus() enriches modules with canonical fields',
+    function (): bool {
+        // Use reflection to access the private resolve_module_skus method.
+        $resolver = new \Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver();
+
+        // Create handler with resolver.
+        $handler = new \Quadica\QSA_Engraving\Ajax\Batch_Ajax_Handler(
+            new \Quadica\QSA_Engraving\Services\Module_Selector(
+                new \Quadica\QSA_Engraving\Database\Batch_Repository()
+            ),
+            new \Quadica\QSA_Engraving\Services\Batch_Sorter(),
+            new \Quadica\QSA_Engraving\Database\Batch_Repository(),
+            new \Quadica\QSA_Engraving\Database\Serial_Repository(),
+            new \Quadica\QSA_Engraving\Services\LED_Code_Resolver(),
+            $resolver
+        );
+
+        // Use reflection to call private method.
+        $reflection = new \ReflectionClass( $handler );
+        $method     = $reflection->getMethod( 'resolve_module_skus' );
+        $method->setAccessible( true );
+
+        // Test with QSA-format SKU.
+        $modules = array(
+            array(
+                'production_batch_id' => 123,
+                'module_sku'          => 'STARa-38546',
+                'order_id'            => 456,
+                'quantity'            => 2,
+            ),
+        );
+
+        $result = $method->invoke( $handler, $modules );
+
+        if ( is_wp_error( $result ) ) {
+            return new WP_Error( 'resolution_failed', 'resolve_module_skus failed: ' . $result->get_error_message() );
+        }
+
+        if ( ! is_array( $result ) || count( $result ) !== 1 ) {
+            return new WP_Error( 'wrong_count', 'Expected 1 enriched module.' );
+        }
+
+        $enriched = $result[0];
+
+        // Check canonical fields were attached.
+        if ( ! isset( $enriched['canonical_code'] ) || 'STAR' !== $enriched['canonical_code'] ) {
+            return new WP_Error( 'missing_canonical_code', 'canonical_code should be STAR.' );
+        }
+
+        if ( ! isset( $enriched['revision'] ) || 'a' !== $enriched['revision'] ) {
+            return new WP_Error( 'missing_revision', 'revision should be a.' );
+        }
+
+        if ( ! isset( $enriched['is_legacy'] ) || true === $enriched['is_legacy'] ) {
+            return new WP_Error( 'wrong_is_legacy', 'is_legacy should be false for QSA SKU.' );
+        }
+
+        echo "  QSA SKU enriched: canonical_code=STAR, revision=a, is_legacy=false.\n";
+        return true;
+    },
+    'resolve_module_skus() should attach canonical fields to module rows for duplicate batch flow.'
+);
+
+// ============================================
+// TC-BAI-006: resolve_module_skus returns modules unchanged when no resolver
+// ============================================
+run_test(
+    'TC-BAI-006: resolve_module_skus() returns modules unchanged without resolver',
+    function (): bool {
+        // Create handler WITHOUT resolver.
+        $handler = new \Quadica\QSA_Engraving\Ajax\Batch_Ajax_Handler(
+            new \Quadica\QSA_Engraving\Services\Module_Selector(
+                new \Quadica\QSA_Engraving\Database\Batch_Repository()
+            ),
+            new \Quadica\QSA_Engraving\Services\Batch_Sorter(),
+            new \Quadica\QSA_Engraving\Database\Batch_Repository(),
+            new \Quadica\QSA_Engraving\Database\Serial_Repository(),
+            new \Quadica\QSA_Engraving\Services\LED_Code_Resolver()
+            // No resolver passed - null default.
+        );
+
+        // Use reflection to call private method.
+        $reflection = new \ReflectionClass( $handler );
+        $method     = $reflection->getMethod( 'resolve_module_skus' );
+        $method->setAccessible( true );
+
+        $modules = array(
+            array(
+                'production_batch_id' => 123,
+                'module_sku'          => 'STARa-38546',
+                'order_id'            => 456,
+                'quantity'            => 2,
+            ),
+        );
+
+        $result = $method->invoke( $handler, $modules );
+
+        if ( is_wp_error( $result ) ) {
+            return new WP_Error( 'unexpected_error', 'Should not return error without resolver.' );
+        }
+
+        // Modules should be returned unchanged (no canonical fields).
+        if ( ! is_array( $result ) || count( $result ) !== 1 ) {
+            return new WP_Error( 'wrong_count', 'Expected 1 module returned unchanged.' );
+        }
+
+        $returned = $result[0];
+
+        // Should NOT have canonical_code (no resolver to add it).
+        if ( isset( $returned['canonical_code'] ) ) {
+            return new WP_Error( 'unexpected_enrichment', 'Should not have canonical_code without resolver.' );
+        }
+
+        echo "  Modules returned unchanged when resolver is null (backward compatible).\n";
+        return true;
+    },
+    'resolve_module_skus() should pass through modules unchanged when no resolver is available.'
+);
+
+// ============================================
+// Config Loader Integration Tests (TC-CLI-*)
+// ============================================
+echo "\n-------------------------------------------\n";
+echo "Config Loader Integration Tests (TC-CLI-*)\n";
+echo "-------------------------------------------\n\n";
+
+// ============================================
+// TC-CLI-001: Config_Loader accepts Legacy_SKU_Resolver
+// ============================================
+run_test(
+    'TC-CLI-001: Config_Loader constructor accepts Legacy_SKU_Resolver',
+    function (): bool {
+        $resolver = new \Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver();
+
+        // Create with resolver.
+        $loader = new \Quadica\QSA_Engraving\Services\Config_Loader(
+            new \Quadica\QSA_Engraving\Database\Config_Repository(),
+            $resolver
+        );
+
+        if ( null === $loader->get_legacy_resolver() ) {
+            return new WP_Error( 'resolver_null', 'Legacy resolver should not be null.' );
+        }
+
+        echo "  Config_Loader constructed with resolver injection.\n";
+        return true;
+    },
+    'Config_Loader constructor should accept optional Legacy_SKU_Resolver.'
+);
+
+// ============================================
+// TC-CLI-002: Config_Loader backward compatible without resolver
+// ============================================
+run_test(
+    'TC-CLI-002: Config_Loader works without resolver (backward compatible)',
+    function (): bool {
+        // Create without resolver.
+        $loader = new \Quadica\QSA_Engraving\Services\Config_Loader();
+
+        if ( null !== $loader->get_legacy_resolver() ) {
+            return new WP_Error( 'resolver_set', 'Legacy resolver should be null when not provided.' );
+        }
+
+        echo "  Config_Loader backward compatible (no resolver).\n";
+        return true;
+    },
+    'Config_Loader should work without Legacy_SKU_Resolver for backward compatibility.'
+);
+
+// ============================================
+// TC-CLI-003: parse_sku() handles QSA format as before
+// ============================================
+run_test(
+    'TC-CLI-003: parse_sku() parses QSA SKUs correctly',
+    function (): bool {
+        $loader = new \Quadica\QSA_Engraving\Services\Config_Loader();
+
+        // Test with revision.
+        $result = $loader->parse_sku( 'STARa-38546' );
+
+        if ( is_wp_error( $result ) ) {
+            return new WP_Error( 'parse_failed', 'parse_sku failed: ' . $result->get_error_message() );
+        }
+
+        if ( 'STAR' !== $result['design'] ) {
+            return new WP_Error( 'wrong_design', 'design should be STAR.' );
+        }
+
+        if ( 'a' !== $result['revision'] ) {
+            return new WP_Error( 'wrong_revision', 'revision should be a.' );
+        }
+
+        if ( '38546' !== $result['config'] ) {
+            return new WP_Error( 'wrong_config', 'config should be 38546.' );
+        }
+
+        // Test without revision.
+        $result2 = $loader->parse_sku( 'CUBE-91247' );
+
+        if ( is_wp_error( $result2 ) ) {
+            return new WP_Error( 'parse_failed2', 'parse_sku failed for CUBE: ' . $result2->get_error_message() );
+        }
+
+        if ( null !== $result2['revision'] ) {
+            return new WP_Error( 'revision_not_null', 'revision should be null for CUBE-91247.' );
+        }
+
+        echo "  QSA SKUs parsed: STARa-38546 (STAR/a/38546), CUBE-91247 (CUBE/null/91247).\n";
+        return true;
+    },
+    'parse_sku() should correctly parse native QSA format SKUs.'
+);
+
+// ============================================
+// TC-CLI-004: parse_sku() with resolver resolves legacy SKUs
+// ============================================
+run_test(
+    'TC-CLI-004: parse_sku() resolves legacy SKUs when resolver available',
+    function (): bool {
+        global $wpdb;
+
+        $resolver = new \Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver();
+        $loader   = new \Quadica\QSA_Engraving\Services\Config_Loader(
+            new \Quadica\QSA_Engraving\Database\Config_Repository(),
+            $resolver
+        );
+
+        // Check if mapping table exists.
+        $table_name = $wpdb->prefix . 'quad_sku_mappings';
+        $table_exists = $wpdb->get_var(
+            $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $table_name ) )
+        ) === $table_name;
+
+        if ( ! $table_exists ) {
+            echo "  [SKIP] Mapping table does not exist - cannot test legacy resolution.\n";
+            return true; // Skip gracefully.
+        }
+
+        // Insert a test mapping.
+        $test_pattern = 'TEST-CLI-' . time();
+        $wpdb->insert(
+            $table_name,
+            array(
+                'legacy_pattern'  => $test_pattern,
+                'match_type'      => 'exact',
+                'canonical_code'  => 'TCLI',
+                'revision'        => 'a',
+                'description'     => 'Test mapping for TC-CLI-004',
+                'priority'        => 100,
+                'is_active'       => 1,
+                'created_by'      => 1,
+            ),
+            array( '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%d' )
+        );
+        $mapping_id = $wpdb->insert_id;
+
+        // Clear resolver cache to pick up new mapping.
+        $resolver->clear_cache();
+
+        // Test parsing the legacy SKU.
+        $result = $loader->parse_sku( $test_pattern );
+
+        // Clean up test mapping.
+        $wpdb->delete( $table_name, array( 'id' => $mapping_id ), array( '%d' ) );
+
+        if ( is_wp_error( $result ) ) {
+            return new WP_Error( 'parse_failed', 'parse_sku failed for legacy SKU: ' . $result->get_error_message() );
+        }
+
+        if ( 'TCLI' !== $result['design'] ) {
+            return new WP_Error( 'wrong_design', 'design should be TCLI, got: ' . $result['design'] );
+        }
+
+        if ( 'a' !== $result['revision'] ) {
+            return new WP_Error( 'wrong_revision', 'revision should be a.' );
+        }
+
+        if ( 'LEGAC' !== $result['config'] ) {
+            return new WP_Error( 'wrong_config', 'config should be LEGAC for legacy SKU.' );
+        }
+
+        echo "  Legacy SKU parsed: {$test_pattern} => design=TCLI, revision=a, config=LEGAC.\n";
+        return true;
+    },
+    'parse_sku() should resolve legacy SKUs to canonical form when resolver is available.'
+);
+
+// ============================================
+// TC-CLI-005: parse_sku() returns error for unmapped SKU without resolver
+// ============================================
+run_test(
+    'TC-CLI-005: parse_sku() returns WP_Error for unknown SKU without resolver',
+    function (): bool {
+        // Create without resolver.
+        $loader = new \Quadica\QSA_Engraving\Services\Config_Loader();
+
+        $result = $loader->parse_sku( 'UNKNOWN-SKU-FORMAT' );
+
+        if ( ! is_wp_error( $result ) ) {
+            return new WP_Error( 'should_error', 'parse_sku should return WP_Error for unknown format.' );
+        }
+
+        if ( 'invalid_sku_format' !== $result->get_error_code() ) {
+            return new WP_Error( 'wrong_code', 'Error code should be invalid_sku_format.' );
+        }
+
+        echo "  Unknown SKU without resolver returns WP_Error (invalid_sku_format).\n";
+        return true;
+    },
+    'parse_sku() should return WP_Error for unknown SKU format when no resolver is available.'
+);
+
+// ============================================
+// TC-CLI-006: set_legacy_resolver() allows late injection
+// ============================================
+run_test(
+    'TC-CLI-006: set_legacy_resolver() allows injecting resolver after construction',
+    function (): bool {
+        // Create without resolver.
+        $loader = new \Quadica\QSA_Engraving\Services\Config_Loader();
+
+        if ( null !== $loader->get_legacy_resolver() ) {
+            return new WP_Error( 'resolver_set', 'Should start with null resolver.' );
+        }
+
+        // Inject resolver.
+        $resolver = new \Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver();
+        $loader->set_legacy_resolver( $resolver );
+
+        if ( null === $loader->get_legacy_resolver() ) {
+            return new WP_Error( 'resolver_null', 'Resolver should be set after injection.' );
+        }
+
+        echo "  Resolver injected via set_legacy_resolver() after construction.\n";
+        return true;
+    },
+    'set_legacy_resolver() should allow injecting resolver after Config_Loader is constructed.'
+);
+
+// ============================================
+// SKU Mapping AJAX Handler Tests (TC-SMA-*)
+// ============================================
+echo "\n-------------------------------------------\n";
+echo "SKU Mapping AJAX Handler Tests (TC-SMA-*)\n";
+echo "-------------------------------------------\n\n";
+
+// ============================================
+// TC-SMA-001: SKU_Mapping_Ajax_Handler can be instantiated
+// ============================================
+run_test(
+    'TC-SMA-001: SKU_Mapping_Ajax_Handler can be instantiated',
+    function (): bool {
+        $repository = new \Quadica\QSA_Engraving\Database\SKU_Mapping_Repository();
+        $resolver   = new \Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver();
+
+        $handler = new \Quadica\QSA_Engraving\Ajax\SKU_Mapping_Ajax_Handler(
+            $repository,
+            $resolver
+        );
+
+        if ( ! $handler instanceof \Quadica\QSA_Engraving\Ajax\SKU_Mapping_Ajax_Handler ) {
+            return new WP_Error( 'wrong_class', 'Handler should be SKU_Mapping_Ajax_Handler instance.' );
+        }
+
+        echo "  Handler instantiated with repository and resolver.\n";
+        return true;
+    },
+    'SKU_Mapping_Ajax_Handler should be instantiable with required dependencies.'
+);
+
+// ============================================
+// TC-SMA-002: Handler can be instantiated without resolver
+// ============================================
+run_test(
+    'TC-SMA-002: SKU_Mapping_Ajax_Handler works without resolver (backward compatible)',
+    function (): bool {
+        $repository = new \Quadica\QSA_Engraving\Database\SKU_Mapping_Repository();
+
+        // Construct without resolver.
+        $handler = new \Quadica\QSA_Engraving\Ajax\SKU_Mapping_Ajax_Handler(
+            $repository
+        );
+
+        if ( ! $handler instanceof \Quadica\QSA_Engraving\Ajax\SKU_Mapping_Ajax_Handler ) {
+            return new WP_Error( 'wrong_class', 'Handler should work without resolver.' );
+        }
+
+        echo "  Handler backward compatible without resolver.\n";
+        return true;
+    },
+    'SKU_Mapping_Ajax_Handler should work without resolver for backward compatibility.'
+);
+
+// ============================================
+// TC-SMA-003: Handler register method adds AJAX hooks
+// ============================================
+run_test(
+    'TC-SMA-003: register() adds AJAX hooks',
+    function (): bool {
+        global $wp_filter;
+
+        $repository = new \Quadica\QSA_Engraving\Database\SKU_Mapping_Repository();
+        $handler    = new \Quadica\QSA_Engraving\Ajax\SKU_Mapping_Ajax_Handler( $repository );
+
+        // Register the handler.
+        $handler->register();
+
+        // Check that AJAX actions were registered.
+        $actions = array(
+            'wp_ajax_qsa_get_sku_mappings',
+            'wp_ajax_qsa_add_sku_mapping',
+            'wp_ajax_qsa_update_sku_mapping',
+            'wp_ajax_qsa_delete_sku_mapping',
+            'wp_ajax_qsa_toggle_sku_mapping',
+            'wp_ajax_qsa_test_sku_resolution',
+        );
+
+        $missing = array();
+        foreach ( $actions as $action ) {
+            if ( ! has_action( $action ) ) {
+                $missing[] = $action;
+            }
+        }
+
+        if ( ! empty( $missing ) ) {
+            return new WP_Error( 'missing_hooks', 'Missing AJAX hooks: ' . implode( ', ', $missing ) );
+        }
+
+        echo "  All 6 AJAX hooks registered successfully.\n";
+        return true;
+    },
+    'register() should add all SKU mapping AJAX hooks.'
+);
+
+// ============================================
+// TC-SMA-004: Admin menu has SKU Mappings submenu
+// ============================================
+run_test(
+    'TC-SMA-004: Admin_Menu includes SKU Mappings submenu page',
+    function (): bool {
+        $admin_menu = new \Quadica\QSA_Engraving\Admin\Admin_Menu();
+
+        // Check that render method exists.
+        if ( ! method_exists( $admin_menu, 'render_sku_mappings_page' ) ) {
+            return new WP_Error( 'missing_method', 'Admin_Menu should have render_sku_mappings_page method.' );
+        }
+
+        echo "  Admin_Menu has render_sku_mappings_page method.\n";
+        return true;
+    },
+    'Admin_Menu should include SKU Mappings submenu page.'
+);
+
+// ============================================
+// Phase 8: Plugin Wiring Tests
+// ============================================
+
+// TC-PLW-001: Plugin properly wires Legacy_SKU_Resolver with repository
+run_test(
+    'TC-PLW-001: Plugin wires Legacy_SKU_Resolver with SKU_Mapping_Repository',
+    function (): bool {
+        $plugin   = \Quadica\QSA_Engraving\qsa_engraving();
+        $resolver = $plugin->get_legacy_sku_resolver();
+
+        if ( null === $resolver ) {
+            return new WP_Error( 'null_resolver', 'Legacy_SKU_Resolver should not be null.' );
+        }
+
+        if ( ! $resolver instanceof \Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver ) {
+            return new WP_Error( 'wrong_class', 'Should be Legacy_SKU_Resolver instance.' );
+        }
+
+        echo "  Plugin has Legacy_SKU_Resolver instance.\n";
+        return true;
+    },
+    'Plugin should wire Legacy_SKU_Resolver with SKU_Mapping_Repository.'
+);
+
+// TC-PLW-002: Module_Selector has Legacy_SKU_Resolver injected
+run_test(
+    'TC-PLW-002: Module_Selector has Legacy_SKU_Resolver injected',
+    function (): bool {
+        $plugin          = \Quadica\QSA_Engraving\qsa_engraving();
+        $module_selector = $plugin->get_module_selector();
+
+        if ( null === $module_selector ) {
+            return new WP_Error( 'null_selector', 'Module_Selector should not be null.' );
+        }
+
+        // Use reflection to check private property.
+        $reflection = new ReflectionClass( $module_selector );
+        $property   = $reflection->getProperty( 'legacy_resolver' );
+        $property->setAccessible( true );
+        $resolver = $property->getValue( $module_selector );
+
+        if ( null === $resolver ) {
+            return new WP_Error( 'null_resolver', 'Module_Selector should have Legacy_SKU_Resolver injected.' );
+        }
+
+        echo "  Module_Selector has Legacy_SKU_Resolver injected.\n";
+        return true;
+    },
+    'Module_Selector should have Legacy_SKU_Resolver injected for legacy SKU support.'
+);
+
+// TC-PLW-003: LightBurn_Ajax_Handler creates Config_Loader with resolver
+run_test(
+    'TC-PLW-003: LightBurn_Ajax_Handler wires Legacy_SKU_Resolver to Config_Loader',
+    function (): bool {
+        // Create handler with all dependencies including resolver.
+        $batch_repo  = new \Quadica\QSA_Engraving\Database\Batch_Repository();
+        $serial_repo = new \Quadica\QSA_Engraving\Database\Serial_Repository();
+        $led_resolver = new \Quadica\QSA_Engraving\Services\LED_Code_Resolver();
+        $sku_repo    = new \Quadica\QSA_Engraving\Database\SKU_Mapping_Repository();
+        $legacy_resolver = new \Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver( $sku_repo );
+
+        $handler = new \Quadica\QSA_Engraving\Ajax\LightBurn_Ajax_Handler(
+            $batch_repo,
+            $serial_repo,
+            $led_resolver,
+            null,
+            $legacy_resolver
+        );
+
+        // Use reflection to check svg_generator.
+        $reflection = new ReflectionClass( $handler );
+        $property   = $reflection->getProperty( 'svg_generator' );
+        $property->setAccessible( true );
+        $svg_generator = $property->getValue( $handler );
+
+        if ( ! $svg_generator instanceof \Quadica\QSA_Engraving\Services\SVG_Generator ) {
+            return new WP_Error( 'wrong_class', 'Should have SVG_Generator instance.' );
+        }
+
+        // Check that Config_Loader has resolver.
+        $config_loader = $svg_generator->get_config_loader();
+        $legacy_in_loader = $config_loader->get_legacy_resolver();
+
+        if ( null === $legacy_in_loader ) {
+            return new WP_Error( 'null_resolver', 'Config_Loader should have Legacy_SKU_Resolver.' );
+        }
+
+        echo "  LightBurn_Ajax_Handler properly wires resolver to Config_Loader.\n";
+        return true;
+    },
+    'LightBurn_Ajax_Handler should wire Legacy_SKU_Resolver to Config_Loader via SVG_Generator.'
 );
 
 // ============================================
