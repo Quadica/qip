@@ -5698,6 +5698,458 @@ run_test(
 );
 
 // ============================================
+// Legacy SKU Resolver Tests (Phase 3)
+// ============================================
+
+// ============================================
+// TC-RES-001: Legacy_SKU_Resolver Class Exists
+// ============================================
+run_test(
+    'TC-RES-001: Legacy_SKU_Resolver class exists',
+    function (): bool {
+        if ( ! class_exists( '\Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver' ) ) {
+            return new WP_Error(
+                'class_missing',
+                'Legacy_SKU_Resolver class not found.'
+            );
+        }
+
+        $resolver = new \Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver();
+
+        // Check required methods exist.
+        $required_methods = array(
+            'resolve',
+            'is_qsa_sku',
+            'is_legacy_sku',
+            'clear_cache',
+            'get_base_type',
+            'resolve_batch',
+            'filter_resolvable',
+        );
+
+        foreach ( $required_methods as $method ) {
+            if ( ! method_exists( $resolver, $method ) ) {
+                return new WP_Error( 'missing_method', "Method {$method}() not found." );
+            }
+        }
+
+        echo "  Legacy_SKU_Resolver class exists with all methods.\n";
+        return true;
+    },
+    'Legacy_SKU_Resolver should exist and have all required methods.'
+);
+
+// ============================================
+// TC-RES-002: Resolver Constants Defined
+// ============================================
+run_test(
+    'TC-RES-002: Resolver constants defined',
+    function (): bool {
+        $pattern = \Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver::QSA_SKU_PATTERN;
+        $suffix  = \Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver::LEGACY_CONFIG_SUFFIX;
+
+        if ( empty( $pattern ) ) {
+            return new WP_Error( 'missing_pattern', 'QSA_SKU_PATTERN constant not defined.' );
+        }
+
+        if ( 'LEGAC' !== $suffix ) {
+            return new WP_Error( 'wrong_suffix', 'LEGACY_CONFIG_SUFFIX should be LEGAC. Got: ' . $suffix );
+        }
+
+        echo "  QSA_SKU_PATTERN: {$pattern}\n";
+        echo "  LEGACY_CONFIG_SUFFIX: {$suffix}\n";
+        return true;
+    },
+    'Resolver should define pattern and suffix constants.'
+);
+
+// ============================================
+// TC-RES-003: is_qsa_sku Validates QSA Format
+// ============================================
+run_test(
+    'TC-RES-003: is_qsa_sku validates QSA format',
+    function (): bool {
+        $resolver = new \Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver();
+
+        // Valid QSA SKUs.
+        $valid = array(
+            'STAR-12345',
+            'STARa-34924',
+            'CUBE-91247',
+            'PICO-00001',
+            'COREz-99999',
+        );
+
+        foreach ( $valid as $sku ) {
+            if ( ! $resolver->is_qsa_sku( $sku ) ) {
+                return new WP_Error( 'qsa_check_fail', "Should recognize {$sku} as QSA format." );
+            }
+        }
+
+        // Invalid QSA SKUs (legacy format).
+        $invalid = array(
+            'SP-01',
+            'SZ-01',
+            'MR-001-10S',
+            '234356-1',
+            'STAR',  // No hyphen/config.
+            'star-12345', // Lowercase design.
+            'STAR-1234', // Only 4 digits.
+            'STARAA-12345', // Two uppercase after design.
+        );
+
+        foreach ( $invalid as $sku ) {
+            if ( $resolver->is_qsa_sku( $sku ) ) {
+                return new WP_Error( 'qsa_false_positive', "Should NOT recognize {$sku} as QSA format." );
+            }
+        }
+
+        echo "  Valid QSA: " . implode( ', ', $valid ) . "\n";
+        echo "  Invalid (legacy): " . implode( ', ', array_slice( $invalid, 0, 4 ) ) . "\n";
+        return true;
+    },
+    'is_qsa_sku should correctly identify QSA format SKUs.'
+);
+
+// ============================================
+// TC-RES-004: Resolve QSA SKU Without Mapping
+// ============================================
+run_test(
+    'TC-RES-004: resolve() handles QSA SKUs directly',
+    function (): bool {
+        $resolver = new \Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver();
+
+        // Test QSA SKU resolution.
+        $result = $resolver->resolve( 'STARa-34924' );
+
+        if ( null === $result ) {
+            return new WP_Error( 'resolve_fail', 'resolve() returned null for QSA SKU.' );
+        }
+
+        // Verify resolution structure.
+        if ( $result['is_legacy'] !== false ) {
+            return new WP_Error( 'wrong_is_legacy', 'is_legacy should be false for QSA SKU.' );
+        }
+
+        if ( $result['original_sku'] !== 'STARa-34924' ) {
+            return new WP_Error( 'wrong_original', 'original_sku mismatch.' );
+        }
+
+        if ( $result['canonical_code'] !== 'STAR' ) {
+            return new WP_Error( 'wrong_code', 'canonical_code should be STAR. Got: ' . $result['canonical_code'] );
+        }
+
+        if ( $result['revision'] !== 'a' ) {
+            return new WP_Error( 'wrong_revision', 'revision should be a. Got: ' . ( $result['revision'] ?? 'null' ) );
+        }
+
+        if ( $result['canonical_sku'] !== 'STARa-34924' ) {
+            return new WP_Error( 'wrong_canonical', 'canonical_sku mismatch.' );
+        }
+
+        if ( $result['mapping_id'] !== null ) {
+            return new WP_Error( 'wrong_mapping_id', 'mapping_id should be null for QSA SKU.' );
+        }
+
+        // Test without revision.
+        $result2 = $resolver->resolve( 'CUBE-91247' );
+        if ( $result2['revision'] !== null ) {
+            return new WP_Error( 'revision_not_null', 'revision should be null for CUBE-91247.' );
+        }
+
+        echo "  Resolved STARa-34924: code=STAR, rev=a, canonical_sku=STARa-34924\n";
+        echo "  Resolved CUBE-91247: code=CUBE, rev=null\n";
+        return true;
+    },
+    'resolve() should handle QSA SKUs directly without database lookup.'
+);
+
+// ============================================
+// TC-RES-005: Resolve Legacy SKU With Mapping
+// ============================================
+run_test(
+    'TC-RES-005: resolve() handles legacy SKU with mapping',
+    function (): bool {
+        $sku_repo = new \Quadica\QSA_Engraving\Database\SKU_Mapping_Repository();
+
+        // Skip if table doesn't exist.
+        if ( ! $sku_repo->table_exists() ) {
+            echo "  Skipping: Mapping table does not exist.\n";
+            return true;
+        }
+
+        // Create a test mapping.
+        $timestamp = time();
+        $test_sku  = 'RESOLVER-TEST-' . $timestamp;
+
+        $mapping_id = $sku_repo->create( array(
+            'legacy_pattern' => $test_sku,
+            'canonical_code' => 'RSLV',
+            'revision'       => 'b',
+            'match_type'     => 'exact',
+            'description'    => 'Resolver smoke test',
+        ) );
+
+        if ( is_wp_error( $mapping_id ) ) {
+            return new WP_Error( 'setup_fail', 'Failed to create test mapping.' );
+        }
+
+        $resolver = new \Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver();
+
+        // Resolve the legacy SKU.
+        $result = $resolver->resolve( $test_sku );
+
+        // Clean up.
+        $sku_repo->delete( $mapping_id );
+
+        if ( null === $result ) {
+            return new WP_Error( 'resolve_fail', 'resolve() returned null for mapped legacy SKU.' );
+        }
+
+        // Verify resolution structure.
+        if ( $result['is_legacy'] !== true ) {
+            return new WP_Error( 'wrong_is_legacy', 'is_legacy should be true for legacy SKU.' );
+        }
+
+        if ( $result['original_sku'] !== $test_sku ) {
+            return new WP_Error( 'wrong_original', 'original_sku mismatch.' );
+        }
+
+        if ( $result['canonical_code'] !== 'RSLV' ) {
+            return new WP_Error( 'wrong_code', 'canonical_code should be RSLV. Got: ' . $result['canonical_code'] );
+        }
+
+        if ( $result['revision'] !== 'b' ) {
+            return new WP_Error( 'wrong_revision', 'revision should be b. Got: ' . ( $result['revision'] ?? 'null' ) );
+        }
+
+        if ( $result['canonical_sku'] !== 'RSLVb-LEGAC' ) {
+            return new WP_Error( 'wrong_canonical', 'canonical_sku should be RSLVb-LEGAC. Got: ' . $result['canonical_sku'] );
+        }
+
+        if ( $result['mapping_id'] !== $mapping_id ) {
+            return new WP_Error( 'wrong_mapping_id', 'mapping_id mismatch.' );
+        }
+
+        echo "  Resolved {$test_sku}: code=RSLV, rev=b, canonical_sku=RSLVb-LEGAC\n";
+        return true;
+    },
+    'resolve() should use mapping table for legacy SKUs.'
+);
+
+// ============================================
+// TC-RES-006: Unmapped Legacy SKU Returns Null
+// ============================================
+run_test(
+    'TC-RES-006: resolve() returns null for unmapped legacy SKU',
+    function (): bool {
+        $resolver = new \Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver();
+
+        // Use a SKU that definitely won't have a mapping.
+        $result = $resolver->resolve( 'UNMAPPED-NONEXISTENT-' . time() );
+
+        if ( null !== $result ) {
+            return new WP_Error(
+                'should_be_null',
+                'resolve() should return null for unmapped legacy SKU.'
+            );
+        }
+
+        echo "  Unmapped legacy SKU correctly returns null.\n";
+        return true;
+    },
+    'resolve() should return null for unmapped legacy SKUs (ignored by workflow).'
+);
+
+// ============================================
+// TC-RES-007: Resolution Cache Works
+// ============================================
+run_test(
+    'TC-RES-007: Resolution cache works',
+    function (): bool {
+        $resolver = new \Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver();
+
+        // Clear cache first.
+        $resolver->clear_cache();
+
+        if ( $resolver->get_cache_count() !== 0 ) {
+            return new WP_Error( 'cache_not_empty', 'Cache should be empty after clear.' );
+        }
+
+        // Resolve a SKU.
+        $resolver->resolve( 'STAR-12345' );
+
+        if ( $resolver->get_cache_count() !== 1 ) {
+            return new WP_Error( 'cache_count_wrong', 'Cache should have 1 entry.' );
+        }
+
+        // Resolve same SKU again (should use cache).
+        $resolver->resolve( 'STAR-12345' );
+
+        if ( $resolver->get_cache_count() !== 1 ) {
+            return new WP_Error( 'cache_doubled', 'Cache should still have 1 entry (cached).' );
+        }
+
+        // Resolve different SKU.
+        $resolver->resolve( 'CUBE-91247' );
+
+        if ( $resolver->get_cache_count() !== 2 ) {
+            return new WP_Error( 'cache_count_wrong2', 'Cache should have 2 entries.' );
+        }
+
+        // Clear cache.
+        $resolver->clear_cache();
+
+        if ( $resolver->get_cache_count() !== 0 ) {
+            return new WP_Error( 'cache_not_cleared', 'Cache should be empty after clear.' );
+        }
+
+        echo "  Cache correctly stores and clears resolutions.\n";
+        return true;
+    },
+    'Resolution cache should store and clear correctly.'
+);
+
+// ============================================
+// TC-RES-008: get_base_type Returns Correct Value
+// ============================================
+run_test(
+    'TC-RES-008: get_base_type returns correct value',
+    function (): bool {
+        $resolver = new \Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver();
+
+        // Test QSA SKU with revision.
+        $base = $resolver->get_base_type( 'STARa-34924' );
+        if ( 'STARa' !== $base ) {
+            return new WP_Error( 'wrong_base1', 'Expected STARa. Got: ' . ( $base ?? 'null' ) );
+        }
+
+        // Test QSA SKU without revision.
+        $base = $resolver->get_base_type( 'CUBE-91247' );
+        if ( 'CUBE' !== $base ) {
+            return new WP_Error( 'wrong_base2', 'Expected CUBE. Got: ' . ( $base ?? 'null' ) );
+        }
+
+        // Test unmapped SKU.
+        $base = $resolver->get_base_type( 'UNMAPPED-' . time() );
+        if ( null !== $base ) {
+            return new WP_Error( 'should_be_null', 'Unmapped SKU should return null base type.' );
+        }
+
+        echo "  Base types: STARa-34924 -> STARa, CUBE-91247 -> CUBE\n";
+        return true;
+    },
+    'get_base_type should return canonical_code + revision.'
+);
+
+// ============================================
+// TC-RES-009: resolve_batch Resolves Multiple SKUs
+// ============================================
+run_test(
+    'TC-RES-009: resolve_batch handles multiple SKUs',
+    function (): bool {
+        $resolver = new \Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver();
+
+        $skus = array(
+            'STAR-12345',
+            'CUBE-91247',
+            'UNMAPPED-' . time(),
+        );
+
+        $results = $resolver->resolve_batch( $skus );
+
+        if ( count( $results ) !== 3 ) {
+            return new WP_Error( 'wrong_count', 'Should return 3 results.' );
+        }
+
+        if ( ! isset( $results['STAR-12345'] ) || null === $results['STAR-12345'] ) {
+            return new WP_Error( 'star_missing', 'STAR-12345 should resolve.' );
+        }
+
+        if ( ! isset( $results['CUBE-91247'] ) || null === $results['CUBE-91247'] ) {
+            return new WP_Error( 'cube_missing', 'CUBE-91247 should resolve.' );
+        }
+
+        // Unmapped SKU should be in results but with null value.
+        $unmapped_key = $skus[2];
+        if ( ! array_key_exists( $unmapped_key, $results ) ) {
+            return new WP_Error( 'unmapped_missing', 'Unmapped SKU should be in results.' );
+        }
+
+        if ( $results[ $unmapped_key ] !== null ) {
+            return new WP_Error( 'unmapped_not_null', 'Unmapped SKU should have null value.' );
+        }
+
+        echo "  Batch resolved: 2 QSA SKUs + 1 null (unmapped)\n";
+        return true;
+    },
+    'resolve_batch should handle multiple SKUs efficiently.'
+);
+
+// ============================================
+// TC-RES-010: filter_resolvable Filters Correctly
+// ============================================
+run_test(
+    'TC-RES-010: filter_resolvable filters correctly',
+    function (): bool {
+        $resolver = new \Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver();
+
+        $skus = array(
+            'STAR-12345',
+            'CUBE-91247',
+            'UNMAPPED-' . time(),
+            'ANOTHER-UNMAPPED-' . time(),
+        );
+
+        $filtered = $resolver->filter_resolvable( $skus );
+
+        if ( count( $filtered ) !== 2 ) {
+            return new WP_Error( 'wrong_count', 'Should filter to 2 resolvable SKUs. Got: ' . count( $filtered ) );
+        }
+
+        if ( ! in_array( 'STAR-12345', $filtered, true ) || ! in_array( 'CUBE-91247', $filtered, true ) ) {
+            return new WP_Error( 'wrong_skus', 'Filtered list should contain STAR-12345 and CUBE-91247.' );
+        }
+
+        echo "  Filtered 4 SKUs to 2 resolvable.\n";
+        return true;
+    },
+    'filter_resolvable should only return resolvable SKUs.'
+);
+
+// ============================================
+// TC-RES-011: Empty and Whitespace SKUs
+// ============================================
+run_test(
+    'TC-RES-011: resolve() handles empty and whitespace SKUs',
+    function (): bool {
+        $resolver = new \Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver();
+
+        // Empty string.
+        $result = $resolver->resolve( '' );
+        if ( null !== $result ) {
+            return new WP_Error( 'empty_not_null', 'Empty SKU should return null.' );
+        }
+
+        // Whitespace only.
+        $result = $resolver->resolve( '   ' );
+        if ( null !== $result ) {
+            return new WP_Error( 'whitespace_not_null', 'Whitespace-only SKU should return null.' );
+        }
+
+        // SKU with leading/trailing whitespace (should be trimmed).
+        $result = $resolver->resolve( '  STAR-12345  ' );
+        if ( null === $result || $result['canonical_code'] !== 'STAR' ) {
+            return new WP_Error( 'trim_fail', 'SKU with whitespace should be trimmed and resolved.' );
+        }
+
+        echo "  Empty, whitespace, and trimmed SKUs handled correctly.\n";
+        return true;
+    },
+    'resolve() should handle edge cases for empty/whitespace SKUs.'
+);
+
+// ============================================
 // Summary
 // ============================================
 // Re-declare global to ensure PHP 8.1 recognizes the variables in eval-file context.

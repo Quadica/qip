@@ -113,6 +113,13 @@ final class Plugin {
     private ?Services\LED_Code_Resolver $led_code_resolver = null;
 
     /**
+     * Legacy SKU Resolver Service instance.
+     *
+     * @var Services\Legacy_SKU_Resolver|null
+     */
+    private ?Services\Legacy_SKU_Resolver $legacy_sku_resolver = null;
+
+    /**
      * Batch AJAX Handler instance.
      *
      * @var Ajax\Batch_Ajax_Handler|null
@@ -667,6 +674,15 @@ final class Plugin {
      */
     public function get_module_selector(): Services\Module_Selector {
         return $this->module_selector;
+    }
+
+    /**
+     * Get the Legacy SKU Resolver Service instance.
+     *
+     * @return Services\Legacy_SKU_Resolver|null
+     */
+    public function get_legacy_sku_resolver(): ?Services\Legacy_SKU_Resolver {
+        return $this->legacy_sku_resolver;
     }
 
     /**
