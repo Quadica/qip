@@ -821,29 +821,6 @@ export default function EngravingQueue() {
 				capacity={ capacity }
 			/>
 
-			{ /* LightBurn Status Indicator */ }
-			{ lightburnStatus.enabled && (
-				<div className={ `qsa-lightburn-status ${ lightburnStatus.loading ? 'loading' : '' }` }>
-					<span className="dashicons dashicons-admin-generic"></span>
-					<span className="qsa-lightburn-label">{ __( 'LightBurn:', 'qsa-engraving' ) }</span>
-					{ lightburnStatus.loading ? (
-						<span className="qsa-lightburn-state loading">
-							<span className="spinner is-active"></span>
-							{ __( 'Sending...', 'qsa-engraving' ) }
-						</span>
-					) : (
-						<span className="qsa-lightburn-state ready">
-							{ __( 'Ready', 'qsa-engraving' ) }
-						</span>
-					) }
-					{ lightburnStatus.lastFile && (
-						<span className="qsa-lightburn-file">
-							<code>{ lightburnStatus.lastFile }</code>
-						</span>
-					) }
-				</div>
-			) }
-
 			<div className="qsa-queue-list">
 				<div className="qsa-queue-list-header">
 					<span className="dashicons dashicons-list-view"></span>
