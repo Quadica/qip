@@ -102,12 +102,36 @@ CREATE TABLE IF NOT EXISTS `lw_quad_sku_mappings` (
 -- This column stores the original SKU before mapping. For native QSA format
 -- SKUs, this will be NULL. For mapped legacy SKUs, it preserves the original
 -- SKU for reporting and debugging purposes.
+--
+-- IDEMPOTENT: Uses stored procedure to check if column exists before adding.
+-- Safe to re-run without errors.
 -- -----------------------------------------------------------------------------
 
-ALTER TABLE `lw_quad_engraved_modules`
-ADD COLUMN `original_sku` VARCHAR(50) DEFAULT NULL
-    COMMENT 'Original SKU before mapping (NULL if native QSA format)'
-AFTER `module_sku`;
+-- Create a stored procedure for idempotent column addition.
+DELIMITER //
+DROP PROCEDURE IF EXISTS add_original_sku_column//
+CREATE PROCEDURE add_original_sku_column()
+BEGIN
+    DECLARE column_exists INT DEFAULT 0;
+
+    SELECT COUNT(*) INTO column_exists
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'lw_quad_engraved_modules'
+      AND COLUMN_NAME = 'original_sku';
+
+    IF column_exists = 0 THEN
+        ALTER TABLE `lw_quad_engraved_modules`
+        ADD COLUMN `original_sku` VARCHAR(50) DEFAULT NULL
+            COMMENT 'Original SKU before mapping (NULL if native QSA format)'
+        AFTER `module_sku`;
+    END IF;
+END//
+DELIMITER ;
+
+-- Execute and clean up.
+CALL add_original_sku_column();
+DROP PROCEDURE IF EXISTS add_original_sku_column;
 
 
 -- =============================================================================

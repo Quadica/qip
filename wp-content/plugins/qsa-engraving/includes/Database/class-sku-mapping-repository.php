@@ -40,6 +40,20 @@ class SKU_Mapping_Repository {
     public const MATCH_TYPES = array( 'exact', 'prefix', 'suffix', 'regex' );
 
     /**
+     * Maximum length for legacy_pattern column.
+     *
+     * @var int
+     */
+    public const MAX_PATTERN_LENGTH = 50;
+
+    /**
+     * Maximum priority value (SMALLINT UNSIGNED).
+     *
+     * @var int
+     */
+    public const MAX_PRIORITY = 65535;
+
+    /**
      * WordPress database instance.
      *
      * @var \wpdb
@@ -74,13 +88,17 @@ class SKU_Mapping_Repository {
     /**
      * Check if the table exists.
      *
+     * Uses esc_like() to escape underscores in table prefix to prevent
+     * false positives from wildcard matching.
+     *
      * @return bool
      */
     public function table_exists(): bool {
-        $result = $this->wpdb->get_var(
+        $escaped_name = $this->wpdb->esc_like( $this->table_name );
+        $result       = $this->wpdb->get_var(
             $this->wpdb->prepare(
                 'SHOW TABLES LIKE %s',
-                $this->table_name
+                $escaped_name
             )
         );
         return $result === $this->table_name;
@@ -93,10 +111,13 @@ class SKU_Mapping_Repository {
      * Returns null if no mapping matches.
      *
      * The matching is done in priority order:
-     * 1. Exact matches first (case-sensitive)
-     * 2. Prefix matches (SKU starts with pattern)
-     * 3. Suffix matches (SKU ends with pattern)
-     * 4. Regex matches (pattern is a MySQL REGEXP)
+     * 1. Exact matches first (case-insensitive per database collation)
+     * 2. Prefix matches (SKU starts with pattern, case-insensitive)
+     * 3. Suffix matches (SKU ends with pattern, case-insensitive)
+     * 4. Regex matches (case sensitivity depends on pattern flags)
+     *
+     * Note: Pattern matching uses the database's utf8mb4_unicode_ci collation,
+     * which is case-insensitive. The test_pattern() method mirrors this behavior.
      *
      * @param string $sku The SKU to match.
      * @return array|null The mapping data or null if no match.
@@ -162,13 +183,13 @@ class SKU_Mapping_Repository {
 
         // Try regex match (most expensive, done last).
         // Get all active regex patterns ordered by priority.
+        // Note: No user input in this query, so prepare() is not needed.
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
         $regexes = $this->wpdb->get_results(
-            $this->wpdb->prepare(
-                "SELECT * FROM {$this->table_name}
-                WHERE match_type = 'regex'
-                  AND is_active = 1
-                ORDER BY priority ASC"
-            ),
+            "SELECT * FROM {$this->table_name}
+            WHERE match_type = 'regex'
+              AND is_active = 1
+            ORDER BY priority ASC",
             ARRAY_A
         );
 
@@ -365,6 +386,16 @@ class SKU_Mapping_Repository {
         $update_format = array();
 
         if ( isset( $data['legacy_pattern'] ) ) {
+            if ( strlen( $data['legacy_pattern'] ) > self::MAX_PATTERN_LENGTH ) {
+                return new WP_Error(
+                    'pattern_too_long',
+                    sprintf(
+                        /* translators: %d: maximum pattern length */
+                        __( 'Legacy pattern exceeds maximum length of %d characters.', 'qsa-engraving' ),
+                        self::MAX_PATTERN_LENGTH
+                    )
+                );
+            }
             $update_data['legacy_pattern'] = $data['legacy_pattern'];
             $update_format[]               = '%s';
         }
@@ -390,10 +421,18 @@ class SKU_Mapping_Repository {
         }
 
         if ( array_key_exists( 'revision', $data ) ) {
-            $update_data['revision'] = ! empty( $data['revision'] )
-                ? strtolower( substr( $data['revision'], 0, 1 ) )
-                : null;
-            $update_format[]         = '%s';
+            if ( ! empty( $data['revision'] ) ) {
+                if ( ! preg_match( '/^[a-z]$/i', $data['revision'] ) ) {
+                    return new WP_Error(
+                        'invalid_revision',
+                        __( 'Revision must be a single letter (a-z).', 'qsa-engraving' )
+                    );
+                }
+                $update_data['revision'] = strtolower( substr( $data['revision'], 0, 1 ) );
+            } else {
+                $update_data['revision'] = null;
+            }
+            $update_format[] = '%s';
         }
 
         if ( array_key_exists( 'description', $data ) ) {
@@ -402,12 +441,30 @@ class SKU_Mapping_Repository {
         }
 
         if ( isset( $data['priority'] ) ) {
-            $update_data['priority'] = (int) $data['priority'];
+            $priority = (int) $data['priority'];
+            if ( $priority < 0 || $priority > self::MAX_PRIORITY ) {
+                return new WP_Error(
+                    'invalid_priority',
+                    sprintf(
+                        /* translators: %d: maximum priority value */
+                        __( 'Priority must be between 0 and %d.', 'qsa-engraving' ),
+                        self::MAX_PRIORITY
+                    )
+                );
+            }
+            $update_data['priority'] = $priority;
             $update_format[]         = '%d';
         }
 
         if ( isset( $data['is_active'] ) ) {
-            $update_data['is_active'] = (int) $data['is_active'];
+            $is_active = (int) $data['is_active'];
+            if ( $is_active !== 0 && $is_active !== 1 ) {
+                return new WP_Error(
+                    'invalid_is_active',
+                    __( 'is_active must be 0 or 1.', 'qsa-engraving' )
+                );
+            }
+            $update_data['is_active'] = $is_active;
             $update_format[]          = '%d';
         }
 
@@ -520,6 +577,7 @@ class SKU_Mapping_Repository {
      * Test if a pattern matches a test SKU.
      *
      * Useful for the admin UI to verify patterns before saving.
+     * Uses case-insensitive matching to mirror database collation behavior.
      *
      * @param string $pattern    The pattern to test.
      * @param string $match_type The match type (exact|prefix|suffix|regex).
@@ -533,18 +591,27 @@ class SKU_Mapping_Repository {
 
         switch ( $match_type ) {
             case 'exact':
-                return $pattern === $test_sku;
+                // Case-insensitive to match database collation (utf8mb4_unicode_ci).
+                return strcasecmp( $pattern, $test_sku ) === 0;
 
             case 'prefix':
-                return str_starts_with( $test_sku, $pattern );
+                // Case-insensitive prefix match.
+                return stripos( $test_sku, $pattern ) === 0;
 
             case 'suffix':
-                return str_ends_with( $test_sku, $pattern );
+                // Case-insensitive suffix match.
+                $pattern_len = strlen( $pattern );
+                $sku_len     = strlen( $test_sku );
+                if ( $pattern_len > $sku_len ) {
+                    return false;
+                }
+                return strcasecmp( substr( $test_sku, -$pattern_len ), $pattern ) === 0;
 
             case 'regex':
                 // Ensure pattern has delimiters.
                 if ( ! str_starts_with( $pattern, '/' ) && ! str_starts_with( $pattern, '#' ) ) {
-                    $pattern = '/' . $pattern . '/';
+                    // Add case-insensitive flag by default to match database behavior.
+                    $pattern = '/' . $pattern . '/i';
                 }
                 // Suppress warnings from invalid regex patterns.
                 // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
@@ -610,6 +677,18 @@ class SKU_Mapping_Repository {
             return new WP_Error(
                 'missing_pattern',
                 __( 'Legacy pattern is required.', 'qsa-engraving' )
+            );
+        }
+
+        // Validate legacy_pattern length to prevent silent truncation.
+        if ( strlen( $data['legacy_pattern'] ) > self::MAX_PATTERN_LENGTH ) {
+            return new WP_Error(
+                'pattern_too_long',
+                sprintf(
+                    /* translators: %d: maximum pattern length */
+                    __( 'Legacy pattern exceeds maximum length of %d characters.', 'qsa-engraving' ),
+                    self::MAX_PATTERN_LENGTH
+                )
             );
         }
 
