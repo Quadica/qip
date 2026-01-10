@@ -6368,6 +6368,135 @@ run_test(
 );
 
 // ============================================
+// Batch Ajax Handler Integration Tests (TC-BAI-*)
+// Tests for Batch_Ajax_Handler + Legacy_SKU_Resolver integration
+// ============================================
+
+// ============================================
+// TC-BAI-001: Batch_Ajax_Handler accepts Legacy_SKU_Resolver
+// ============================================
+run_test(
+    'TC-BAI-001: Batch_Ajax_Handler constructor accepts Legacy_SKU_Resolver',
+    function (): bool {
+        $batch_repo   = new \Quadica\QSA_Engraving\Database\Batch_Repository();
+        $serial_repo  = new \Quadica\QSA_Engraving\Database\Serial_Repository();
+        $resolver     = new \Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver();
+        $module_sel   = new \Quadica\QSA_Engraving\Services\Module_Selector( $batch_repo, $resolver );
+        $batch_sorter = new \Quadica\QSA_Engraving\Services\Batch_Sorter();
+        $led_resolver = new \Quadica\QSA_Engraving\Services\LED_Code_Resolver();
+
+        // Should construct without error with resolver.
+        $handler = new \Quadica\QSA_Engraving\Ajax\Batch_Ajax_Handler(
+            $module_sel,
+            $batch_sorter,
+            $batch_repo,
+            $serial_repo,
+            $led_resolver,
+            $resolver
+        );
+
+        if ( ! $handler instanceof \Quadica\QSA_Engraving\Ajax\Batch_Ajax_Handler ) {
+            return new WP_Error( 'wrong_instance', 'Constructor should return Batch_Ajax_Handler instance.' );
+        }
+
+        echo "  Batch_Ajax_Handler constructed with resolver injection.\n";
+        return true;
+    },
+    'Batch_Ajax_Handler constructor should accept optional Legacy_SKU_Resolver.'
+);
+
+// ============================================
+// TC-BAI-002: Batch_Ajax_Handler backward compatible without resolver
+// ============================================
+run_test(
+    'TC-BAI-002: Batch_Ajax_Handler works without resolver (backward compatible)',
+    function (): bool {
+        $batch_repo   = new \Quadica\QSA_Engraving\Database\Batch_Repository();
+        $serial_repo  = new \Quadica\QSA_Engraving\Database\Serial_Repository();
+        $module_sel   = new \Quadica\QSA_Engraving\Services\Module_Selector( $batch_repo );
+        $batch_sorter = new \Quadica\QSA_Engraving\Services\Batch_Sorter();
+        $led_resolver = new \Quadica\QSA_Engraving\Services\LED_Code_Resolver();
+
+        // Should construct without resolver (null default).
+        $handler = new \Quadica\QSA_Engraving\Ajax\Batch_Ajax_Handler(
+            $module_sel,
+            $batch_sorter,
+            $batch_repo,
+            $serial_repo,
+            $led_resolver
+        );
+
+        if ( ! $handler instanceof \Quadica\QSA_Engraving\Ajax\Batch_Ajax_Handler ) {
+            return new WP_Error( 'wrong_instance', 'Constructor should return Batch_Ajax_Handler instance.' );
+        }
+
+        echo "  Batch_Ajax_Handler backward compatible (no resolver).\n";
+        return true;
+    },
+    'Batch_Ajax_Handler should work without Legacy_SKU_Resolver for backward compatibility.'
+);
+
+// ============================================
+// TC-BAI-003: Resolution data flows through validate_selection
+// ============================================
+run_test(
+    'TC-BAI-003: Resolver validates SKU and attaches canonical data',
+    function (): bool {
+        $resolver = new \Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver();
+
+        // Simulate what validate_selection does when resolver is available.
+        $sku = 'STARa-34924';
+        $resolution = $resolver->resolve( $sku );
+
+        if ( null === $resolution ) {
+            return new WP_Error( 'resolve_fail', 'QSA SKU should resolve.' );
+        }
+
+        // Verify the fields that would be attached to validated selection.
+        if ( $resolution['canonical_code'] !== 'STAR' ) {
+            return new WP_Error( 'wrong_code', 'canonical_code should be STAR.' );
+        }
+
+        if ( $resolution['canonical_sku'] !== 'STARa-34924' ) {
+            return new WP_Error( 'wrong_canonical_sku', 'canonical_sku should match for QSA SKUs.' );
+        }
+
+        if ( $resolution['revision'] !== 'a' ) {
+            return new WP_Error( 'wrong_revision', 'revision should be a.' );
+        }
+
+        if ( $resolution['is_legacy'] !== false ) {
+            return new WP_Error( 'wrong_is_legacy', 'QSA SKU should have is_legacy=false.' );
+        }
+
+        echo "  Resolution provides: canonical_code=STAR, revision=a, is_legacy=false.\n";
+        return true;
+    },
+    'Resolver should provide canonical data for validate_selection to attach.'
+);
+
+// ============================================
+// TC-BAI-004: Unmapped SKU rejected with clear error
+// ============================================
+run_test(
+    'TC-BAI-004: Unmapped legacy SKU returns null for rejection',
+    function (): bool {
+        $resolver = new \Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver();
+
+        // Unmapped legacy SKU should return null (validate_selection returns WP_Error).
+        $result = $resolver->resolve( 'UNMAPPED-LEGACY-SKU-' . time() );
+
+        if ( null !== $result ) {
+            return new WP_Error( 'should_be_null', 'Unmapped legacy SKU should return null.' );
+        }
+
+        echo "  Unmapped legacy SKU returns null (causes WP_Error in validate_selection).\n";
+        return true;
+    },
+    'Unmapped legacy SKU should return null for validate_selection to reject.'
+);
+
+// ============================================
 // Summary
 // ============================================
 // Re-declare global to ensure PHP 8.1 recognizes the variables in eval-file context.
