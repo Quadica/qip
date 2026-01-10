@@ -1,113 +1,84 @@
-# LightBurn SFTP Watcher - Windows Service
+# LightBurn SFTP Watcher
 
-A Windows Service that monitors the Kinsta SFTP server for new SVG files and automatically loads them into LightBurn for laser engraving.
+A Node.js script that monitors the Kinsta SFTP server for new SVG files and automatically loads them into LightBurn for laser engraving.
 
-## Why a Windows Service?
+## How It Works
 
-Running as a Windows Service instead of a Task Scheduler task provides:
-
-1. **Runs independently of user sessions** - Won't stop when the user logs out or the system goes idle
-2. **Automatic restart on failure** - Configured to restart up to 10 times if it crashes
-3. **Starts at boot** - Runs before any user logs in
-4. **Better visibility** - Shows status in Services (services.msc)
-5. **No idle timeouts** - Not affected by Windows power management settings
+1. **Polls SFTP server** every 3 seconds for new `.svg` files
+2. **Downloads new files** to local `Incoming` folder
+3. **Sends UDP command** to LightBurn to load the file
+4. **Tracks processed files** to avoid re-downloading
 
 ## Prerequisites
 
 1. **Node.js 18+** installed on the Windows workstation
-2. **SSH private key** at `%USERPROFILE%\.ssh\rlux` (the Kinsta staging key)
+2. **SSH private key** at `C:\Users\Production\LightBurn\lightburn-watcher\rlux`
 3. **LightBurn** installed at `C:\Program Files\LightBurn\LightBurn.exe`
-4. **Administrator access** (required to install Windows services)
 
 ## Installation
 
-### 1. Copy files to the workstation
+### 1. Install dependencies
 
-Copy this entire `lightburn-watcher` folder to a permanent location on the Windows workstation, for example:
-
-```
-C:\Tools\lightburn-watcher\
-```
-
-### 2. Install dependencies
-
-Open Command Prompt **as Administrator** and run:
+Open Command Prompt and run:
 
 ```cmd
-cd C:\Tools\lightburn-watcher
+cd C:\Users\Production\LightBurn\lightburn-watcher
 npm install
 ```
 
-This installs:
-- `ssh2-sftp-client` - SFTP client library
-- `node-windows` - Windows service wrapper
+This installs `ssh2-sftp-client` for SFTP connectivity.
 
-### 3. Install the Windows Service
+### 2. Auto-Start on Windows Login
 
-Still in the Administrator Command Prompt:
+A shortcut is configured in the Windows Startup folder to auto-start the watcher when you log in:
 
-```cmd
-npm run install-service
-```
+**Location:** `%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\LightBurn-Watcher.lnk`
 
-Or:
+**Shortcut configuration:**
+- **Target:** `wscript.exe`
+- **Arguments:** `"C:\Users\Production\LightBurn\lightburn-watcher\start-watcher-hidden.vbs"`
+- **Start in:** `C:\Users\Production\LightBurn\lightburn-watcher`
 
-```cmd
-node install-service.js
-```
+The VBS script launches Node.js hidden (no console window) so it runs silently in the background.
 
-You may see a UAC prompt - click **Yes** to allow the service installation.
+### 3. Verify it's running
 
-### 4. Verify installation
-
-1. Open **Services** (`services.msc`)
-2. Find **"LightBurn SFTP Watcher"** in the list
-3. Status should show **"Running"**
-4. Startup Type should show **"Automatic"**
-
-## Managing the Service
-
-### Using Services.msc (GUI)
-
-1. Press `Win + R`, type `services.msc`, press Enter
-2. Find **"LightBurn SFTP Watcher"**
-3. Right-click to **Start**, **Stop**, or **Restart**
-
-### Using Command Line (Administrator)
+Check if the watcher is running:
 
 ```cmd
-:: Start the service
-net start "LightBurn SFTP Watcher"
-
-:: Stop the service
-net stop "LightBurn SFTP Watcher"
-
-:: Query status
-sc query "LightBurn SFTP Watcher"
+tasklist | findstr node
 ```
 
-### Using PowerShell (Administrator)
+Or check for the specific process:
 
-```powershell
-# Start
-Start-Service "LightBurn SFTP Watcher"
-
-# Stop
-Stop-Service "LightBurn SFTP Watcher"
-
-# Restart
-Restart-Service "LightBurn SFTP Watcher"
-
-# Status
-Get-Service "LightBurn SFTP Watcher"
+```cmd
+wmic process where "commandline like '%%lightburn-watcher%%'" get processid,commandline
 ```
+
+## Manual Start/Stop
+
+### Start manually
+
+Double-click `start-watcher-hidden.vbs` or run:
+
+```cmd
+wscript.exe "C:\Users\Production\LightBurn\lightburn-watcher\start-watcher-hidden.vbs"
+```
+
+### Stop the watcher
+
+```cmd
+wmic process where "commandline like '%%lightburn-watcher-service%%'" call terminate
+```
+
+Or use Task Manager to end the `node.exe` process running `lightburn-watcher-service.js`.
 
 ## Log Files
 
-The service writes logs to:
+The watcher writes logs to:
 
 ```
-%USERPROFILE%\lightburn-watcher.log
+C:\Users\Production\lightburn-watcher.log
 ```
 
 View logs in real-time (PowerShell):
@@ -116,34 +87,15 @@ View logs in real-time (PowerShell):
 Get-Content "$env:USERPROFILE\lightburn-watcher.log" -Tail 50 -Wait
 ```
 
-Logs are automatically rotated when they exceed 5MB.
-
 ## State File
 
-The service tracks which files have been processed in:
+Tracks which files have been processed:
 
 ```
-%USERPROFILE%\.lightburn-watcher-state.json
+C:\Users\Production\.lightburn-watcher-state.json
 ```
 
-To reprocess all files, delete this file and restart the service.
-
-## Uninstalling
-
-Open Command Prompt **as Administrator**:
-
-```cmd
-cd C:\Tools\lightburn-watcher
-npm run uninstall-service
-```
-
-Or:
-
-```cmd
-node uninstall-service.js
-```
-
-This removes the service but preserves log and state files.
+To reprocess all files, delete this file and restart the watcher.
 
 ## Configuration
 
@@ -158,51 +110,61 @@ Edit `lightburn-watcher-service.js` to change:
 | `pollInterval` | `3000` (3 seconds) | How often to check for files |
 | `lightburn.port` | `19840` | LightBurn UDP port |
 
-After changing configuration, restart the service.
-
 ## Troubleshooting
 
-### Service won't start
+### Watcher not starting on login
 
-1. Check the log file for errors
-2. Verify SSH key exists at `%USERPROFILE%\.ssh\rlux`
-3. Test SFTP connection manually:
-   ```cmd
-   node lightburn-watcher-service.js --once
+1. Check the Startup folder shortcut exists:
+   ```
+   %APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\LightBurn-Watcher.lnk
    ```
 
-### Service stops unexpectedly
+2. Verify the shortcut properties:
+   - Target: `wscript.exe`
+   - Arguments: `"C:\Users\Production\LightBurn\lightburn-watcher\start-watcher-hidden.vbs"`
 
-1. Check Windows Event Viewer → Windows Logs → Application
-2. Check the service log file
-3. Verify network connectivity to Kinsta
+3. If shortcut is missing or broken, recreate it (PowerShell as Admin):
+   ```powershell
+   $WshShell = New-Object -ComObject WScript.Shell
+   $Shortcut = $WshShell.CreateShortcut("$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup\LightBurn-Watcher.lnk")
+   $Shortcut.TargetPath = "wscript.exe"
+   $Shortcut.Arguments = '"C:\Users\Production\LightBurn\lightburn-watcher\start-watcher-hidden.vbs"'
+   $Shortcut.WorkingDirectory = "C:\Users\Production\LightBurn\lightburn-watcher"
+   $Shortcut.WindowStyle = 7
+   $Shortcut.Save()
+   ```
 
-### Files not being processed
+### Multiple instances running
 
-1. Check the state file - the file may already be marked as processed
-2. Clear state and restart:
+Kill all instances and start fresh:
+
+```cmd
+wmic process where "commandline like '%%lightburn-watcher-service%%'" call terminate
+wscript.exe "C:\Users\Production\LightBurn\lightburn-watcher\start-watcher-hidden.vbs"
+```
+
+### SFTP connection failing
+
+1. Check the SSH key exists at `C:\Users\Production\LightBurn\lightburn-watcher\rlux`
+2. Test SFTP connection manually (run in console to see errors):
    ```cmd
-   node lightburn-watcher-service.js --clear
-   net stop "LightBurn SFTP Watcher"
-   net start "LightBurn SFTP Watcher"
+   cd C:\Users\Production\LightBurn\lightburn-watcher
+   node lightburn-watcher-service.js
    ```
 
 ### LightBurn not loading files
 
-1. Verify LightBurn is installed at the expected path
-2. Check that UDP is enabled in LightBurn settings
-3. Try loading a file manually to verify LightBurn works
+1. Verify LightBurn is running
+2. Check that UDP is enabled in LightBurn settings (Edit > Settings > Network)
+3. Verify the incoming file path is accessible
 
-## Migrating from Task Scheduler
+### Files not being processed
 
-If you previously ran the watcher via Task Scheduler:
-
-1. **Disable the scheduled task** in Task Scheduler
-2. **Stop PM2** if it's running: `pm2 stop all && pm2 delete all`
-3. **Install the Windows Service** as described above
-4. **Verify** the service is running in services.msc
-
-The service uses the same state file, so it will continue from where the previous version left off.
+1. Check the state file - the file may already be marked as processed
+2. Delete the state file to reprocess all files:
+   ```cmd
+   del "%USERPROFILE%\.lightburn-watcher-state.json"
+   ```
 
 ## Architecture
 
@@ -211,11 +173,11 @@ The service uses the same state file, so it will continue from where the previou
         |
         | (poll every 3 seconds)
         v
-[LightBurn Watcher Service]
+[LightBurn Watcher (Node.js)]
         |
         | (download new SVG files)
         v
-[%USERPROFILE%\LightBurn\Incoming\]
+[C:\Users\Production\LightBurn\Incoming\]
         |
         | (UDP LOADFILE command)
         v
@@ -226,10 +188,8 @@ The service uses the same state file, so it will continue from where the previou
 
 | File | Purpose |
 |------|---------|
-| `lightburn-watcher-service.js` | Main service script |
-| `install-service.js` | Installs as Windows Service |
-| `uninstall-service.js` | Removes Windows Service |
+| `lightburn-watcher-service.js` | Main watcher script |
+| `start-watcher-hidden.vbs` | Launches Node.js hidden (no console window) |
+| `rlux` | SSH private key for SFTP connection |
 | `package.json` | Node.js dependencies |
 | `README.md` | This documentation |
-| `lightburn-watcher.js` | Original script (deprecated) |
-| `start-lightburn-watcher.bat` | Original batch file (deprecated) |

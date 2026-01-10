@@ -32,7 +32,7 @@ const CONFIG = {
         host: '34.71.83.227',
         port: 19039,
         username: 'luxeonstarleds',
-        privateKey: fs.readFileSync(path.join(os.homedir(), '.ssh', 'rlux')),
+        privateKey: fs.readFileSync(path.join(__dirname, 'rlux')),
         readyTimeout: 10000,
         retries: 3,
         retry_minTimeout: 2000,
@@ -42,7 +42,7 @@ const CONFIG = {
     remoteDir: '/www/luxeonstarleds_546/public/wp-content/uploads/qsa-engraving/svg',
 
     // Local directory to download files to
-    localDir: path.join(os.homedir(), 'LightBurn', 'Incoming'),
+    localDir: 'C:\\Users\\Production\\LightBurn\\Incoming',
 
     // LightBurn UDP settings
     lightburn: {
@@ -54,10 +54,10 @@ const CONFIG = {
     pollInterval: 3000,
 
     // State file to track processed files
-    stateFile: path.join(os.homedir(), '.lightburn-watcher-state.json'),
+    stateFile: 'C:\\Users\\Production\\.lightburn-watcher-state.json',
 
     // Log file location
-    logFile: path.join(os.homedir(), 'lightburn-watcher.log'),
+    logFile: 'C:\\Users\\Production\\LightBurn\\lightburn-watcher.log',
 
     // Maximum log file size in bytes (5MB)
     maxLogSize: 5 * 1024 * 1024,
@@ -259,21 +259,21 @@ function wait(ms) {
  * Send LOADFILE command to LightBurn via UDP
  * Kills LightBurn, restarts it, then loads file
  */
-async function sendToLightBurn(filePath) {
-    // Kill LightBurn directly
-    await killLightBurn();
-    await wait(500);
+  async function sendToLightBurn(filePath) {
+      // Kill LightBurn directly
+      await killLightBurn();
+      await wait(1000);
 
-    // Start LightBurn
-    startLightBurn();
+      // Start LightBurn with the file as argument (more reliable than UDP)
+      const { spawn } = require('child_process');
+      log.debug('Starting LightBurn with file...');
 
-    // Wait for LightBurn to initialize and be ready for UDP commands
-    await wait(4000);
-
-    // Load the new file
-    log.debug('Loading file in LightBurn...');
-    await sendCommand(`LOADFILE:${filePath}`);
-}
+      const child = spawn('C:\\Program Files\\LightBurn\\LightBurn.exe', [filePath], {
+          detached: true,
+          stdio: 'ignore'
+      });
+      child.unref();
+  }
 
 // ============================================================================
 // FILE PROCESSING
