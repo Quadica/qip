@@ -78,13 +78,13 @@ Or use Task Manager to end the `node.exe` process running `lightburn-watcher-ser
 The watcher writes logs to:
 
 ```
-C:\Users\Production\lightburn-watcher.log
+C:\Users\Production\LightBurn\lightburn-watcher.log
 ```
 
 View logs in real-time (PowerShell):
 
 ```powershell
-Get-Content "$env:USERPROFILE\lightburn-watcher.log" -Tail 50 -Wait
+Get-Content "$env:USERPROFILE\LightBurn\lightburn-watcher.log" -Tail 50 -Wait
 ```
 
 ## State File
