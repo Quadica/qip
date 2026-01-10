@@ -209,49 +209,6 @@ export default function EngravingQueue() {
 		}
 	}, [ queueItems, activeItemId ] );
 
-	/**
-	 * Handle keyboard shortcuts.
-	 */
-	useEffect( () => {
-		const handleKeyDown = ( e ) => {
-			// Ignore keyboard shortcuts when an input, textarea, or select is focused.
-			const activeElement = document.activeElement;
-			const tagName = activeElement?.tagName?.toLowerCase();
-			if ( tagName === 'input' || tagName === 'textarea' || tagName === 'select' ) {
-				return;
-			}
-
-			// Also check for contenteditable elements.
-			if ( activeElement?.isContentEditable ) {
-				return;
-			}
-
-			// Spacebar advances to next array or completes the current row (when in progress).
-			if ( e.code === 'Space' && activeItemId !== null ) {
-				e.preventDefault();
-
-				const activeItem = queueItems.find( ( item ) => item.id === activeItemId );
-				if ( activeItem && activeItem.status === 'in_progress' ) {
-					// Calculate array count based on modules and start position.
-					const startPosition = activeItem.startPosition || 1;
-					const firstArraySlots = 9 - startPosition;
-					const modulesAfterFirst = Math.max( 0, activeItem.totalModules - firstArraySlots );
-					const totalArrays = 1 + Math.ceil( modulesAfterFirst / 8 );
-					const current = getCurrentArray( activeItemId );
-					const isLastArray = current >= totalArrays;
-
-					if ( isLastArray ) {
-						handleComplete( activeItemId );
-					} else {
-						handleNextArray( activeItemId, current );
-					}
-				}
-			}
-		};
-
-		window.addEventListener( 'keydown', handleKeyDown );
-		return () => window.removeEventListener( 'keydown', handleKeyDown );
-	}, [ activeItemId, queueItems, currentArrays ] );
 
 	/**
 	 * Make AJAX request for queue operations.
