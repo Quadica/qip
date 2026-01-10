@@ -644,7 +644,6 @@ class Admin_Menu {
                 <ul>
                     <li><?php esc_html_e( 'Ensure the Order BOM has LED information populated.', 'qsa-engraving' ); ?></li>
                     <li><?php esc_html_e( 'Verify LED products have the led_shortcode_3 field set.', 'qsa-engraving' ); ?></li>
-                    <li><?php esc_html_e( 'Contact a manager if data is missing.', 'qsa-engraving' ); ?></li>
                 </ul>
             </div>
 
