@@ -6840,6 +6840,120 @@ run_test(
 );
 
 // ============================================
+// SKU Mapping AJAX Handler Tests (TC-SMA-*)
+// ============================================
+echo "\n-------------------------------------------\n";
+echo "SKU Mapping AJAX Handler Tests (TC-SMA-*)\n";
+echo "-------------------------------------------\n\n";
+
+// ============================================
+// TC-SMA-001: SKU_Mapping_Ajax_Handler can be instantiated
+// ============================================
+run_test(
+    'TC-SMA-001: SKU_Mapping_Ajax_Handler can be instantiated',
+    function (): bool {
+        $repository = new \Quadica\QSA_Engraving\Database\SKU_Mapping_Repository();
+        $resolver   = new \Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver();
+
+        $handler = new \Quadica\QSA_Engraving\Ajax\SKU_Mapping_Ajax_Handler(
+            $repository,
+            $resolver
+        );
+
+        if ( ! $handler instanceof \Quadica\QSA_Engraving\Ajax\SKU_Mapping_Ajax_Handler ) {
+            return new WP_Error( 'wrong_class', 'Handler should be SKU_Mapping_Ajax_Handler instance.' );
+        }
+
+        echo "  Handler instantiated with repository and resolver.\n";
+        return true;
+    },
+    'SKU_Mapping_Ajax_Handler should be instantiable with required dependencies.'
+);
+
+// ============================================
+// TC-SMA-002: Handler can be instantiated without resolver
+// ============================================
+run_test(
+    'TC-SMA-002: SKU_Mapping_Ajax_Handler works without resolver (backward compatible)',
+    function (): bool {
+        $repository = new \Quadica\QSA_Engraving\Database\SKU_Mapping_Repository();
+
+        // Construct without resolver.
+        $handler = new \Quadica\QSA_Engraving\Ajax\SKU_Mapping_Ajax_Handler(
+            $repository
+        );
+
+        if ( ! $handler instanceof \Quadica\QSA_Engraving\Ajax\SKU_Mapping_Ajax_Handler ) {
+            return new WP_Error( 'wrong_class', 'Handler should work without resolver.' );
+        }
+
+        echo "  Handler backward compatible without resolver.\n";
+        return true;
+    },
+    'SKU_Mapping_Ajax_Handler should work without resolver for backward compatibility.'
+);
+
+// ============================================
+// TC-SMA-003: Handler register method adds AJAX hooks
+// ============================================
+run_test(
+    'TC-SMA-003: register() adds AJAX hooks',
+    function (): bool {
+        global $wp_filter;
+
+        $repository = new \Quadica\QSA_Engraving\Database\SKU_Mapping_Repository();
+        $handler    = new \Quadica\QSA_Engraving\Ajax\SKU_Mapping_Ajax_Handler( $repository );
+
+        // Register the handler.
+        $handler->register();
+
+        // Check that AJAX actions were registered.
+        $actions = array(
+            'wp_ajax_qsa_get_sku_mappings',
+            'wp_ajax_qsa_add_sku_mapping',
+            'wp_ajax_qsa_update_sku_mapping',
+            'wp_ajax_qsa_delete_sku_mapping',
+            'wp_ajax_qsa_toggle_sku_mapping',
+            'wp_ajax_qsa_test_sku_resolution',
+        );
+
+        $missing = array();
+        foreach ( $actions as $action ) {
+            if ( ! has_action( $action ) ) {
+                $missing[] = $action;
+            }
+        }
+
+        if ( ! empty( $missing ) ) {
+            return new WP_Error( 'missing_hooks', 'Missing AJAX hooks: ' . implode( ', ', $missing ) );
+        }
+
+        echo "  All 6 AJAX hooks registered successfully.\n";
+        return true;
+    },
+    'register() should add all SKU mapping AJAX hooks.'
+);
+
+// ============================================
+// TC-SMA-004: Admin menu has SKU Mappings submenu
+// ============================================
+run_test(
+    'TC-SMA-004: Admin_Menu includes SKU Mappings submenu page',
+    function (): bool {
+        $admin_menu = new \Quadica\QSA_Engraving\Admin\Admin_Menu();
+
+        // Check that render method exists.
+        if ( ! method_exists( $admin_menu, 'render_sku_mappings_page' ) ) {
+            return new WP_Error( 'missing_method', 'Admin_Menu should have render_sku_mappings_page method.' );
+        }
+
+        echo "  Admin_Menu has render_sku_mappings_page method.\n";
+        return true;
+    },
+    'Admin_Menu should include SKU Mappings submenu page.'
+);
+
+// ============================================
 // Summary
 // ============================================
 // Re-declare global to ensure PHP 8.1 recognizes the variables in eval-file context.

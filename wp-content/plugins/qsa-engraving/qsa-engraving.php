@@ -148,6 +148,20 @@ final class Plugin {
     private ?Ajax\History_Ajax_Handler $history_ajax_handler = null;
 
     /**
+     * SKU Mapping AJAX Handler instance.
+     *
+     * @var Ajax\SKU_Mapping_Ajax_Handler|null
+     */
+    private ?Ajax\SKU_Mapping_Ajax_Handler $sku_mapping_ajax_handler = null;
+
+    /**
+     * SKU Mapping Repository instance.
+     *
+     * @var Database\SKU_Mapping_Repository|null
+     */
+    private ?Database\SKU_Mapping_Repository $sku_mapping_repository = null;
+
+    /**
      * QSA Landing Handler instance.
      *
      * @var Frontend\QSA_Landing_Handler|null
@@ -406,6 +420,7 @@ final class Plugin {
         $this->batch_repository          = new Database\Batch_Repository();
         $this->config_repository         = new Database\Config_Repository();
         $this->qsa_identifier_repository = new Database\QSA_Identifier_Repository();
+        $this->sku_mapping_repository    = new Database\SKU_Mapping_Repository();
     }
 
     /**
@@ -451,6 +466,16 @@ final class Plugin {
             $this->serial_repository
         );
         $this->history_ajax_handler->register();
+
+        // Initialize Legacy SKU Resolver.
+        $this->legacy_sku_resolver = new Services\Legacy_SKU_Resolver();
+
+        // Initialize SKU Mapping AJAX handler (Phase 7 - Legacy SKU Mapping).
+        $this->sku_mapping_ajax_handler = new Ajax\SKU_Mapping_Ajax_Handler(
+            $this->sku_mapping_repository,
+            $this->legacy_sku_resolver
+        );
+        $this->sku_mapping_ajax_handler->register();
 
         // Initialize QSA Landing Handler (Frontend - handles quadi.ca redirects).
         $this->qsa_landing_handler = new Frontend\QSA_Landing_Handler(
