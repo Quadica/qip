@@ -110,6 +110,15 @@ class Admin_Menu {
 
         add_submenu_page(
             self::MENU_SLUG,
+            __( 'Tweak Coords', 'qsa-engraving' ),
+            __( 'Tweak Coords', 'qsa-engraving' ),
+            self::REQUIRED_CAPABILITY,
+            self::MENU_SLUG . '-tweak-coords',
+            array( $this, 'render_tweak_coords_page' )
+        );
+
+        add_submenu_page(
+            self::MENU_SLUG,
             __( 'Settings', 'qsa-engraving' ),
             __( 'Settings', 'qsa-engraving' ),
             self::REQUIRED_CAPABILITY,
@@ -240,6 +249,21 @@ class Admin_Menu {
 
         $this->render_page_header( __( 'SKU Mappings', 'qsa-engraving' ) );
         $this->render_sku_mappings_content();
+        $this->render_page_footer();
+    }
+
+    /**
+     * Render the Tweak Coords page.
+     *
+     * @return void
+     */
+    public function render_tweak_coords_page(): void {
+        if ( ! $this->user_has_access() ) {
+            wp_die( esc_html__( 'You do not have permission to access this page.', 'qsa-engraving' ) );
+        }
+
+        $this->render_page_header( __( 'Tweak Coords', 'qsa-engraving' ) );
+        $this->render_tweak_coords_content();
         $this->render_page_footer();
     }
 
@@ -689,10 +713,9 @@ class Admin_Menu {
             });
             </script>
 
-            <!-- Information & Tweaker Panels Row -->
-            <div class="qsa-panels-row">
+            <!-- Information Panel (Full Width) -->
+            <div class="qsa-info-panel-row">
                 <?php $this->render_information_panel(); ?>
-                <?php $this->render_tweaker_panel(); ?>
             </div>
         </div>
         <?php
@@ -1132,6 +1155,22 @@ class Admin_Menu {
             });
         });
         </script>
+        <?php
+    }
+
+    /**
+     * Render the Tweak Coords page content.
+     *
+     * @return void
+     */
+    private function render_tweak_coords_content(): void {
+        ?>
+        <div class="qsa-tweak-coords-wrap">
+            <p class="description">
+                <?php esc_html_e( 'Fine-tune element coordinates for laser alignment calibration. Select a QSA design and position to adjust X/Y coordinates, rotation, and text height.', 'qsa-engraving' ); ?>
+            </p>
+            <?php $this->render_tweaker_panel(); ?>
+        </div>
         <?php
     }
 
