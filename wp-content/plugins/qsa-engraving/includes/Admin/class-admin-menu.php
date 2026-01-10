@@ -90,6 +90,15 @@ class Admin_Menu {
 
         add_submenu_page(
             self::MENU_SLUG,
+            __( 'SKU Mappings', 'qsa-engraving' ),
+            __( 'SKU Mappings', 'qsa-engraving' ),
+            self::REQUIRED_CAPABILITY,
+            self::MENU_SLUG . '-sku-mappings',
+            array( $this, 'render_sku_mappings_page' )
+        );
+
+        add_submenu_page(
+            self::MENU_SLUG,
             __( 'Settings', 'qsa-engraving' ),
             __( 'Settings', 'qsa-engraving' ),
             self::REQUIRED_CAPABILITY,
@@ -205,6 +214,21 @@ class Admin_Menu {
         <div class="wrap qsa-engraving-wrap">
         <?php
         $this->render_react_container( 'batch-history' );
+        $this->render_page_footer();
+    }
+
+    /**
+     * Render the SKU Mappings page.
+     *
+     * @return void
+     */
+    public function render_sku_mappings_page(): void {
+        if ( ! $this->user_has_access() ) {
+            wp_die( esc_html__( 'You do not have permission to access this page.', 'qsa-engraving' ) );
+        }
+
+        $this->render_page_header( __( 'SKU Mappings', 'qsa-engraving' ) );
+        $this->render_sku_mappings_content();
         $this->render_page_footer();
     }
 
@@ -1095,6 +1119,593 @@ class Admin_Menu {
                     $status.removeClass('saving').addClass('error').text('<?php echo esc_js( __( 'Request failed', 'qsa-engraving' ) ); ?>');
                 });
             });
+        });
+        </script>
+        <?php
+    }
+
+    /**
+     * Render the SKU mappings content.
+     *
+     * @return void
+     */
+    private function render_sku_mappings_content(): void {
+        $nonce = wp_create_nonce( 'qsa_engraving_nonce' );
+        ?>
+        <div class="qsa-sku-mappings-wrap">
+            <p class="description">
+                <?php esc_html_e( 'Manage legacy SKU to canonical 4-letter design code mappings. These mappings enable legacy module SKUs to work with the QSA engraving system.', 'qsa-engraving' ); ?>
+            </p>
+
+            <!-- Test Resolution Tool -->
+            <div class="qsa-widget qsa-test-resolution">
+                <h2><?php esc_html_e( 'Test SKU Resolution', 'qsa-engraving' ); ?></h2>
+                <div class="qsa-test-form">
+                    <input type="text" id="qsa-test-sku" placeholder="<?php esc_attr_e( 'Enter SKU to test...', 'qsa-engraving' ); ?>" class="regular-text">
+                    <button type="button" id="qsa-test-btn" class="button button-secondary">
+                        <?php esc_html_e( 'Test Resolution', 'qsa-engraving' ); ?>
+                    </button>
+                    <span id="qsa-test-status" class="qsa-test-status"></span>
+                </div>
+                <div id="qsa-test-result" class="qsa-test-result" style="display: none;"></div>
+            </div>
+
+            <!-- Add/Edit Form -->
+            <div class="qsa-widget qsa-mapping-form-widget">
+                <h2 id="qsa-form-title"><?php esc_html_e( 'Add New Mapping', 'qsa-engraving' ); ?></h2>
+                <form id="qsa-mapping-form" class="qsa-mapping-form">
+                    <input type="hidden" id="qsa-mapping-id" value="">
+                    <table class="form-table">
+                        <tr>
+                            <th scope="row">
+                                <label for="qsa-legacy-pattern"><?php esc_html_e( 'Legacy Pattern', 'qsa-engraving' ); ?> <span class="required">*</span></label>
+                            </th>
+                            <td>
+                                <input type="text" id="qsa-legacy-pattern" name="legacy_pattern" class="regular-text" required maxlength="50">
+                                <p class="description"><?php esc_html_e( 'The legacy SKU pattern to match (e.g., "SP-01", "SZ-").', 'qsa-engraving' ); ?></p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row">
+                                <label for="qsa-match-type"><?php esc_html_e( 'Match Type', 'qsa-engraving' ); ?></label>
+                            </th>
+                            <td>
+                                <select id="qsa-match-type" name="match_type">
+                                    <option value="exact"><?php esc_html_e( 'Exact Match', 'qsa-engraving' ); ?></option>
+                                    <option value="prefix"><?php esc_html_e( 'Prefix Match', 'qsa-engraving' ); ?></option>
+                                    <option value="suffix"><?php esc_html_e( 'Suffix Match', 'qsa-engraving' ); ?></option>
+                                    <option value="regex"><?php esc_html_e( 'Regular Expression', 'qsa-engraving' ); ?></option>
+                                </select>
+                                <p class="description"><?php esc_html_e( 'How to match SKUs against this pattern.', 'qsa-engraving' ); ?></p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row">
+                                <label for="qsa-canonical-code"><?php esc_html_e( 'Canonical Code', 'qsa-engraving' ); ?> <span class="required">*</span></label>
+                            </th>
+                            <td>
+                                <input type="text" id="qsa-canonical-code" name="canonical_code" class="small-text" required maxlength="4" pattern="[A-Za-z0-9]{4}" style="text-transform: uppercase;">
+                                <p class="description"><?php esc_html_e( 'The 4-letter QSA design code (e.g., "SP01", "STAR").', 'qsa-engraving' ); ?></p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row">
+                                <label for="qsa-revision"><?php esc_html_e( 'Revision', 'qsa-engraving' ); ?></label>
+                            </th>
+                            <td>
+                                <select id="qsa-revision" name="revision">
+                                    <option value=""><?php esc_html_e( '— None —', 'qsa-engraving' ); ?></option>
+                                    <?php foreach ( range( 'a', 'z' ) as $letter ) : ?>
+                                        <option value="<?php echo esc_attr( $letter ); ?>"><?php echo esc_html( $letter ); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <p class="description"><?php esc_html_e( 'Optional revision letter (a-z).', 'qsa-engraving' ); ?></p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row">
+                                <label for="qsa-description"><?php esc_html_e( 'Description', 'qsa-engraving' ); ?></label>
+                            </th>
+                            <td>
+                                <textarea id="qsa-description" name="description" rows="2" class="large-text"></textarea>
+                                <p class="description"><?php esc_html_e( 'Optional description for this mapping.', 'qsa-engraving' ); ?></p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row">
+                                <label for="qsa-priority"><?php esc_html_e( 'Priority', 'qsa-engraving' ); ?></label>
+                            </th>
+                            <td>
+                                <input type="number" id="qsa-priority" name="priority" value="100" min="0" max="65535" class="small-text">
+                                <p class="description"><?php esc_html_e( 'Lower numbers are matched first (default: 100).', 'qsa-engraving' ); ?></p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row">
+                                <label for="qsa-is-active"><?php esc_html_e( 'Active', 'qsa-engraving' ); ?></label>
+                            </th>
+                            <td>
+                                <label>
+                                    <input type="checkbox" id="qsa-is-active" name="is_active" value="1" checked>
+                                    <?php esc_html_e( 'Enable this mapping', 'qsa-engraving' ); ?>
+                                </label>
+                            </td>
+                        </tr>
+                    </table>
+                    <p class="submit">
+                        <button type="submit" id="qsa-save-mapping" class="button button-primary">
+                            <?php esc_html_e( 'Save Mapping', 'qsa-engraving' ); ?>
+                        </button>
+                        <button type="button" id="qsa-cancel-edit" class="button button-secondary" style="display: none;">
+                            <?php esc_html_e( 'Cancel', 'qsa-engraving' ); ?>
+                        </button>
+                        <span id="qsa-form-status" class="qsa-form-status"></span>
+                    </p>
+                </form>
+            </div>
+
+            <!-- Mapping List -->
+            <div class="qsa-widget qsa-mapping-list-widget">
+                <h2><?php esc_html_e( 'Existing Mappings', 'qsa-engraving' ); ?></h2>
+                <div class="qsa-mapping-controls">
+                    <input type="text" id="qsa-mapping-search" placeholder="<?php esc_attr_e( 'Search mappings...', 'qsa-engraving' ); ?>" class="regular-text">
+                    <label>
+                        <input type="checkbox" id="qsa-show-inactive">
+                        <?php esc_html_e( 'Show inactive', 'qsa-engraving' ); ?>
+                    </label>
+                    <button type="button" id="qsa-refresh-mappings" class="button button-secondary">
+                        <span class="dashicons dashicons-update" style="margin-top: 3px;"></span>
+                        <?php esc_html_e( 'Refresh', 'qsa-engraving' ); ?>
+                    </button>
+                    <span id="qsa-mapping-count" class="qsa-mapping-count"></span>
+                </div>
+                <div id="qsa-mapping-list" class="qsa-mapping-list">
+                    <p class="loading"><span class="spinner is-active"></span> <?php esc_html_e( 'Loading mappings...', 'qsa-engraving' ); ?></p>
+                </div>
+            </div>
+        </div>
+
+        <style>
+            .qsa-sku-mappings-wrap {
+                max-width: 1200px;
+            }
+            .qsa-widget {
+                background: #fff;
+                border: 1px solid #c3c4c7;
+                padding: 15px 20px;
+                margin-bottom: 20px;
+            }
+            .qsa-widget h2 {
+                margin-top: 0;
+                padding-bottom: 10px;
+                border-bottom: 1px solid #eee;
+            }
+            .qsa-test-form {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                margin-bottom: 10px;
+            }
+            .qsa-test-form input {
+                flex: 0 0 300px;
+            }
+            .qsa-test-result {
+                background: #f6f7f7;
+                padding: 15px;
+                border-radius: 4px;
+                margin-top: 10px;
+            }
+            .qsa-test-result.matched {
+                background: #edfaef;
+                border-left: 4px solid #00a32a;
+            }
+            .qsa-test-result.not-matched {
+                background: #fef7f1;
+                border-left: 4px solid #d63638;
+            }
+            .qsa-test-status {
+                font-size: 13px;
+            }
+            .qsa-test-status.loading { color: #666; }
+            .qsa-test-status.error { color: #d63638; }
+            .qsa-mapping-form .required { color: #d63638; }
+            .qsa-form-status {
+                margin-left: 10px;
+                font-size: 13px;
+            }
+            .qsa-form-status.success { color: #00a32a; }
+            .qsa-form-status.error { color: #d63638; }
+            .qsa-mapping-controls {
+                display: flex;
+                align-items: center;
+                gap: 15px;
+                margin-bottom: 15px;
+                flex-wrap: wrap;
+            }
+            .qsa-mapping-count {
+                margin-left: auto;
+                color: #666;
+                font-size: 13px;
+            }
+            .qsa-mapping-table {
+                width: 100%;
+                border-collapse: collapse;
+            }
+            .qsa-mapping-table th,
+            .qsa-mapping-table td {
+                padding: 10px 12px;
+                text-align: left;
+                border-bottom: 1px solid #eee;
+            }
+            .qsa-mapping-table th {
+                background: #f6f7f7;
+                font-weight: 600;
+            }
+            .qsa-mapping-table tr:hover {
+                background: #f9f9f9;
+            }
+            .qsa-mapping-table tr.inactive {
+                opacity: 0.6;
+            }
+            .qsa-mapping-table .actions {
+                white-space: nowrap;
+            }
+            .qsa-mapping-table .actions button {
+                margin-right: 5px;
+            }
+            .qsa-match-type {
+                background: #f0f0f1;
+                padding: 2px 8px;
+                border-radius: 3px;
+                font-size: 12px;
+            }
+            .qsa-status-badge {
+                display: inline-block;
+                padding: 2px 8px;
+                border-radius: 3px;
+                font-size: 12px;
+            }
+            .qsa-status-badge.active {
+                background: #edfaef;
+                color: #00a32a;
+            }
+            .qsa-status-badge.inactive {
+                background: #f0f0f1;
+                color: #666;
+            }
+            .qsa-empty-state {
+                text-align: center;
+                padding: 40px 20px;
+                color: #666;
+            }
+            .qsa-empty-state .dashicons {
+                font-size: 48px;
+                width: 48px;
+                height: 48px;
+                color: #ddd;
+            }
+        </style>
+
+        <script type="text/javascript">
+        jQuery(function($) {
+            var ajaxUrl = '<?php echo esc_url( admin_url( 'admin-ajax.php' ) ); ?>';
+            var nonce = '<?php echo esc_js( $nonce ); ?>';
+            var editingId = null;
+
+            // Load mappings on page load
+            loadMappings();
+
+            // Test Resolution
+            $('#qsa-test-btn').on('click', function() {
+                var sku = $('#qsa-test-sku').val().trim();
+                if (!sku) {
+                    $('#qsa-test-status').addClass('error').text('<?php echo esc_js( __( 'Please enter a SKU to test.', 'qsa-engraving' ) ); ?>');
+                    return;
+                }
+
+                var $status = $('#qsa-test-status');
+                var $result = $('#qsa-test-result');
+
+                $status.removeClass('error').addClass('loading').text('<?php echo esc_js( __( 'Testing...', 'qsa-engraving' ) ); ?>');
+                $result.hide();
+
+                $.post(ajaxUrl, {
+                    action: 'qsa_test_sku_resolution',
+                    nonce: nonce,
+                    sku: sku
+                }, function(response) {
+                    $status.removeClass('loading');
+                    if (response.success) {
+                        var data = response.data;
+                        var html = '';
+
+                        if (data.matched) {
+                            $result.removeClass('not-matched').addClass('matched');
+                            html += '<strong><?php echo esc_js( __( 'Match Found!', 'qsa-engraving' ) ); ?></strong><br>';
+                            html += '<?php echo esc_js( __( 'Message:', 'qsa-engraving' ) ); ?> ' + data.message + '<br>';
+
+                            if (data.resolution) {
+                                html += '<?php echo esc_js( __( 'Canonical Code:', 'qsa-engraving' ) ); ?> <code>' + data.resolution.canonical_code + '</code>';
+                                if (data.resolution.revision) {
+                                    html += ' <?php echo esc_js( __( 'Revision:', 'qsa-engraving' ) ); ?> <code>' + data.resolution.revision + '</code>';
+                                }
+                                html += '<br>';
+                                html += '<?php echo esc_js( __( 'Canonical SKU:', 'qsa-engraving' ) ); ?> <code>' + data.resolution.canonical_sku + '</code><br>';
+                                html += '<?php echo esc_js( __( 'Legacy:', 'qsa-engraving' ) ); ?> ' + (data.resolution.is_legacy ? '<?php echo esc_js( __( 'Yes', 'qsa-engraving' ) ); ?>' : '<?php echo esc_js( __( 'No (native QSA)', 'qsa-engraving' ) ); ?>') + '<br>';
+                            }
+
+                            if (typeof data.config_exists !== 'undefined') {
+                                html += '<?php echo esc_js( __( 'Config Exists:', 'qsa-engraving' ) ); ?> ' + (data.config_exists ? '<span style="color:#00a32a;"><?php echo esc_js( __( 'Yes', 'qsa-engraving' ) ); ?></span>' : '<span style="color:#d63638;"><?php echo esc_js( __( 'No', 'qsa-engraving' ) ); ?></span>');
+                            }
+                        } else {
+                            $result.removeClass('matched').addClass('not-matched');
+                            html = '<strong><?php echo esc_js( __( 'No Match', 'qsa-engraving' ) ); ?></strong><br>' + data.message;
+                        }
+
+                        $result.html(html).show();
+                    } else {
+                        $status.addClass('error').text(response.data.message || '<?php echo esc_js( __( 'Test failed', 'qsa-engraving' ) ); ?>');
+                    }
+                }).fail(function() {
+                    $status.removeClass('loading').addClass('error').text('<?php echo esc_js( __( 'Request failed', 'qsa-engraving' ) ); ?>');
+                });
+            });
+
+            // Enter key in test input
+            $('#qsa-test-sku').on('keypress', function(e) {
+                if (e.which === 13) {
+                    e.preventDefault();
+                    $('#qsa-test-btn').click();
+                }
+            });
+
+            // Save Mapping Form
+            $('#qsa-mapping-form').on('submit', function(e) {
+                e.preventDefault();
+
+                var $form = $(this);
+                var $status = $('#qsa-form-status');
+                var $btn = $('#qsa-save-mapping');
+
+                var data = {
+                    nonce: nonce,
+                    legacy_pattern: $('#qsa-legacy-pattern').val(),
+                    match_type: $('#qsa-match-type').val(),
+                    canonical_code: $('#qsa-canonical-code').val().toUpperCase(),
+                    revision: $('#qsa-revision').val(),
+                    description: $('#qsa-description').val(),
+                    priority: $('#qsa-priority').val(),
+                    is_active: $('#qsa-is-active').is(':checked') ? '1' : '0'
+                };
+
+                if (editingId) {
+                    data.action = 'qsa_update_sku_mapping';
+                    data.id = editingId;
+                } else {
+                    data.action = 'qsa_add_sku_mapping';
+                }
+
+                $btn.prop('disabled', true);
+                $status.removeClass('success error').text('<?php echo esc_js( __( 'Saving...', 'qsa-engraving' ) ); ?>');
+
+                $.post(ajaxUrl, data, function(response) {
+                    $btn.prop('disabled', false);
+                    if (response.success) {
+                        $status.addClass('success').text(response.data.message);
+                        resetForm();
+                        loadMappings();
+                        setTimeout(function() { $status.text(''); }, 3000);
+                    } else {
+                        $status.addClass('error').text(response.data.message || '<?php echo esc_js( __( 'Save failed', 'qsa-engraving' ) ); ?>');
+                    }
+                }).fail(function() {
+                    $btn.prop('disabled', false);
+                    $status.addClass('error').text('<?php echo esc_js( __( 'Request failed', 'qsa-engraving' ) ); ?>');
+                });
+            });
+
+            // Cancel Edit
+            $('#qsa-cancel-edit').on('click', function() {
+                resetForm();
+            });
+
+            // Refresh button
+            $('#qsa-refresh-mappings').on('click', function() {
+                loadMappings();
+            });
+
+            // Search
+            var searchTimeout;
+            $('#qsa-mapping-search').on('input', function() {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(function() {
+                    loadMappings();
+                }, 300);
+            });
+
+            // Show inactive toggle
+            $('#qsa-show-inactive').on('change', function() {
+                loadMappings();
+            });
+
+            // Load mappings function
+            function loadMappings() {
+                var $list = $('#qsa-mapping-list');
+                var search = $('#qsa-mapping-search').val();
+                var includeInactive = $('#qsa-show-inactive').is(':checked');
+
+                $list.html('<p class="loading"><span class="spinner is-active"></span> <?php echo esc_js( __( 'Loading...', 'qsa-engraving' ) ); ?></p>');
+
+                $.post(ajaxUrl, {
+                    action: 'qsa_get_sku_mappings',
+                    nonce: nonce,
+                    search: search,
+                    include_inactive: includeInactive ? 'true' : 'false'
+                }, function(response) {
+                    if (response.success) {
+                        renderMappings(response.data.mappings, response.data.total_count, response.data.active_count);
+                    } else {
+                        $list.html('<div class="qsa-empty-state"><span class="dashicons dashicons-warning"></span><p>' + (response.data.message || '<?php echo esc_js( __( 'Failed to load mappings.', 'qsa-engraving' ) ); ?>') + '</p></div>');
+                    }
+                }).fail(function() {
+                    $list.html('<div class="qsa-empty-state"><span class="dashicons dashicons-warning"></span><p><?php echo esc_js( __( 'Request failed.', 'qsa-engraving' ) ); ?></p></div>');
+                });
+            }
+
+            // Render mappings table
+            function renderMappings(mappings, totalCount, activeCount) {
+                var $list = $('#qsa-mapping-list');
+                var $count = $('#qsa-mapping-count');
+
+                $count.text(activeCount + ' <?php echo esc_js( __( 'active', 'qsa-engraving' ) ); ?> / ' + totalCount + ' <?php echo esc_js( __( 'total', 'qsa-engraving' ) ); ?>');
+
+                if (!mappings || mappings.length === 0) {
+                    $list.html('<div class="qsa-empty-state"><span class="dashicons dashicons-admin-generic"></span><p><?php echo esc_js( __( 'No mappings found. Add one above.', 'qsa-engraving' ) ); ?></p></div>');
+                    return;
+                }
+
+                var html = '<table class="qsa-mapping-table">';
+                html += '<thead><tr>';
+                html += '<th><?php echo esc_js( __( 'Pattern', 'qsa-engraving' ) ); ?></th>';
+                html += '<th><?php echo esc_js( __( 'Type', 'qsa-engraving' ) ); ?></th>';
+                html += '<th><?php echo esc_js( __( 'Canonical', 'qsa-engraving' ) ); ?></th>';
+                html += '<th><?php echo esc_js( __( 'Description', 'qsa-engraving' ) ); ?></th>';
+                html += '<th><?php echo esc_js( __( 'Priority', 'qsa-engraving' ) ); ?></th>';
+                html += '<th><?php echo esc_js( __( 'Status', 'qsa-engraving' ) ); ?></th>';
+                html += '<th><?php echo esc_js( __( 'Actions', 'qsa-engraving' ) ); ?></th>';
+                html += '</tr></thead><tbody>';
+
+                mappings.forEach(function(m) {
+                    var isActive = m.is_active === '1' || m.is_active === 1;
+                    html += '<tr class="' + (isActive ? '' : 'inactive') + '" data-id="' + m.id + '">';
+                    html += '<td><code>' + escapeHtml(m.legacy_pattern) + '</code></td>';
+                    html += '<td><span class="qsa-match-type">' + escapeHtml(m.match_type) + '</span></td>';
+                    html += '<td><strong>' + escapeHtml(m.canonical_code) + '</strong>' + (m.revision ? ' <small>(' + escapeHtml(m.revision) + ')</small>' : '') + '</td>';
+                    html += '<td>' + (m.description ? escapeHtml(m.description) : '<span style="color:#999;">—</span>') + '</td>';
+                    html += '<td>' + m.priority + '</td>';
+                    html += '<td><span class="qsa-status-badge ' + (isActive ? 'active' : 'inactive') + '">' + (isActive ? '<?php echo esc_js( __( 'Active', 'qsa-engraving' ) ); ?>' : '<?php echo esc_js( __( 'Inactive', 'qsa-engraving' ) ); ?>') + '</span></td>';
+                    html += '<td class="actions">';
+                    html += '<button type="button" class="button button-small qsa-edit-btn" data-id="' + m.id + '"><?php echo esc_js( __( 'Edit', 'qsa-engraving' ) ); ?></button>';
+                    html += '<button type="button" class="button button-small qsa-toggle-btn" data-id="' + m.id + '">' + (isActive ? '<?php echo esc_js( __( 'Disable', 'qsa-engraving' ) ); ?>' : '<?php echo esc_js( __( 'Enable', 'qsa-engraving' ) ); ?>') + '</button>';
+                    html += '<button type="button" class="button button-small qsa-delete-btn" data-id="' + m.id + '" style="color:#d63638;"><?php echo esc_js( __( 'Delete', 'qsa-engraving' ) ); ?></button>';
+                    html += '</td>';
+                    html += '</tr>';
+                });
+
+                html += '</tbody></table>';
+                $list.html(html);
+
+                // Bind row action handlers
+                bindRowActions();
+            }
+
+            // Bind row action handlers
+            function bindRowActions() {
+                // Edit button
+                $('.qsa-edit-btn').on('click', function() {
+                    var id = $(this).data('id');
+                    var $row = $(this).closest('tr');
+                    editMapping(id, $row);
+                });
+
+                // Toggle button
+                $('.qsa-toggle-btn').on('click', function() {
+                    var id = $(this).data('id');
+                    toggleMapping(id);
+                });
+
+                // Delete button
+                $('.qsa-delete-btn').on('click', function() {
+                    var id = $(this).data('id');
+                    deleteMapping(id);
+                });
+            }
+
+            // Edit mapping
+            function editMapping(id, $row) {
+                // Find the mapping data from the row
+                $.post(ajaxUrl, {
+                    action: 'qsa_get_sku_mappings',
+                    nonce: nonce,
+                    include_inactive: 'true'
+                }, function(response) {
+                    if (response.success) {
+                        var mapping = response.data.mappings.find(function(m) { return parseInt(m.id) === parseInt(id); });
+                        if (mapping) {
+                            editingId = id;
+                            $('#qsa-form-title').text('<?php echo esc_js( __( 'Edit Mapping', 'qsa-engraving' ) ); ?>');
+                            $('#qsa-mapping-id').val(id);
+                            $('#qsa-legacy-pattern').val(mapping.legacy_pattern);
+                            $('#qsa-match-type').val(mapping.match_type);
+                            $('#qsa-canonical-code').val(mapping.canonical_code);
+                            $('#qsa-revision').val(mapping.revision || '');
+                            $('#qsa-description').val(mapping.description || '');
+                            $('#qsa-priority').val(mapping.priority);
+                            $('#qsa-is-active').prop('checked', mapping.is_active === '1' || mapping.is_active === 1);
+                            $('#qsa-save-mapping').text('<?php echo esc_js( __( 'Update Mapping', 'qsa-engraving' ) ); ?>');
+                            $('#qsa-cancel-edit').show();
+
+                            // Scroll to form
+                            $('html, body').animate({ scrollTop: $('.qsa-mapping-form-widget').offset().top - 50 }, 300);
+                        }
+                    }
+                });
+            }
+
+            // Toggle mapping
+            function toggleMapping(id) {
+                $.post(ajaxUrl, {
+                    action: 'qsa_toggle_sku_mapping',
+                    nonce: nonce,
+                    id: id
+                }, function(response) {
+                    if (response.success) {
+                        loadMappings();
+                    } else {
+                        alert(response.data.message || '<?php echo esc_js( __( 'Failed to toggle mapping.', 'qsa-engraving' ) ); ?>');
+                    }
+                });
+            }
+
+            // Delete mapping
+            function deleteMapping(id) {
+                if (!confirm('<?php echo esc_js( __( 'Are you sure you want to delete this mapping? This cannot be undone.', 'qsa-engraving' ) ); ?>')) {
+                    return;
+                }
+
+                $.post(ajaxUrl, {
+                    action: 'qsa_delete_sku_mapping',
+                    nonce: nonce,
+                    id: id
+                }, function(response) {
+                    if (response.success) {
+                        loadMappings();
+                    } else {
+                        alert(response.data.message || '<?php echo esc_js( __( 'Failed to delete mapping.', 'qsa-engraving' ) ); ?>');
+                    }
+                });
+            }
+
+            // Reset form to add mode
+            function resetForm() {
+                editingId = null;
+                $('#qsa-form-title').text('<?php echo esc_js( __( 'Add New Mapping', 'qsa-engraving' ) ); ?>');
+                $('#qsa-mapping-form')[0].reset();
+                $('#qsa-mapping-id').val('');
+                $('#qsa-is-active').prop('checked', true);
+                $('#qsa-priority').val('100');
+                $('#qsa-save-mapping').text('<?php echo esc_js( __( 'Save Mapping', 'qsa-engraving' ) ); ?>');
+                $('#qsa-cancel-edit').hide();
+                $('#qsa-form-status').text('');
+            }
+
+            // Escape HTML helper
+            function escapeHtml(text) {
+                if (!text) return '';
+                var div = document.createElement('div');
+                div.appendChild(document.createTextNode(text));
+                return div.innerHTML;
+            }
         });
         </script>
         <?php
