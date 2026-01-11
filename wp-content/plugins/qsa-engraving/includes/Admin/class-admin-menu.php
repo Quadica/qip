@@ -1703,11 +1703,12 @@ class Admin_Menu {
 
         // Default values.
         $defaults = array(
-            'lightburn_enabled' => false,
-            'keep_svg_files'    => true,
-            'svg_output_dir'    => '',
-            'svg_rotation'      => 0,
-            'svg_top_offset'    => 0.0,
+            'lightburn_enabled'  => false,
+            'keep_svg_files'     => true,
+            'svg_output_dir'     => '',
+            'svg_rotation'       => 0,
+            'svg_top_offset'     => 0.0,
+            'led_code_tracking'  => 1.0,
         );
 
         $settings = wp_parse_args( $settings, $defaults );
@@ -1779,6 +1780,20 @@ class Admin_Menu {
                                 <span class="description">mm</span>
                                 <p class="description">
                                     <?php esc_html_e( 'Vertical offset adjustment for laser alignment (-5 to +5 mm).', 'qsa-engraving' ); ?>
+                                </p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row">
+                                <label for="led_code_tracking"><?php esc_html_e( 'LED Code Tracking', 'qsa-engraving' ); ?></label>
+                            </th>
+                            <td>
+                                <input type="number" name="led_code_tracking" id="led_code_tracking"
+                                    value="<?php echo esc_attr( number_format( (float) $settings['led_code_tracking'], 2, '.', '' ) ); ?>"
+                                    min="0.5" max="3.0" step="0.05" style="width: 80px;">
+                                <span class="description"><?php esc_html_e( '(multiplier)', 'qsa-engraving' ); ?></span>
+                                <p class="description">
+                                    <?php esc_html_e( 'Character spacing for 3-letter LED codes. 1.0 = normal, 1.3 = 30% wider spacing. Matches AutoCAD tracking value.', 'qsa-engraving' ); ?>
                                 </p>
                             </td>
                         </tr>
@@ -1897,7 +1912,8 @@ class Admin_Menu {
                     keep_svg_files: $('#keep_svg_files').is(':checked') ? 1 : 0,
                     svg_output_dir: $('#svg_output_dir').val(),
                     svg_rotation: $('#svg_rotation').val(),
-                    svg_top_offset: $('#svg_top_offset').val()
+                    svg_top_offset: $('#svg_top_offset').val(),
+                    led_code_tracking: $('#led_code_tracking').val()
                 };
 
                 $.post(ajaxUrl, data, function(response) {

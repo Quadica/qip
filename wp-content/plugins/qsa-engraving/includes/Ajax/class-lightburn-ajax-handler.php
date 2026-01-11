@@ -835,6 +835,16 @@ class LightBurn_Ajax_Handler {
 			$settings['svg_top_offset'] = $offset;
 		}
 
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce already verified.
+		if ( isset( $_POST['led_code_tracking'] ) ) {
+			$tracking = (float) $_POST['led_code_tracking'];
+			// Clamp to valid range: 0.5 to 3.0.
+			$tracking = max( 0.5, min( 3.0, $tracking ) );
+			// Round to 0.05 precision.
+			$tracking = round( $tracking / 0.05 ) * 0.05;
+			$settings['led_code_tracking'] = $tracking;
+		}
+
 		// Save settings.
 		update_option( 'qsa_engraving_settings', $settings );
 

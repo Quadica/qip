@@ -222,28 +222,119 @@ class Text_Renderer {
     }
 
     /**
-     * Render LED code text.
+     * Render LED code text with configurable tracking.
+     *
+     * Uses SVG letter-spacing attribute for precise character spacing control.
+     * Tracking value follows AutoCAD convention:
+     *   - 1.0 = normal spacing (no extra space)
+     *   - 1.3 = 30% wider spacing between characters
+     *   - 0.5 = tighter spacing (50% of normal)
      *
      * @param string $led_code 3-character LED code.
      * @param float  $x        X coordinate.
      * @param float  $y        Y coordinate.
      * @param int    $rotation Rotation angle in degrees.
+     * @param float  $tracking Tracking multiplier (default 1.0 = normal).
      * @return string SVG text element.
      */
     public static function render_led_code(
         string $led_code,
         float $x,
         float $y,
-        int $rotation = 0
+        int $rotation = 0,
+        float $tracking = 1.0
     ): string {
-        return self::render(
+        // If tracking is 1.0 (normal), use the standard render with hair-spaces.
+        if ( abs( $tracking - 1.0 ) < 0.01 ) {
+            return self::render(
+                $led_code,
+                $x,
+                $y,
+                self::DEFAULT_HEIGHTS['led_code'],
+                'middle',
+                $rotation
+            );
+        }
+
+        // Use letter-spacing for custom tracking values.
+        return self::render_with_tracking(
             $led_code,
             $x,
             $y,
             self::DEFAULT_HEIGHTS['led_code'],
             'middle',
-            $rotation
+            $rotation,
+            $tracking
         );
+    }
+
+    /**
+     * Render text with letter-spacing based on tracking value.
+     *
+     * Instead of hair-spaces, this uses SVG's letter-spacing attribute
+     * which provides precise control over character spacing.
+     *
+     * @param string $text     The text content.
+     * @param float  $x        X coordinate.
+     * @param float  $y        Y coordinate.
+     * @param float  $height   Text height in mm.
+     * @param string $anchor   Text anchor: 'start', 'middle', or 'end'.
+     * @param int    $rotation Rotation angle in degrees.
+     * @param float  $tracking Tracking multiplier (1.0 = normal).
+     * @return string SVG text element markup.
+     */
+    public static function render_with_tracking(
+        string $text,
+        float $x,
+        float $y,
+        float $height,
+        string $anchor,
+        int $rotation,
+        float $tracking
+    ): string {
+        // Calculate font size.
+        $font_size = self::calculate_font_size( $height );
+
+        // Calculate letter-spacing from tracking value.
+        // Tracking 1.0 = 0 letter-spacing (normal)
+        // Tracking 1.3 = 0.3 × average character width added between chars
+        // Average character width for Roboto Thin ≈ 0.5 × height
+        $avg_char_width = $height * 0.5;
+        $letter_spacing = ( $tracking - 1.0 ) * $avg_char_width;
+
+        // Escape text for XML (no hair-spaces added).
+        $escaped_text = htmlspecialchars( $text, ENT_XML1 | ENT_QUOTES, 'UTF-8' );
+
+        // Build attributes.
+        $attrs = array(
+            'font-family'    => self::FONT_FAMILY,
+            'font-size'      => number_format( $font_size, 4, '.', '' ),
+            'text-anchor'    => $anchor,
+            'fill'           => self::TEXT_FILL,
+            'letter-spacing' => number_format( $letter_spacing, 4, '.', '' ),
+        );
+
+        // Add transform for rotation if non-zero.
+        if ( 0 !== $rotation ) {
+            $attrs['transform'] = sprintf(
+                'rotate(%d %.4f %.4f)',
+                $rotation,
+                $x,
+                $y
+            );
+        }
+
+        // Add coordinates.
+        $attrs['x'] = number_format( $x, 4, '.', '' );
+        $attrs['y'] = number_format( $y, 4, '.', '' );
+
+        // Build attribute string.
+        $attr_parts = array();
+        foreach ( $attrs as $name => $value ) {
+            $attr_parts[] = sprintf( '%s="%s"', $name, esc_attr( (string) $value ) );
+        }
+
+        return sprintf( '<text %s>%s</text>', implode( ' ', $attr_parts ), $escaped_text );
     }
 
     /**

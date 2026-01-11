@@ -141,6 +141,16 @@ class SVG_Document {
     private ?array $qr_code_config = null;
 
     /**
+     * LED code tracking (character spacing multiplier).
+     *
+     * 1.0 = normal spacing, 1.3 = 30% wider spacing.
+     * Matches AutoCAD tracking convention.
+     *
+     * @var float
+     */
+    private float $led_code_tracking = 1.0;
+
+    /**
      * Constructor.
      *
      * @param float $width  Canvas width in mm.
@@ -284,6 +294,32 @@ class SVG_Document {
      */
     public function has_qr_code(): bool {
         return ! empty( $this->qr_code_data ) && ! empty( $this->qr_code_config );
+    }
+
+    /**
+     * Set LED code tracking (character spacing multiplier).
+     *
+     * Controls character spacing for 3-letter LED codes in SVG output.
+     * Uses SVG letter-spacing attribute for precise control.
+     *
+     * @param float $tracking Tracking multiplier (0.5 to 3.0, default 1.0).
+     *                        1.0 = normal spacing
+     *                        1.3 = 30% wider spacing (AutoCAD default)
+     * @return self For method chaining.
+     */
+    public function set_led_code_tracking( float $tracking ): self {
+        // Clamp to valid range.
+        $this->led_code_tracking = max( 0.5, min( 3.0, $tracking ) );
+        return $this;
+    }
+
+    /**
+     * Get LED code tracking value.
+     *
+     * @return float Tracking multiplier.
+     */
+    public function get_led_code_tracking(): float {
+        return $this->led_code_tracking;
     }
 
     /**
@@ -782,8 +818,21 @@ class SVG_Document {
             $svg_coords = $this->transformer->clamp_to_bounds( $svg_coords['x'], $svg_coords['y'] );
         }
 
-        $height   = $config['text_height'] ?? ( Text_Renderer::DEFAULT_HEIGHTS[ $type ] ?? 1.0 );
         $rotation = $config['rotation'] ?? 0;
+
+        // Use specialized renderer for LED codes with tracking support.
+        if ( 'led_code' === $type ) {
+            return Text_Renderer::render_led_code(
+                $text,
+                $svg_coords['x'],
+                $svg_coords['y'],
+                $rotation,
+                $this->led_code_tracking
+            );
+        }
+
+        // Standard rendering for other text types.
+        $height = $config['text_height'] ?? ( Text_Renderer::DEFAULT_HEIGHTS[ $type ] ?? 1.0 );
 
         return Text_Renderer::render(
             $text,
@@ -879,6 +928,11 @@ class SVG_Document {
         // QR code data is in options['qr_code_data'], config is in the position 0 config.
         if ( ! empty( $options['qr_code_data'] ) && isset( $config[0]['qr_code'] ) ) {
             $doc->set_qr_code( $options['qr_code_data'], $config[0]['qr_code'] );
+        }
+
+        // Set LED code tracking (character spacing).
+        if ( isset( $options['led_code_tracking'] ) ) {
+            $doc->set_led_code_tracking( (float) $options['led_code_tracking'] );
         }
 
         // Add each module.

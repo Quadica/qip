@@ -87,6 +87,7 @@ class SVG_Generator {
         // Create document with single module.
         $doc = new SVG_Document();
         $doc->set_title( sprintf( 'Single Module: %s', $sku ) );
+        $doc->set_led_code_tracking( $this->get_led_code_tracking_setting() );
 
         $result = $doc->add_module( $position, $module_data, $config[ $position ] ?? array() );
         if ( is_wp_error( $result ) ) {
@@ -138,6 +139,11 @@ class SVG_Generator {
             $options['top_offset'] = $this->get_top_offset_setting();
         }
 
+        // Get LED code tracking from settings if not provided in options.
+        if ( ! isset( $options['led_code_tracking'] ) ) {
+            $options['led_code_tracking'] = $this->get_led_code_tracking_setting();
+        }
+
         // Create document from data.
         $doc = SVG_Document::create_from_data( $modules, $config, $qsa_design, $options );
         if ( is_wp_error( $doc ) ) {
@@ -175,6 +181,22 @@ class SVG_Generator {
 
         // Clamp to valid range.
         return max( -5.0, min( 5.0, $offset ) );
+    }
+
+    /**
+     * Get the LED code tracking setting from WordPress options.
+     *
+     * Controls character spacing for 3-letter LED codes in SVG output.
+     * Follows AutoCAD tracking convention where 1.0 = normal, 1.3 = 30% wider.
+     *
+     * @return float Tracking multiplier (0.5 to 3.0, default 1.0).
+     */
+    public function get_led_code_tracking_setting(): float {
+        $settings = get_option( 'qsa_engraving_settings', array() );
+        $tracking = isset( $settings['led_code_tracking'] ) ? (float) $settings['led_code_tracking'] : 1.0;
+
+        // Clamp to valid range.
+        return max( 0.5, min( 3.0, $tracking ) );
     }
 
     /**
