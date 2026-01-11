@@ -2965,15 +2965,17 @@ run_test(
 
         // Get dependencies from plugin.
         $plugin           = \Quadica\QSA_Engraving\qsa_engraving();
-        $batch_sorter     = new \Quadica\QSA_Engraving\Services\Batch_Sorter();
-        $batch_repository = $plugin->get_batch_repository();
-        $serial_repository = $plugin->get_serial_repository();
+        $batch_sorter        = new \Quadica\QSA_Engraving\Services\Batch_Sorter();
+        $batch_repository    = $plugin->get_batch_repository();
+        $serial_repository   = $plugin->get_serial_repository();
+        $legacy_sku_resolver = $plugin->get_legacy_sku_resolver();
 
         // Instantiate handler.
         $handler = new \Quadica\QSA_Engraving\Ajax\Queue_Ajax_Handler(
             $batch_sorter,
             $batch_repository,
-            $serial_repository
+            $serial_repository,
+            $legacy_sku_resolver
         );
 
         if ( ! method_exists( $handler, 'register' ) ) {
@@ -3240,14 +3242,16 @@ run_test(
 
         // In CLI context, hooks may not be registered yet.
         // Check that the handler class has corresponding methods.
-        $batch_sorter      = new \Quadica\QSA_Engraving\Services\Batch_Sorter();
-        $batch_repository  = $plugin->get_batch_repository();
-        $serial_repository = $plugin->get_serial_repository();
+        $batch_sorter        = new \Quadica\QSA_Engraving\Services\Batch_Sorter();
+        $batch_repository    = $plugin->get_batch_repository();
+        $serial_repository   = $plugin->get_serial_repository();
+        $legacy_sku_resolver = $plugin->get_legacy_sku_resolver();
 
         $handler = new \Quadica\QSA_Engraving\Ajax\Queue_Ajax_Handler(
             $batch_sorter,
             $batch_repository,
-            $serial_repository
+            $serial_repository,
+            $legacy_sku_resolver
         );
 
         $expected_methods = array(
@@ -7046,6 +7050,43 @@ run_test(
         return true;
     },
     'LightBurn_Ajax_Handler should wire Legacy_SKU_Resolver to Config_Loader via SVG_Generator.'
+);
+
+// TC-PLW-004: Queue_Ajax_Handler has Legacy_SKU_Resolver injected
+run_test(
+    'TC-PLW-004: Queue_Ajax_Handler has Legacy_SKU_Resolver injected',
+    function (): bool {
+        $plugin = \Quadica\QSA_Engraving\qsa_engraving();
+
+        // Get the Queue_Ajax_Handler instance.
+        $handler = $plugin->get_queue_ajax_handler();
+        if ( null === $handler ) {
+            return new WP_Error( 'no_handler', 'Queue_Ajax_Handler not initialized.' );
+        }
+
+        // Use reflection to check legacy_sku_resolver property.
+        $reflection = new ReflectionClass( $handler );
+        if ( ! $reflection->hasProperty( 'legacy_sku_resolver' ) ) {
+            return new WP_Error( 'no_property', 'Queue_Ajax_Handler missing legacy_sku_resolver property.' );
+        }
+
+        $property = $reflection->getProperty( 'legacy_sku_resolver' );
+        $property->setAccessible( true );
+        $resolver = $property->getValue( $handler );
+
+        if ( null === $resolver ) {
+            return new WP_Error( 'null_resolver', 'Queue_Ajax_Handler has null legacy_sku_resolver.' );
+        }
+
+        if ( ! ( $resolver instanceof \Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver ) ) {
+            return new WP_Error( 'wrong_type', 'Queue_Ajax_Handler legacy_sku_resolver is not Legacy_SKU_Resolver instance.' );
+        }
+
+        echo "  Queue_Ajax_Handler has Legacy_SKU_Resolver injected.\n";
+
+        return true;
+    },
+    'Queue_Ajax_Handler should have Legacy_SKU_Resolver for base type extraction.'
 );
 
 // ============================================
