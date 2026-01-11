@@ -788,6 +788,33 @@ class Admin_Menu {
                     </tr>
                 </table>
             </div>
+
+            <div class="qsa-setup-item">
+                <h4><?php esc_html_e( 'LED Shortcodes', 'qsa-engraving' ); ?></h4>
+                <p class="description"><?php esc_html_e( 'Each LED product requires a 3-character shortcode for engraving identification.', 'qsa-engraving' ); ?></p>
+                <table class="qsa-setup-table">
+                    <tr>
+                        <td><strong><?php esc_html_e( 'Length:', 'qsa-engraving' ); ?></strong></td>
+                        <td><?php esc_html_e( 'Exactly 3 characters', 'qsa-engraving' ); ?></td>
+                    </tr>
+                    <tr>
+                        <td><strong><?php esc_html_e( 'Allowed:', 'qsa-engraving' ); ?></strong></td>
+                        <td><code>A-Z a-z 0-9</code> <?php esc_html_e( '(letters and digits only)', 'qsa-engraving' ); ?></td>
+                    </tr>
+                    <tr>
+                        <td><strong><?php esc_html_e( 'Not Allowed:', 'qsa-engraving' ); ?></strong></td>
+                        <td><?php esc_html_e( 'Spaces, hyphens, underscores, or special characters', 'qsa-engraving' ); ?></td>
+                    </tr>
+                    <tr>
+                        <td><strong><?php esc_html_e( 'Examples:', 'qsa-engraving' ); ?></strong></td>
+                        <td><code>K7P</code>, <code>W2A</code>, <code>R10</code>, <code>B3C</code></td>
+                    </tr>
+                    <tr>
+                        <td><strong><?php esc_html_e( 'Field Name:', 'qsa-engraving' ); ?></strong></td>
+                        <td><code>led_shortcode_3</code> <?php esc_html_e( '(on WooCommerce LED products)', 'qsa-engraving' ); ?></td>
+                    </tr>
+                </table>
+            </div>
         </div>
         <?php
     }
