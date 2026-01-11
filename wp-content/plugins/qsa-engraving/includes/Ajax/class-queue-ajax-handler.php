@@ -15,6 +15,7 @@ namespace Quadica\QSA_Engraving\Ajax;
 use Quadica\QSA_Engraving\Services\Batch_Sorter;
 use Quadica\QSA_Engraving\Services\SVG_Generator;
 use Quadica\QSA_Engraving\Services\SVG_File_Manager;
+use Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver;
 use Quadica\QSA_Engraving\Database\Batch_Repository;
 use Quadica\QSA_Engraving\Database\Serial_Repository;
 use Quadica\QSA_Engraving\Admin\Admin_Menu;
@@ -68,21 +69,31 @@ class Queue_Ajax_Handler {
 	private SVG_File_Manager $svg_file_manager;
 
 	/**
+	 * Legacy SKU Resolver.
+	 *
+	 * @var Legacy_SKU_Resolver
+	 */
+	private Legacy_SKU_Resolver $legacy_sku_resolver;
+
+	/**
 	 * Constructor.
 	 *
-	 * @param Batch_Sorter      $batch_sorter      Batch sorter service.
-	 * @param Batch_Repository  $batch_repository  Batch repository.
-	 * @param Serial_Repository $serial_repository Serial repository.
+	 * @param Batch_Sorter        $batch_sorter        Batch sorter service.
+	 * @param Batch_Repository    $batch_repository    Batch repository.
+	 * @param Serial_Repository   $serial_repository   Serial repository.
+	 * @param Legacy_SKU_Resolver $legacy_sku_resolver Legacy SKU resolver.
 	 */
 	public function __construct(
 		Batch_Sorter $batch_sorter,
 		Batch_Repository $batch_repository,
-		Serial_Repository $serial_repository
+		Serial_Repository $serial_repository,
+		Legacy_SKU_Resolver $legacy_sku_resolver
 	) {
-		$this->batch_sorter      = $batch_sorter;
-		$this->batch_repository  = $batch_repository;
-		$this->serial_repository = $serial_repository;
-		$this->svg_file_manager  = new SVG_File_Manager();
+		$this->batch_sorter        = $batch_sorter;
+		$this->batch_repository    = $batch_repository;
+		$this->serial_repository   = $serial_repository;
+		$this->legacy_sku_resolver = $legacy_sku_resolver;
+		$this->svg_file_manager    = new SVG_File_Manager();
 	}
 
 	/**
@@ -570,17 +581,32 @@ class Queue_Ajax_Handler {
 	/**
 	 * Extract base type from SKU.
 	 *
+	 * Uses the Legacy SKU Resolver to get the canonical code for legacy SKUs,
+	 * or falls back to regex extraction for QSA-format SKUs.
+	 *
 	 * Includes the revision letter (e.g., "STARa", "CUBEb") because different
 	 * revisions have different physical layouts and SVG configurations.
 	 *
 	 * @param string $sku The module SKU.
-	 * @return string The base type with revision (e.g., "STARa").
+	 * @return string The base type with revision (e.g., "STARa", "SP03").
 	 */
 	private function extract_base_type( string $sku ): string {
+		// Try to resolve the SKU using the Legacy SKU Resolver.
+		$resolved = $this->legacy_sku_resolver->resolve( $sku );
+		if ( null !== $resolved ) {
+			$base = $resolved['canonical_code'];
+			if ( ! empty( $resolved['revision'] ) ) {
+				$base .= $resolved['revision'];
+			}
+			return $base;
+		}
+
+		// Fallback: regex extraction for QSA-format SKUs.
 		// Match 4 uppercase letters + optional lowercase revision letter.
 		if ( preg_match( '/^([A-Z]{4}[a-z]?)/', $sku, $matches ) ) {
 			return $matches[1];
 		}
+
 		return 'UNKNOWN';
 	}
 

@@ -117,10 +117,10 @@ CREATE TABLE IF NOT EXISTS `lw_quad_qsa_identifiers` (
     -- Index for filtering by design (e.g., "show all CUBE arrays")
     KEY `idx_design` (`design`),
 
-    -- CHECK: qsa_id must be uppercase letters followed by 5 digits
-    -- Format: {1-10 uppercase letters}{exactly 5 digits} e.g., CUBE00076
+    -- CHECK: qsa_id must be uppercase alphanumeric followed by 5 digits
+    -- Format: {1-10 uppercase alphanumeric}{exactly 5 digits} e.g., CUBE00076 or SP0300001
     CONSTRAINT `chk_qsa_id_format` CHECK (
-        `qsa_id` REGEXP '^[A-Z]{1,10}[0-9]{5}$'
+        `qsa_id` REGEXP '^[A-Z0-9]{1,10}[0-9]{5}$'
     ),
 
     -- CHECK: sequence_number must be positive (1 or greater)
@@ -133,9 +133,10 @@ CREATE TABLE IF NOT EXISTS `lw_quad_qsa_identifiers` (
         `qsa_sequence` >= 1
     ),
 
-    -- CHECK: design must be uppercase letters only
-    CONSTRAINT `chk_design_uppercase` CHECK (
-        `design` REGEXP '^[A-Z]+$'
+    -- CHECK: design must be uppercase alphanumeric (letters and/or numbers)
+    -- Supports both native QSA designs (CUBE, STAR) and legacy codes (SP03, SP01)
+    CONSTRAINT `chk_design_alphanumeric` CHECK (
+        `design` REGEXP '^[A-Z0-9]+$'
     )
 
 ) ENGINE=InnoDB

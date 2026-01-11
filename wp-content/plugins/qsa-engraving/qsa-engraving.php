@@ -457,11 +457,13 @@ final class Plugin {
         );
         $this->batch_ajax_handler->register();
 
-        // Initialize Queue AJAX handler.
+        // Initialize Queue AJAX handler with Legacy SKU Resolver for base type extraction.
+        // The resolver enables legacy SKUs (e.g., SP-03) to display their canonical codes (e.g., SP03).
         $this->queue_ajax_handler = new Ajax\Queue_Ajax_Handler(
             $this->batch_sorter,
             $this->batch_repository,
-            $this->serial_repository
+            $this->serial_repository,
+            $this->legacy_sku_resolver
         );
         $this->queue_ajax_handler->register();
 

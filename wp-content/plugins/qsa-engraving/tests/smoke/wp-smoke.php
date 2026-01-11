@@ -2965,15 +2965,17 @@ run_test(
 
         // Get dependencies from plugin.
         $plugin           = \Quadica\QSA_Engraving\qsa_engraving();
-        $batch_sorter     = new \Quadica\QSA_Engraving\Services\Batch_Sorter();
-        $batch_repository = $plugin->get_batch_repository();
-        $serial_repository = $plugin->get_serial_repository();
+        $batch_sorter        = new \Quadica\QSA_Engraving\Services\Batch_Sorter();
+        $batch_repository    = $plugin->get_batch_repository();
+        $serial_repository   = $plugin->get_serial_repository();
+        $legacy_sku_resolver = $plugin->get_legacy_sku_resolver();
 
         // Instantiate handler.
         $handler = new \Quadica\QSA_Engraving\Ajax\Queue_Ajax_Handler(
             $batch_sorter,
             $batch_repository,
-            $serial_repository
+            $serial_repository,
+            $legacy_sku_resolver
         );
 
         if ( ! method_exists( $handler, 'register' ) ) {
@@ -3240,14 +3242,16 @@ run_test(
 
         // In CLI context, hooks may not be registered yet.
         // Check that the handler class has corresponding methods.
-        $batch_sorter      = new \Quadica\QSA_Engraving\Services\Batch_Sorter();
-        $batch_repository  = $plugin->get_batch_repository();
-        $serial_repository = $plugin->get_serial_repository();
+        $batch_sorter        = new \Quadica\QSA_Engraving\Services\Batch_Sorter();
+        $batch_repository    = $plugin->get_batch_repository();
+        $serial_repository   = $plugin->get_serial_repository();
+        $legacy_sku_resolver = $plugin->get_legacy_sku_resolver();
 
         $handler = new \Quadica\QSA_Engraving\Ajax\Queue_Ajax_Handler(
             $batch_sorter,
             $batch_repository,
-            $serial_repository
+            $serial_repository,
+            $legacy_sku_resolver
         );
 
         $expected_methods = array(
@@ -4662,10 +4666,10 @@ run_test(
             return new WP_Error( 'validation_fail', 'Should reject qsa_sequence=0.' );
         }
 
-        // Test invalid design (numbers).
-        $result3 = $repo->get_or_create( 1, 1, 'CUBE123' );
+        // Test invalid design (special characters - alphanumeric is now allowed for legacy SKU support).
+        $result3 = $repo->get_or_create( 1, 1, 'CUBE-01' );
         if ( ! is_wp_error( $result3 ) || 'invalid_design' !== $result3->get_error_code() ) {
-            return new WP_Error( 'validation_fail', 'Should reject design with numbers.' );
+            return new WP_Error( 'validation_fail', 'Should reject design with special characters.' );
         }
 
         // Test invalid design (too long).
@@ -4674,10 +4678,45 @@ run_test(
             return new WP_Error( 'validation_fail', 'Should reject design > 10 chars.' );
         }
 
-        echo "  Input validation correctly rejects: batch_id=0, qsa_sequence=0, CUBE123, 11-char design.\n";
+        echo "  Input validation correctly rejects: batch_id=0, qsa_sequence=0, CUBE-01, 11-char design.\n";
         return true;
     },
     'get_or_create validates inputs and rejects invalid parameters.'
+);
+
+run_test(
+    'TC-QSA-006a: get_or_create accepts alphanumeric design names',
+    function (): bool {
+        $repo = new \Quadica\QSA_Engraving\Database\QSA_Identifier_Repository();
+
+        // Test alphanumeric design names (now valid for legacy SKU support).
+        // We're using a fake batch_id=999999 which likely doesn't exist,
+        // but the validation happens before the database insert attempt.
+        // If validation passes but insert fails due to FK constraint, that's OK.
+        // The point is that alphanumeric designs should NOT trigger 'invalid_design' error.
+
+        // Test SP03 (legacy SKU format).
+        $result1 = $repo->get_or_create( 999999, 1, 'SP03' );
+        if ( is_wp_error( $result1 ) && 'invalid_design' === $result1->get_error_code() ) {
+            return new WP_Error( 'validation_fail', 'SP03 should be valid (alphanumeric allowed).' );
+        }
+
+        // Test SP01 (another legacy format).
+        $result2 = $repo->get_or_create( 999998, 1, 'SP01' );
+        if ( is_wp_error( $result2 ) && 'invalid_design' === $result2->get_error_code() ) {
+            return new WP_Error( 'validation_fail', 'SP01 should be valid (alphanumeric allowed).' );
+        }
+
+        // Test pure letters still work.
+        $result3 = $repo->get_or_create( 999997, 1, 'CUBE' );
+        if ( is_wp_error( $result3 ) && 'invalid_design' === $result3->get_error_code() ) {
+            return new WP_Error( 'validation_fail', 'CUBE should still be valid.' );
+        }
+
+        echo "  Alphanumeric designs accepted: SP03, SP01, CUBE (letters-only still works).\n";
+        return true;
+    },
+    'get_or_create accepts alphanumeric design names for legacy SKU support.'
 );
 
 run_test(
@@ -7046,6 +7085,43 @@ run_test(
         return true;
     },
     'LightBurn_Ajax_Handler should wire Legacy_SKU_Resolver to Config_Loader via SVG_Generator.'
+);
+
+// TC-PLW-004: Queue_Ajax_Handler has Legacy_SKU_Resolver injected
+run_test(
+    'TC-PLW-004: Queue_Ajax_Handler has Legacy_SKU_Resolver injected',
+    function (): bool {
+        $plugin = \Quadica\QSA_Engraving\qsa_engraving();
+
+        // Get the Queue_Ajax_Handler instance.
+        $handler = $plugin->get_queue_ajax_handler();
+        if ( null === $handler ) {
+            return new WP_Error( 'no_handler', 'Queue_Ajax_Handler not initialized.' );
+        }
+
+        // Use reflection to check legacy_sku_resolver property.
+        $reflection = new ReflectionClass( $handler );
+        if ( ! $reflection->hasProperty( 'legacy_sku_resolver' ) ) {
+            return new WP_Error( 'no_property', 'Queue_Ajax_Handler missing legacy_sku_resolver property.' );
+        }
+
+        $property = $reflection->getProperty( 'legacy_sku_resolver' );
+        $property->setAccessible( true );
+        $resolver = $property->getValue( $handler );
+
+        if ( null === $resolver ) {
+            return new WP_Error( 'null_resolver', 'Queue_Ajax_Handler has null legacy_sku_resolver.' );
+        }
+
+        if ( ! ( $resolver instanceof \Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver ) ) {
+            return new WP_Error( 'wrong_type', 'Queue_Ajax_Handler legacy_sku_resolver is not Legacy_SKU_Resolver instance.' );
+        }
+
+        echo "  Queue_Ajax_Handler has Legacy_SKU_Resolver injected.\n";
+
+        return true;
+    },
+    'Queue_Ajax_Handler should have Legacy_SKU_Resolver for base type extraction.'
 );
 
 // ============================================
