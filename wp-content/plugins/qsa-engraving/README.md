@@ -127,15 +127,20 @@ Each LED product has a 3-character shortcode used for engraving identification.
 | Rule | Constraint |
 |------|------------|
 | Length | Exactly 3 characters |
-| Allowed Characters | `A-Z a-z 0-9` (36 alphanumeric characters) |
-| Case Handling | Case-insensitive (stored as entered) |
+| Allowed Characters | `1234789CEFHJKLPRT` (17 characters only) |
+
+**Why a Restricted Character Set?**
+
+The 17-character set was selected to:
+- Minimize engraved width (narrow characters)
+- Avoid visually similar characters (no 0/O, 1/I/l, 5/S, 6/G confusion)
+- Optimize for UV laser engraving clarity
 
 **Allowed Characters:**
-- Letters: `A B C D E F G H I J K L M N O P Q R S T U V W X Y Z` (and lowercase)
-- Digits: `0 1 2 3 4 5 6 7 8 9`
-- **Not allowed:** Spaces, hyphens, underscores, or any special characters
+- Digits: `1 2 3 4 7 8 9`
+- Letters: `C E F H J K L P R T`
 
-Examples of valid LED shortcodes: `K7P`, `W2A`, `R10`, `B3C`
+Examples of valid LED shortcodes: `K7P`, `C2L`, `R14`, `H3T`
 
 **Where LED Shortcodes Are Stored:**
 

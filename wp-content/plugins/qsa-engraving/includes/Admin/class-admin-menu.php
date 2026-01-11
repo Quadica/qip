@@ -799,11 +799,11 @@ class Admin_Menu {
                     </tr>
                     <tr>
                         <td><strong><?php esc_html_e( 'Allowed:', 'qsa-engraving' ); ?></strong></td>
-                        <td><code>A B C D E F G H I J K L M N O P Q R S T U V W X Y Z 0 1 2 3 4 5 6 7 8 9</code></td>
+                        <td><code>1 2 3 4 7 8 9 C E F H J K L P R T</code> <?php esc_html_e( '(17 characters)', 'qsa-engraving' ); ?></td>
                     </tr>
                     <tr>
                         <td><strong><?php esc_html_e( 'Examples:', 'qsa-engraving' ); ?></strong></td>
-                        <td><code>K7P</code>, <code>W2A</code>, <code>R10</code>, <code>B3C</code></td>
+                        <td><code>K7P</code>, <code>C2L</code>, <code>R14</code>, <code>H3T</code></td>
                     </tr>
                     <tr>
                         <td><strong><?php esc_html_e( 'Field Name:', 'qsa-engraving' ); ?></strong></td>
