@@ -387,14 +387,50 @@ class LED_Code_Resolver {
 	}
 
 	/**
+	 * Allowed characters for LED shortcodes.
+	 *
+	 * Restricted to 17 characters to avoid visual confusion when engraved:
+	 * - Excluded: 0 (looks like O), 5 (looks like S), 6 (looks like G)
+	 * - Excluded: A B D G I M N O Q S U V W X Y Z (similar to digits or each other)
+	 * - Selected characters are narrow and distinct when laser engraved.
+	 *
+	 * @var string
+	 */
+	public const LED_CODE_CHARSET = '1234789CEFHJKLPRT';
+
+	/**
 	 * Validate that a LED shortcode is properly formatted.
 	 *
+	 * Valid characters: 1234789CEFHJKLPRT (17 characters).
+	 * This restricted set avoids visual confusion in engraved text
+	 * (e.g., 1/I, 0/O, 5/S, 6/G look similar when laser engraved).
+	 *
 	 * @param string $shortcode The LED shortcode to validate.
-	 * @return bool True if valid 3-character alphanumeric code.
+	 * @return bool True if valid 3-character code using allowed charset.
 	 */
 	public static function is_valid_shortcode( string $shortcode ): bool {
-		// Must be exactly 3 characters, alphanumeric.
-		return (bool) preg_match( '/^[A-Z0-9]{3}$/i', $shortcode );
+		// Must be exactly 3 characters.
+		if ( strlen( $shortcode ) !== 3 ) {
+			return false;
+		}
+
+		// Check each character against allowed set.
+		for ( $i = 0; $i < 3; $i++ ) {
+			if ( strpos( self::LED_CODE_CHARSET, strtoupper( $shortcode[ $i ] ) ) === false ) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	/**
+	 * Get the allowed LED shortcode character set.
+	 *
+	 * @return string Allowed characters for LED shortcodes.
+	 */
+	public static function get_led_code_charset(): string {
+		return self::LED_CODE_CHARSET;
 	}
 
 	/**

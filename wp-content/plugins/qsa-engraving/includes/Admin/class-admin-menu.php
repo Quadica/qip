@@ -802,6 +802,10 @@ class Admin_Menu {
                         <td><code>1 2 3 4 7 8 9 C E F H J K L P R T</code> <?php esc_html_e( '(17 characters)', 'qsa-engraving' ); ?></td>
                     </tr>
                     <tr>
+                        <td><strong><?php esc_html_e( 'Excluded:', 'qsa-engraving' ); ?></strong></td>
+                        <td><?php esc_html_e( '0/O, 5/S, 6/G, 1/I look similar when engraved', 'qsa-engraving' ); ?></td>
+                    </tr>
+                    <tr>
                         <td><strong><?php esc_html_e( 'Examples:', 'qsa-engraving' ); ?></strong></td>
                         <td><code>K7P</code>, <code>C2L</code>, <code>R14</code>, <code>H3T</code></td>
                     </tr>

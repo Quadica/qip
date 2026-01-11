@@ -2623,29 +2623,58 @@ run_test(
     function (): bool {
         $resolver = \Quadica\QSA_Engraving\Services\LED_Code_Resolver::class;
 
-        // Valid 3-character alphanumeric codes.
-        $valid_codes = array( 'K7P', '4T9', 'CF4', 'ABC', '123', 'A1B' );
+        // Verify charset constant exists.
+        if ( ! defined( $resolver . '::LED_CODE_CHARSET' ) ) {
+            return new WP_Error( 'missing_const', 'LED_CODE_CHARSET constant not found.' );
+        }
+
+        $charset = $resolver::LED_CODE_CHARSET;
+        if ( $charset !== '1234789CEFHJKLPRT' ) {
+            return new WP_Error( 'wrong_charset', "Expected '1234789CEFHJKLPRT', got '{$charset}'." );
+        }
+
+        // Valid 3-character codes using restricted charset (1234789CEFHJKLPRT).
+        // Charset avoids visual confusion: no 0/O, 1/I, 5/S, 6/G similarities.
+        $valid_codes = array( 'K7P', '4T9', 'CF4', 'HJL', '123', 'R1T' );
         foreach ( $valid_codes as $code ) {
             if ( ! $resolver::is_valid_shortcode( $code ) ) {
                 return new WP_Error( 'validation_fail', "'{$code}' should be valid." );
             }
         }
 
-        // Invalid codes.
-        $invalid_codes = array(
+        // Invalid codes - wrong length.
+        $invalid_length = array(
             'K7',      // Too short.
             'K7P9',    // Too long.
-            'K-7',     // Contains special char.
-            'K 7',     // Contains space.
             '',        // Empty.
         );
-        foreach ( $invalid_codes as $code ) {
+        foreach ( $invalid_length as $code ) {
             if ( $resolver::is_valid_shortcode( $code ) ) {
-                return new WP_Error( 'validation_fail', "'{$code}' should be invalid." );
+                return new WP_Error( 'validation_fail', "'{$code}' should be invalid (wrong length)." );
             }
         }
 
-        echo "  LED shortcode validation (3-char alphanumeric) verified.\n";
+        // Invalid codes - characters outside allowed charset.
+        // These look similar to allowed chars when engraved, so they're excluded.
+        $invalid_chars = array(
+            'ABC',     // A, B not in charset.
+            'K0P',     // 0 excluded (looks like O).
+            'K5P',     // 5 excluded (looks like S).
+            'K6P',     // 6 excluded (looks like G).
+            'KIP',     // I excluded (looks like 1).
+            'KOP',     // O excluded (looks like 0).
+            'KSP',     // S excluded (looks like 5).
+            'K-7',     // Special char.
+            'K 7',     // Space.
+        );
+        foreach ( $invalid_chars as $code ) {
+            if ( $resolver::is_valid_shortcode( $code ) ) {
+                return new WP_Error( 'validation_fail', "'{$code}' should be invalid (excluded chars)." );
+            }
+        }
+
+        echo "  LED shortcode validation (17-char restricted set) verified.\n";
+        echo "  Charset: {$charset}\n";
 
         return true;
     },
