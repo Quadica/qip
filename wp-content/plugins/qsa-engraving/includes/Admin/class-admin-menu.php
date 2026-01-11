@@ -799,11 +799,7 @@ class Admin_Menu {
                     </tr>
                     <tr>
                         <td><strong><?php esc_html_e( 'Allowed:', 'qsa-engraving' ); ?></strong></td>
-                        <td><code>A-Z a-z 0-9</code> <?php esc_html_e( '(letters and digits only)', 'qsa-engraving' ); ?></td>
-                    </tr>
-                    <tr>
-                        <td><strong><?php esc_html_e( 'Not Allowed:', 'qsa-engraving' ); ?></strong></td>
-                        <td><?php esc_html_e( 'Spaces, hyphens, underscores, or special characters', 'qsa-engraving' ); ?></td>
+                        <td><code>A B C D E F G H I J K L M N O P Q R S T U V W X Y Z 0 1 2 3 4 5 6 7 8 9</code></td>
                     </tr>
                     <tr>
                         <td><strong><?php esc_html_e( 'Examples:', 'qsa-engraving' ); ?></strong></td>
