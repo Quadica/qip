@@ -605,12 +605,12 @@ class QSA_Identifier_Repository {
             );
         }
 
-        // Validate design is uppercase letters only.
+        // Validate design is alphanumeric (letters and numbers for legacy SKU support).
         $design = trim( $design );
-        if ( ! preg_match( '/^[A-Za-z]+$/', $design ) ) {
+        if ( ! preg_match( '/^[A-Za-z0-9]+$/', $design ) ) {
             return new WP_Error(
                 'invalid_design',
-                __( 'Design name must contain only letters.', 'qsa-engraving' )
+                __( 'Design name must contain only letters and numbers.', 'qsa-engraving' )
             );
         }
 
