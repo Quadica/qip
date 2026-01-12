@@ -89,11 +89,11 @@ class Micro_ID_Encoder {
     public const ORIENTATION_Y = 0.05;
 
     /**
-     * Fill color for dots (black for laser engraving).
+     * Fill color for dots (blue for laser engraving layer).
      *
      * @var string
      */
-    public const DOT_FILL = '#000000';
+    public const DOT_FILL = '#0000FF';
 
     /**
      * Anchor positions (row, col) - corners of 5x5 grid.

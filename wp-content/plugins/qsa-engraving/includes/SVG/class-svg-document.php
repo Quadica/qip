@@ -57,11 +57,11 @@ class SVG_Document {
     public const ALIGNMENT_COLOR = '#FF0000';
 
     /**
-     * Engraving content color (black).
+     * Engraving content color (blue for non-QR elements).
      *
      * @var string
      */
-    public const ENGRAVING_COLOR = '#000000';
+    public const ENGRAVING_COLOR = '#0000FF';
 
     /**
      * Canvas width.

@@ -42,11 +42,11 @@ class QR_Code_Renderer {
     public const DEFAULT_SIZE = 10.0;
 
     /**
-     * QR code module stroke color (black for engraving).
+     * QR code module stroke color (green for engraving layer differentiation).
      *
      * @var string
      */
-    public const MODULE_STROKE = '#000000';
+    public const MODULE_STROKE = '#00E000';
 
     /**
      * QR code module stroke width as fraction of module size.

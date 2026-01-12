@@ -72,11 +72,11 @@ class Text_Renderer {
     );
 
     /**
-     * Fill color for text (black for engraving).
+     * Fill color for text (blue for engraving layer).
      *
      * @var string
      */
-    public const TEXT_FILL = '#000000';
+    public const TEXT_FILL = '#0000FF';
 
     /**
      * Add hair-space between each character for engraving clarity.
