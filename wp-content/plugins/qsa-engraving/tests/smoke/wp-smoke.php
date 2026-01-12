@@ -1268,8 +1268,8 @@ run_test(
             return new WP_Error( 'render_fail', 'SVG should contain circle elements.' );
         }
 
-        if ( strpos( $svg, 'fill="#000000"' ) === false ) {
-            return new WP_Error( 'render_fail', 'Circles should have black fill.' );
+        if ( strpos( $svg, 'fill="#0000FF"' ) === false ) {
+            return new WP_Error( 'render_fail', 'Circles should have blue fill (#0000FF).' );
         }
 
         // Count circle elements.
