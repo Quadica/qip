@@ -162,6 +162,13 @@ final class Plugin {
     private ?Database\SKU_Mapping_Repository $sku_mapping_repository = null;
 
     /**
+     * Config Import AJAX Handler instance.
+     *
+     * @var Ajax\Config_Import_Ajax_Handler|null
+     */
+    private ?Ajax\Config_Import_Ajax_Handler $config_import_ajax_handler = null;
+
+    /**
      * QSA Landing Handler instance.
      *
      * @var Frontend\QSA_Landing_Handler|null
@@ -491,6 +498,12 @@ final class Plugin {
             $this->legacy_sku_resolver
         );
         $this->sku_mapping_ajax_handler->register();
+
+        // Initialize Config Import AJAX handler for QSA config CSV imports.
+        $this->config_import_ajax_handler = new Ajax\Config_Import_Ajax_Handler(
+            $this->config_repository
+        );
+        $this->config_import_ajax_handler->register();
 
         // Initialize QSA Landing Handler (Frontend - handles quadi.ca redirects).
         $this->qsa_landing_handler = new Frontend\QSA_Landing_Handler(

@@ -532,4 +532,209 @@ class Config_Repository {
     public function clear_cache(): void {
         $this->cache = array();
     }
+
+    /**
+     * Get all configuration rows for a design and revision.
+     *
+     * Used for import preview to show what exists in the database.
+     *
+     * @param string $qsa_design The design name.
+     * @param string $revision   The revision letter.
+     * @return array Array of config rows with all fields.
+     */
+    public function get_all_for_design_revision( string $qsa_design, string $revision ): array {
+        $sql = "SELECT id, qsa_design, revision, position, element_type,
+                       origin_x, origin_y, rotation, text_height, element_size,
+                       is_active, created_at, updated_at, created_by
+                FROM {$this->table_name}
+                WHERE qsa_design = %s AND revision = %s
+                ORDER BY position, element_type";
+
+        $results = $this->wpdb->get_results(
+            $this->wpdb->prepare( $sql, $qsa_design, $revision ),
+            ARRAY_A
+        );
+
+        return $results ?: array();
+    }
+
+    /**
+     * Delete configuration rows by design, revision, position, and element_type.
+     *
+     * Used during import to remove elements that are no longer in the CSV.
+     *
+     * @param string $qsa_design   The design name.
+     * @param string $revision     The revision letter.
+     * @param int    $position     The position.
+     * @param string $element_type The element type.
+     * @return bool True on success, false on failure.
+     */
+    public function delete_element(
+        string $qsa_design,
+        string $revision,
+        int $position,
+        string $element_type
+    ): bool {
+        $result = $this->wpdb->delete(
+            $this->table_name,
+            array(
+                'qsa_design'   => $qsa_design,
+                'revision'     => $revision,
+                'position'     => $position,
+                'element_type' => $element_type,
+            ),
+            array( '%s', '%s', '%d', '%s' )
+        );
+
+        if ( false !== $result ) {
+            $this->cache = array();
+        }
+
+        return false !== $result;
+    }
+
+    /**
+     * Update an existing configuration row.
+     *
+     * Used during import to update existing elements.
+     *
+     * @param string     $qsa_design   The design name.
+     * @param string     $revision     The revision letter.
+     * @param int        $position     The position.
+     * @param string     $element_type The element type.
+     * @param float      $origin_x     The X coordinate.
+     * @param float      $origin_y     The Y coordinate.
+     * @param int        $rotation     The rotation in degrees.
+     * @param float|null $text_height  The text height (nullable).
+     * @param float|null $element_size The element size (nullable).
+     * @return bool True on success, false on failure.
+     */
+    public function update_element(
+        string $qsa_design,
+        string $revision,
+        int $position,
+        string $element_type,
+        float $origin_x,
+        float $origin_y,
+        int $rotation,
+        ?float $text_height,
+        ?float $element_size
+    ): bool {
+        // Build the SET clause dynamically to handle NULL values.
+        $set_parts  = array();
+        $set_values = array();
+
+        $set_parts[]  = 'origin_x = %f';
+        $set_values[] = $origin_x;
+
+        $set_parts[]  = 'origin_y = %f';
+        $set_values[] = $origin_y;
+
+        $set_parts[]  = 'rotation = %d';
+        $set_values[] = $rotation;
+
+        if ( null === $text_height ) {
+            $set_parts[] = 'text_height = NULL';
+        } else {
+            $set_parts[]  = 'text_height = %f';
+            $set_values[] = $text_height;
+        }
+
+        if ( null === $element_size ) {
+            $set_parts[] = 'element_size = NULL';
+        } else {
+            $set_parts[]  = 'element_size = %f';
+            $set_values[] = $element_size;
+        }
+
+        $set_parts[]  = 'updated_at = %s';
+        $set_values[] = current_time( 'mysql' );
+
+        $set_parts[]  = 'is_active = 1';
+
+        // Add WHERE clause values.
+        $set_values[] = $qsa_design;
+        $set_values[] = $revision;
+        $set_values[] = $position;
+        $set_values[] = $element_type;
+
+        $sql = "UPDATE {$this->table_name}
+                SET " . implode( ', ', $set_parts ) . "
+                WHERE qsa_design = %s AND revision = %s AND position = %d AND element_type = %s";
+
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is built safely above.
+        $result = $this->wpdb->query( $this->wpdb->prepare( $sql, $set_values ) );
+
+        if ( false !== $result ) {
+            $this->cache = array();
+        }
+
+        return false !== $result;
+    }
+
+    /**
+     * Insert a new configuration row.
+     *
+     * Used during import to add new elements.
+     *
+     * @param string     $qsa_design   The design name.
+     * @param string     $revision     The revision letter.
+     * @param int        $position     The position.
+     * @param string     $element_type The element type.
+     * @param float      $origin_x     The X coordinate.
+     * @param float      $origin_y     The Y coordinate.
+     * @param int        $rotation     The rotation in degrees.
+     * @param float|null $text_height  The text height (nullable).
+     * @param float|null $element_size The element size (nullable).
+     * @return int|false The inserted row ID on success, false on failure.
+     */
+    public function insert_element(
+        string $qsa_design,
+        string $revision,
+        int $position,
+        string $element_type,
+        float $origin_x,
+        float $origin_y,
+        int $rotation,
+        ?float $text_height,
+        ?float $element_size
+    ): int|false {
+        // Build insert data, handling NULL values.
+        $insert_data = array(
+            'qsa_design'   => $qsa_design,
+            'revision'     => $revision,
+            'position'     => $position,
+            'element_type' => $element_type,
+            'origin_x'     => $origin_x,
+            'origin_y'     => $origin_y,
+            'rotation'     => $rotation,
+            'is_active'    => 1,
+            'created_at'   => current_time( 'mysql' ),
+            'created_by'   => 1,
+        );
+        $insert_format = array( '%s', '%s', '%d', '%s', '%f', '%f', '%d', '%d', '%s', '%d' );
+
+        if ( null !== $text_height ) {
+            $insert_data['text_height'] = $text_height;
+            $insert_format[]            = '%f';
+        }
+
+        if ( null !== $element_size ) {
+            $insert_data['element_size'] = $element_size;
+            $insert_format[]             = '%f';
+        }
+
+        $result = $this->wpdb->insert(
+            $this->table_name,
+            $insert_data,
+            $insert_format
+        );
+
+        if ( false === $result ) {
+            return false;
+        }
+
+        $this->cache = array();
+        return (int) $this->wpdb->insert_id;
+    }
 }
