@@ -2311,17 +2311,20 @@
 }
 
 .qsa-troubleshoot-item,
-.qsa-setup-item {
+.qsa-setup-item,
+.qsa-positions-section {
     margin-bottom: 15px;
 }
 
 .qsa-troubleshoot-item:last-child,
-.qsa-setup-item:last-child {
+.qsa-setup-item:last-child,
+.qsa-positions-section:last-child {
     margin-bottom: 0;
 }
 
 .qsa-troubleshoot-item h4,
-.qsa-setup-item h4 {
+.qsa-setup-item h4,
+.qsa-positions-section h4 {
     margin: 0 0 8px 0;
     font-size: 13px;
     font-weight: 600;
@@ -2330,17 +2333,32 @@
 
 .qsa-troubleshoot-item ul,
 .qsa-setup-item ul,
-.qsa-setup-item ol {
+.qsa-setup-item ol,
+.qsa-positions-section ol {
     margin: 0;
     padding-left: 18px;
 }
 
 .qsa-troubleshoot-item li,
-.qsa-setup-item li {
+.qsa-setup-item li,
+.qsa-positions-section li {
     margin-bottom: 4px;
     font-size: 12px;
     color: #50575e;
     line-height: 1.5;
+}
+
+.qsa-positions-section code {
+    background: #f0f0f1;
+    padding: 2px 5px;
+    border-radius: 3px;
+    font-size: 11px;
+}
+
+.qsa-positions-panel .description {
+    margin-top: 10px;
+    font-size: 12px;
+    color: #787c82;
 }
 
 .qsa-setup-table {

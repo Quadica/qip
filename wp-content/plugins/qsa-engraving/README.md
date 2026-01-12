@@ -267,6 +267,90 @@ Configure plugin options:
 - **LightBurn Integration** - Host, ports, paths, auto-load toggle
 - **SVG Settings** - Rotation, top offset
 - **Text Heights** - Module ID, serial URL, LED codes
+- **QSA Configuration Import** - Upload CSV files to define element positions
+
+---
+
+## QSA Configuration Management
+
+The plugin provides two methods for defining and adjusting engraving element positions:
+
+### Method 1: CSV Import from AutoCAD
+
+Use the QSAEXPORT AutoCAD LISP script to extract element positions from CAD drawings and import them into the database.
+
+#### AutoCAD LISP Script (QSAEXPORT)
+
+The LISP script is located at `docs/reference/qsaexport.lsp` in the repository.
+
+**Requirements:**
+- AutoCAD or AutoCAD LT 2026 (LISP support required)
+- Q-Engrave layer with MTEXT elements for each engraving position
+- Design identifier MTEXT at UCS origin (0,0) with 5-character text (e.g., "SZ04a")
+
+**Layer Setup (Q-Engrave):**
+
+Place MTEXT entities on the "Q-Engrave" layer with these naming conventions:
+
+| Location Code | Element Type | Position |
+|---------------|--------------|----------|
+| Design ID at (0,0) | Design identifier | Characters 1-4 = design, 5 = revision |
+| Q0 | qr_code | 0 (design level) |
+| M1-M8 | module_id | 1-8 |
+| U1-U8 | serial_url | 1-8 |
+| S1-S8 | micro_id | 1-8 |
+| N-L1 to N-L9 | led_code_1 to led_code_9 | N = position (1-8) |
+
+Example: `1-L3` = LED code position 3 for module position 1
+
+**Using the Script:**
+
+1. Load the script in AutoCAD: `(load "path/to/qsaexport.lsp")`
+2. Run the command: `QSAEXPORT`
+3. The script will:
+   - Find the design identifier at UCS origin
+   - Extract positions from all MTEXT entities on Q-Engrave layer
+   - Convert WCS coordinates to UCS
+   - Convert rotation from radians to degrees
+   - Generate a CSV file named `{design}-qsa-config.csv` in the drawing folder
+
+**Debug Command:**
+
+Use `QSADEBUG` to inspect all MTEXT entities on the Q-Engrave layer and verify coordinates.
+
+#### CSV Import in WordPress
+
+1. Navigate to **QSA Engraving > Settings**
+2. Scroll to the **QSA Configuration Import** section
+3. Click **Select CSV File** and choose the exported CSV
+4. Review the preview showing:
+   - Design name and revision
+   - Number of rows in CSV
+   - Counts of new/updated/deleted/unchanged elements
+5. Click **Apply Import** to commit changes
+
+**Validation:**
+- CSV must contain Q0 (qr_code) element
+- CSV must contain at least one module_id (M1-M8)
+- All rows must have the same design and revision
+
+### Method 2: Tweak Coords UI
+
+For fine-tuning existing configurations:
+
+1. Navigate to **QSA Engraving > Tweak Coords**
+2. Select a design and revision
+3. Adjust X/Y coordinates and rotation for individual elements
+4. Save changes
+
+**When to Use Each Method:**
+
+| Scenario | Recommended Method |
+|----------|-------------------|
+| Initial setup of new design | CSV Import from AutoCAD |
+| Major coordinate changes | CSV Import from AutoCAD |
+| Minor adjustments (< 1mm) | Tweak Coords UI |
+| Calibration offsets | Tweak Coords UI |
 
 ---
 
@@ -400,7 +484,8 @@ qsa-engraving/
 │   │   ├── class-queue-ajax-handler.php    # Queue operations AJAX
 │   │   ├── class-history-ajax-handler.php  # Batch history AJAX
 │   │   ├── class-lightburn-ajax-handler.php # LightBurn integration AJAX
-│   │   └── class-sku-mapping-ajax-handler.php # SKU mappings AJAX
+│   │   ├── class-sku-mapping-ajax-handler.php # SKU mappings AJAX
+│   │   └── class-config-import-ajax-handler.php # CSV config import AJAX
 │   │
 │   ├── Database/
 │   │   ├── class-serial-repository.php     # Serial number CRUD

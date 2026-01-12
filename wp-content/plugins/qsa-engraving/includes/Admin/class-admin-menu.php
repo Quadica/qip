@@ -581,6 +581,7 @@ class Admin_Menu {
             <!-- Help, Troubleshooting & Setup Panels Row -->
             <div class="qsa-help-panels-row">
                 <?php $this->render_help_panel(); ?>
+                <?php $this->render_qsa_positions_panel(); ?>
                 <?php $this->render_troubleshooting_panel(); ?>
                 <?php $this->render_setup_guide_panel(); ?>
             </div>
@@ -606,6 +607,81 @@ class Admin_Menu {
                 <li><strong><?php esc_html_e( 'Advance', 'qsa-engraving' ); ?></strong> &ndash; <?php esc_html_e( 'Click "Next Array" to load the next SVG.', 'qsa-engraving' ); ?></li>
                 <li><strong><?php esc_html_e( 'Complete', 'qsa-engraving' ); ?></strong> &ndash; <?php esc_html_e( 'After the final array, click "Complete" to finish the batch.', 'qsa-engraving' ); ?></li>
             </ol>
+        </div>
+        <?php
+    }
+
+    /**
+     * Render the QSA Positions Panel.
+     *
+     * @return void
+     */
+    private function render_qsa_positions_panel(): void {
+        ?>
+        <div class="qsa-widget qsa-positions-panel">
+            <h2><?php esc_html_e( 'Defining/Tweaking QSA Engraving Positions', 'qsa-engraving' ); ?></h2>
+
+            <div class="qsa-positions-section">
+                <h4><?php esc_html_e( 'Step 1: Generate CSV from AutoCAD', 'qsa-engraving' ); ?></h4>
+                <ol>
+                    <li><?php esc_html_e( 'Open the QSA design drawing in AutoCAD.', 'qsa-engraving' ); ?></li>
+                    <li><?php esc_html_e( 'Ensure all engraving elements are on the "Q-Engrave" layer as MTEXT.', 'qsa-engraving' ); ?></li>
+                    <li><?php esc_html_e( 'Place a 5-character design ID (e.g., "SZ04a") at UCS origin (0,0).', 'qsa-engraving' ); ?></li>
+                    <li>
+                        <?php esc_html_e( 'Load the LISP script:', 'qsa-engraving' ); ?>
+                        <code>(load "path/to/qsaexport.lsp")</code>
+                    </li>
+                    <li>
+                        <?php esc_html_e( 'Run the export command:', 'qsa-engraving' ); ?>
+                        <code>QSAEXPORT</code>
+                    </li>
+                    <li><?php esc_html_e( 'A CSV file will be created in the drawing folder.', 'qsa-engraving' ); ?></li>
+                </ol>
+            </div>
+
+            <div class="qsa-positions-section">
+                <h4><?php esc_html_e( 'Step 2: Upload CSV to WordPress', 'qsa-engraving' ); ?></h4>
+                <ol>
+                    <li>
+                        <?php
+                        printf(
+                            /* translators: %s: Settings link */
+                            esc_html__( 'Go to %s.', 'qsa-engraving' ),
+                            '<a href="' . esc_url( admin_url( 'admin.php?page=qsa-engraving-settings' ) ) . '">' .
+                            esc_html__( 'QSA Engraving > Settings', 'qsa-engraving' ) . '</a>'
+                        );
+                        ?>
+                    </li>
+                    <li><?php esc_html_e( 'Scroll to "QSA Configuration Import" section.', 'qsa-engraving' ); ?></li>
+                    <li><?php esc_html_e( 'Click "Select CSV File" and choose the exported file.', 'qsa-engraving' ); ?></li>
+                    <li><?php esc_html_e( 'Review the preview (new/updated/deleted counts).', 'qsa-engraving' ); ?></li>
+                    <li><?php esc_html_e( 'Click "Apply Import" to save the configuration.', 'qsa-engraving' ); ?></li>
+                </ol>
+            </div>
+
+            <div class="qsa-positions-section">
+                <h4><?php esc_html_e( 'Step 3: Fine-Tune with Tweak Coords', 'qsa-engraving' ); ?></h4>
+                <ol>
+                    <li>
+                        <?php
+                        printf(
+                            /* translators: %s: Tweak Coords link */
+                            esc_html__( 'Go to %s.', 'qsa-engraving' ),
+                            '<a href="' . esc_url( admin_url( 'admin.php?page=qsa-engraving-tweak' ) ) . '">' .
+                            esc_html__( 'QSA Engraving > Tweak Coords', 'qsa-engraving' ) . '</a>'
+                        );
+                        ?>
+                    </li>
+                    <li><?php esc_html_e( 'Select the design and revision to adjust.', 'qsa-engraving' ); ?></li>
+                    <li><?php esc_html_e( 'Modify X/Y coordinates or rotation for any element.', 'qsa-engraving' ); ?></li>
+                    <li><?php esc_html_e( 'Use for small adjustments (< 1mm) after test engraving.', 'qsa-engraving' ); ?></li>
+                </ol>
+            </div>
+
+            <p class="description">
+                <strong><?php esc_html_e( 'Tip:', 'qsa-engraving' ); ?></strong>
+                <?php esc_html_e( 'Use QSADEBUG in AutoCAD to verify element positions before exporting.', 'qsa-engraving' ); ?>
+            </p>
         </div>
         <?php
     }
