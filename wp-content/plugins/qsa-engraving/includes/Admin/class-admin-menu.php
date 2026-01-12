@@ -628,12 +628,9 @@ class Admin_Menu {
                     <li><?php esc_html_e( 'Ensure all engraving elements are on the "Q-Engrave" layer as MTEXT.', 'qsa-engraving' ); ?></li>
                     <li><?php esc_html_e( 'Place a 5-character design ID (e.g., "SZ04a") at UCS origin (0,0).', 'qsa-engraving' ); ?></li>
                     <li>
-                        <?php esc_html_e( 'Load the LISP script:', 'qsa-engraving' ); ?>
-                        <code>(load "path/to/qsaexport.lsp")</code>
-                    </li>
-                    <li>
-                        <?php esc_html_e( 'Run the export command:', 'qsa-engraving' ); ?>
-                        <code>QSAEXPORT</code>
+                        <?php esc_html_e( 'In AutoCAD click on the', 'qsa-engraving' ); ?>
+                        <code>LISP > QSA Export</code>
+                        <?php esc_html_e( 'option.', 'qsa-engraving' ); ?>
                     </li>
                     <li><?php esc_html_e( 'A CSV file will be created in the drawing folder.', 'qsa-engraving' ); ?></li>
                 </ol>

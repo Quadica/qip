@@ -281,7 +281,7 @@ Use the QSAEXPORT AutoCAD LISP script to extract element positions from CAD draw
 
 #### AutoCAD LISP Script (QSAEXPORT)
 
-The LISP script is located at `docs/reference/qsaexport.lsp` in the repository.
+The LISP script is located at `\Quadica\LISP\qsaexport.lsp` in the Quadica Google Drive.
 
 **Requirements:**
 - AutoCAD or AutoCAD LT 2026 (LISP support required)
