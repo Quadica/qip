@@ -33,12 +33,16 @@ class QSA_Landing_Handler {
 	/**
 	 * Regex pattern to match QSA IDs.
 	 *
-	 * Format: 4 uppercase letters + optional lowercase revision + 5 digits
-	 * Examples: CUBE00001, STARa00042, PICOb12345
+	 * Format: 4 alphanumeric characters + optional revision letter + 5 digits
+	 * Examples: CUBE00001, STARa00042, SZ0400001, SP0300039
+	 *
+	 * Design codes can be:
+	 * - All letters: CUBE, STAR, PICO
+	 * - Mixed alphanumeric: SZ04, SP03
 	 *
 	 * @var string
 	 */
-	public const QSA_ID_PATTERN = '([A-Za-z]{4}[A-Za-z]?[0-9]{5})';
+	public const QSA_ID_PATTERN = '([A-Za-z0-9]{4}[A-Za-z]?[0-9]{5})';
 
 	/**
 	 * QSA Identifier Repository instance.
