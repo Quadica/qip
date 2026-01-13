@@ -222,19 +222,20 @@ class Text_Renderer {
     }
 
     /**
-     * Render LED code text with configurable tracking.
+     * Render LED code text with configurable tracking and height.
      *
-     * Uses SVG letter-spacing attribute for precise character spacing control.
+     * Uses explicit character positioning for precise spacing control.
      * Tracking value follows AutoCAD convention:
      *   - 1.0 = normal spacing (no extra space)
      *   - 1.3 = 30% wider spacing between characters
      *   - 0.5 = tighter spacing (50% of normal)
      *
-     * @param string $led_code 3-character LED code.
-     * @param float  $x        X coordinate.
-     * @param float  $y        Y coordinate.
-     * @param int    $rotation Rotation angle in degrees.
-     * @param float  $tracking Tracking multiplier (default 1.0 = normal).
+     * @param string     $led_code 3-character LED code.
+     * @param float      $x        X coordinate.
+     * @param float      $y        Y coordinate.
+     * @param int        $rotation Rotation angle in degrees.
+     * @param float      $tracking Tracking multiplier (default 1.0 = normal).
+     * @param float|null $height   Text height in mm (null = use default 1.0mm).
      * @return string SVG text element.
      */
     public static function render_led_code(
@@ -242,26 +243,30 @@ class Text_Renderer {
         float $x,
         float $y,
         int $rotation = 0,
-        float $tracking = 1.0
+        float $tracking = 1.0,
+        ?float $height = null
     ): string {
+        // Use provided height or fall back to default.
+        $text_height = $height ?? self::DEFAULT_HEIGHTS['led_code'];
+
         // If tracking is 1.0 (normal), use the standard render with hair-spaces.
         if ( abs( $tracking - 1.0 ) < 0.01 ) {
             return self::render(
                 $led_code,
                 $x,
                 $y,
-                self::DEFAULT_HEIGHTS['led_code'],
+                $text_height,
                 'middle',
                 $rotation
             );
         }
 
-        // Use letter-spacing for custom tracking values.
+        // Use explicit character positioning for custom tracking values.
         return self::render_with_tracking(
             $led_code,
             $x,
             $y,
-            self::DEFAULT_HEIGHTS['led_code'],
+            $text_height,
             'middle',
             $rotation,
             $tracking

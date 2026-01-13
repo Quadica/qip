@@ -819,6 +819,7 @@ class SVG_Document {
         }
 
         $rotation = $config['rotation'] ?? 0;
+        $height   = $config['text_height'] ?? null;
 
         // Use specialized renderer for LED codes with tracking support.
         if ( 'led_code' === $type ) {
@@ -827,7 +828,8 @@ class SVG_Document {
                 $svg_coords['x'],
                 $svg_coords['y'],
                 $rotation,
-                $this->led_code_tracking
+                $this->led_code_tracking,
+                $height
             );
         }
 

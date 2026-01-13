@@ -442,6 +442,34 @@ Each QSA design (CORE, SOLO, EDGE, STAR, etc.) has different physical layouts, s
 - The number of mounted LEDs for each LED module is provided in the Order BOM CPT for each module in the order
 - Current module designs support up to 9 LED positions; future designs may require more
 
+**LED Code Format:**
+
+| Rule | Constraint |
+|------|------------|
+| Length | Exactly 3 characters |
+| Allowed Characters | `1234789CEFHJKLPRT` (17 characters only) |
+
+**Why a Restricted Character Set?**
+
+The 17-character set was selected to prevent misreading of engraved text. At small sizes, laser-engraved characters can look very similar:
+
+| Excluded | Reason |
+|----------|--------|
+| `0` | Looks like `O` |
+| `5` | Looks like `S` |
+| `6` | Looks like `G` |
+| `I` | Looks like `1` |
+| `O` | Looks like `0` |
+| `S` | Looks like `5` |
+| `G` | Looks like `6` |
+| `A B D M N Q U V W X Y Z` | Similar to other characters or too wide |
+
+**Allowed Characters:**
+- Digits: `1 2 3 4 7 8 9` (no 0, 5, 6)
+- Letters: `C E F H J K L P R T` (narrow, distinct shapes)
+
+Examples of valid LED shortcodes: `K7P`, `C2L`, `R14`, `H3T`
+
 **Data Source:**
 1. Query the `order_no` from `oms_batch_items` for the module being engraved
 2. Using the Order ID, retrieve the LED SKU(s) and their PCB position numbers from the Order BOM CPT
