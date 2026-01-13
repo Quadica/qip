@@ -390,6 +390,9 @@ class Config_Repository {
         if ( $existing ) {
             // Update existing.
             // Build data and format arrays conditionally to handle NULL values.
+            // IMPORTANT: Format array must match the order of data array keys.
+            // PHP associative arrays maintain insertion order, so we must append
+            // both data and format in the same order.
             $update_data = array(
                 'origin_x'  => $origin_x,
                 'origin_y'  => $origin_y,
@@ -409,8 +412,8 @@ class Config_Repository {
                 );
             } else {
                 $update_data['text_height'] = $text_height;
-                // Insert format at position 3 (after rotation).
-                array_splice( $update_format, 3, 0, '%f' );
+                // Append format to END to match data array order.
+                $update_format[] = '%f';
             }
 
             // Handle element_size: use raw SQL for NULL, or add to data array.

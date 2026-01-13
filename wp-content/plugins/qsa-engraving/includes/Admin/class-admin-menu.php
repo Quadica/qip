@@ -1086,11 +1086,6 @@ class Admin_Menu {
                 var $status = $('#qsa-tweaker-status');
                 var elements = [];
 
-                // DEBUG: Log all text_height inputs before gathering
-                console.log('QSA Tweaker: All text_height inputs:', $('#qsa-tweaker-elements input[name="text_height"]').map(function() {
-                    return { parent: $(this).closest('.qsa-element-group').data('element'), val: $(this).val() };
-                }).get());
-
                 // Gather all element data
                 $('#qsa-tweaker-elements .qsa-element-group').each(function() {
                     var $group = $(this);
@@ -1105,8 +1100,6 @@ class Admin_Menu {
                     var $textHeight = $group.find('input[name="text_height"]');
                     if ($textHeight.length) {
                         data.text_height = parseFloat($textHeight.val()) || null;
-                        // DEBUG: Log what we're finding for each element
-                        console.log('QSA Tweaker: ' + elementType + ' text_height input count=' + $textHeight.length + ', val=' + $textHeight.val());
                     }
 
                     var $elementSize = $group.find('input[name="element_size"]');
@@ -1116,9 +1109,6 @@ class Admin_Menu {
 
                     elements.push(data);
                 });
-
-                // DEBUG: Log final elements array
-                console.log('QSA Tweaker: Elements to save:', JSON.stringify(elements, null, 2));
 
                 $btn.prop('disabled', true);
                 $status.removeClass('success error').addClass('saving').text('<?php echo esc_js( __( 'Saving...', 'qsa-engraving' ) ); ?>');

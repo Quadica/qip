@@ -1034,9 +1034,6 @@ class LightBurn_Ajax_Handler {
 		$errors  = array();
 		$updated = 0;
 
-		// DEBUG: Log received elements to trace the issue.
-		error_log( 'QSA Tweaker Save - Elements received: ' . wp_json_encode( $elements ) );
-
 		foreach ( $elements as $element ) {
 			$element_type = sanitize_text_field( $element['element_type'] ?? '' );
 			$origin_x     = (float) ( $element['origin_x'] ?? 0 );
@@ -1044,9 +1041,6 @@ class LightBurn_Ajax_Handler {
 			$rotation     = (int) ( $element['rotation'] ?? 0 );
 			$text_height  = isset( $element['text_height'] ) ? (float) $element['text_height'] : null;
 			$element_size = isset( $element['element_size'] ) ? (float) $element['element_size'] : null;
-
-			// DEBUG: Log each element being processed.
-			error_log( "QSA Tweaker Save - Processing: {$element_type}, text_height={$text_height}" );
 
 			// Validate element type.
 			if ( empty( $element_type ) ) {
