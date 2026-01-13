@@ -269,20 +269,20 @@ class Text_Renderer {
     }
 
     /**
-     * Render text with custom tracking using tspan dx positioning.
+     * Render text with custom tracking using explicit character positioning.
      *
-     * Uses SVG tspan elements with dx attributes for precise character spacing.
-     * This approach is more reliable than letter-spacing for LightBurn import,
-     * as LightBurn handles dx positioning consistently across versions.
+     * Renders each character as a separate text element with calculated x positions.
+     * This approach works reliably in LightBurn, which ignores letter-spacing and
+     * tspan dx attributes when importing SVG files.
      *
      * @param string $text     The text content.
-     * @param float  $x        X coordinate.
-     * @param float  $y        Y coordinate.
+     * @param float  $x        X coordinate (center point for the text).
+     * @param float  $y        Y coordinate (baseline).
      * @param float  $height   Text height in mm.
      * @param string $anchor   Text anchor: 'start', 'middle', or 'end'.
      * @param int    $rotation Rotation angle in degrees.
-     * @param float  $tracking Tracking multiplier (1.0 = normal).
-     * @return string SVG text element markup.
+     * @param float  $tracking Tracking multiplier (1.0 = normal, 2.0 = 2x spacing).
+     * @return string SVG markup (group of text elements).
      */
     public static function render_with_tracking(
         string $text,
@@ -296,12 +296,11 @@ class Text_Renderer {
         // Calculate font size.
         $font_size = self::calculate_font_size( $height );
 
-        // Calculate extra spacing from tracking value.
-        // Tracking 1.0 = 0 extra spacing (normal kerning)
-        // Tracking 1.3 = 0.3 × avg_char_width extra spacing between chars
-        // Average character width for Roboto Thin ≈ 0.5 × height
-        $avg_char_width = $height * 0.5;
-        $extra_spacing  = ( $tracking - 1.0 ) * $avg_char_width;
+        // Calculate character advance (distance between character centers).
+        // Average character width for Roboto Thin ≈ 0.5 × height.
+        // Advance = char_width × tracking.
+        $char_width = $height * 0.5;
+        $advance    = $char_width * $tracking;
 
         // Split text into individual characters (UTF-8 safe).
         $chars = preg_split( '//u', $text, -1, PREG_SPLIT_NO_EMPTY );
@@ -309,53 +308,61 @@ class Text_Renderer {
             return '';
         }
 
-        // Build tspan elements for each character.
-        // First character has no dx; subsequent characters have dx for extra spacing.
-        $tspans = '';
-        foreach ( $chars as $index => $char ) {
-            $escaped_char = htmlspecialchars( $char, ENT_XML1 | ENT_QUOTES, 'UTF-8' );
-            if ( 0 === $index ) {
-                // First character - no dx offset, positioned at text x,y.
-                $tspans .= sprintf( '<tspan>%s</tspan>', $escaped_char );
-            } else {
-                // Subsequent characters - add dx for extra spacing beyond normal kerning.
-                $tspans .= sprintf(
-                    '<tspan dx="%s">%s</tspan>',
-                    number_format( $extra_spacing, 4, '.', '' ),
-                    $escaped_char
-                );
-            }
+        $num_chars = count( $chars );
+
+        // Calculate the total span from first to last character center.
+        // For n chars: span = (n-1) × advance.
+        $total_span = ( $num_chars - 1 ) * $advance;
+
+        // Calculate starting x based on anchor.
+        // For 'middle': center the character group around x.
+        // For 'start': first char at x.
+        // For 'end': last char at x.
+        switch ( $anchor ) {
+            case 'start':
+                $start_x = $x;
+                break;
+            case 'end':
+                $start_x = $x - $total_span;
+                break;
+            case 'middle':
+            default:
+                $start_x = $x - ( $total_span / 2 );
+                break;
         }
 
-        // Build attributes.
-        $attrs = array(
-            'font-family' => self::FONT_FAMILY,
-            'font-size'   => number_format( $font_size, 4, '.', '' ),
-            'text-anchor' => $anchor,
-            'fill'        => self::TEXT_FILL,
-        );
+        // Build individual text elements for each character.
+        $elements = array();
+        foreach ( $chars as $index => $char ) {
+            $char_x       = $start_x + ( $index * $advance );
+            $escaped_char = htmlspecialchars( $char, ENT_XML1 | ENT_QUOTES, 'UTF-8' );
 
-        // Add transform for rotation if non-zero.
-        if ( 0 !== $rotation ) {
-            $attrs['transform'] = sprintf(
-                'rotate(%d %.4f %.4f)',
-                $rotation,
-                $x,
-                $y
+            $elements[] = sprintf(
+                '<text font-family="%s" font-size="%s" text-anchor="middle" fill="%s" x="%s" y="%s">%s</text>',
+                self::FONT_FAMILY,
+                number_format( $font_size, 4, '.', '' ),
+                self::TEXT_FILL,
+                number_format( $char_x, 4, '.', '' ),
+                number_format( $y, 4, '.', '' ),
+                $escaped_char
             );
         }
 
-        // Add coordinates.
-        $attrs['x'] = number_format( $x, 4, '.', '' );
-        $attrs['y'] = number_format( $y, 4, '.', '' );
+        // Wrap in a group, applying rotation if needed.
+        $group_content = implode( '', $elements );
 
-        // Build attribute string.
-        $attr_parts = array();
-        foreach ( $attrs as $name => $value ) {
-            $attr_parts[] = sprintf( '%s="%s"', $name, esc_attr( (string) $value ) );
+        if ( 0 !== $rotation ) {
+            return sprintf(
+                '<g transform="rotate(%d %.4f %.4f)">%s</g>',
+                $rotation,
+                $x,
+                $y,
+                $group_content
+            );
         }
 
-        return sprintf( '<text %s>%s</text>', implode( ' ', $attr_parts ), $tspans );
+        // No rotation - return elements directly (no wrapper needed for cleaner SVG).
+        return $group_content;
     }
 
     /**

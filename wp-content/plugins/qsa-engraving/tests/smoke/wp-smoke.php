@@ -1637,53 +1637,54 @@ run_test(
 );
 
 run_test(
-    'TC-SVG-011: LED code tracking uses tspan dx positioning',
+    'TC-SVG-011: LED code tracking uses explicit character positioning',
     function (): bool {
         $renderer = \Quadica\QSA_Engraving\SVG\Text_Renderer::class;
 
-        // Test with tracking 1.3 (30% wider spacing).
-        $svg = $renderer::render_led_code( 'K7P', 10.0, 20.0, 0, 1.3 );
+        // Test with tracking 2.0 (2x normal spacing).
+        $svg = $renderer::render_led_code( 'K7P', 50.0, 20.0, 0, 2.0 );
 
-        // Should contain tspan elements (not letter-spacing attribute).
-        if ( strpos( $svg, '<tspan>' ) === false ) {
-            return new WP_Error( 'missing_tspan', 'render_with_tracking should use tspan elements.' );
+        // Should contain multiple text elements (one per character).
+        $text_count = substr_count( $svg, '<text ' );
+        if ( $text_count !== 3 ) {
+            return new WP_Error( 'wrong_text_count', "Expected 3 text elements, got {$text_count}. SVG: {$svg}" );
         }
 
-        // Should NOT contain letter-spacing attribute.
+        // Should NOT contain letter-spacing or tspan (LightBurn ignores these).
         if ( strpos( $svg, 'letter-spacing' ) !== false ) {
-            return new WP_Error( 'has_letter_spacing', 'render_with_tracking should NOT use letter-spacing attribute.' );
+            return new WP_Error( 'has_letter_spacing', 'Should NOT use letter-spacing attribute.' );
+        }
+        if ( strpos( $svg, '<tspan' ) !== false ) {
+            return new WP_Error( 'has_tspan', 'Should NOT use tspan elements (LightBurn ignores dx).' );
         }
 
-        // Should have dx attributes on subsequent tspans.
-        if ( strpos( $svg, 'dx=' ) === false ) {
-            return new WP_Error( 'missing_dx', 'render_with_tracking should use dx attributes for spacing.' );
+        // Calculate expected positions for tracking 2.0.
+        // Height = 1.0mm, char_width = 0.5mm, advance = 0.5 × 2.0 = 1.0mm.
+        // For 3 chars centered at x=50: span = 2 × 1.0 = 2.0mm.
+        // Start x = 50 - 1.0 = 49.0mm.
+        // Positions: K at 49.0, 7 at 50.0, P at 51.0.
+        if ( strpos( $svg, 'x="49.0000"' ) === false ) {
+            return new WP_Error( 'wrong_x1', "Expected first char at x=49.0000. SVG: {$svg}" );
+        }
+        if ( strpos( $svg, 'x="50.0000"' ) === false ) {
+            return new WP_Error( 'wrong_x2', "Expected second char at x=50.0000. SVG: {$svg}" );
+        }
+        if ( strpos( $svg, 'x="51.0000"' ) === false ) {
+            return new WP_Error( 'wrong_x3', "Expected third char at x=51.0000. SVG: {$svg}" );
         }
 
-        // For 3-char text "K7P", expect 3 tspan elements.
-        $tspan_count = substr_count( $svg, '<tspan' );
-        if ( $tspan_count !== 3 ) {
-            return new WP_Error( 'wrong_tspan_count', "Expected 3 tspans, got {$tspan_count}." );
+        // Test with tracking 1.0 (normal) - should fall back to hair-space method (single text element).
+        $svg_normal = $renderer::render_led_code( 'K7P', 50.0, 20.0, 0, 1.0 );
+        $normal_text_count = substr_count( $svg_normal, '<text ' );
+        if ( $normal_text_count !== 1 ) {
+            return new WP_Error( 'wrong_normal_count', "Tracking 1.0 should use single text element, got {$normal_text_count}." );
         }
 
-        // Calculate expected dx value.
-        // Height = 1.0mm (default for led_code), tracking = 1.3.
-        // extra_spacing = (1.3 - 1.0) × (1.0 × 0.5) = 0.3 × 0.5 = 0.15mm.
-        $expected_dx = 0.15;
-        if ( strpos( $svg, 'dx="0.1500"' ) === false ) {
-            return new WP_Error( 'wrong_dx', "Expected dx=\"0.1500\", not found in: {$svg}" );
-        }
-
-        // Test with tracking 1.0 (normal) - should fall back to hair-space method.
-        $svg_normal = $renderer::render_led_code( 'K7P', 10.0, 20.0, 0, 1.0 );
-        if ( strpos( $svg_normal, '<tspan' ) !== false ) {
-            return new WP_Error( 'unexpected_tspan', 'Tracking 1.0 should use hair-spaces, not tspans.' );
-        }
-
-        echo "  LED code tracking uses tspan dx positioning (dx=0.1500mm for tracking 1.3).\n";
+        echo "  LED code tracking uses explicit x positions (K@49, 7@50, P@51 for tracking 2.0 at center 50).\n";
 
         return true;
     },
-    'LED code tracking uses tspan dx positioning instead of letter-spacing for LightBurn compatibility.'
+    'LED code tracking uses explicit character positioning for LightBurn compatibility.'
 );
 
 // TC-DM-001, TC-DM-002, TC-DM-003: Data Matrix tests - REMOVED (Phase 2: datamatrix class deleted)
