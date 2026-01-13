@@ -1687,6 +1687,41 @@ run_test(
     'LED code tracking uses explicit character positioning for LightBurn compatibility.'
 );
 
+run_test(
+    'TC-SVG-012: LED code custom height is applied',
+    function (): bool {
+        $renderer = \Quadica\QSA_Engraving\SVG\Text_Renderer::class;
+
+        // Test with default height (1.0mm) - font-size should be 1.0 × 1.4056 = 1.4056.
+        $svg_default = $renderer::render_led_code( 'K7P', 50.0, 20.0, 0, 1.0, null );
+        $default_font_size = number_format( 1.0 * 1.4056, 4, '.', '' );
+        if ( strpos( $svg_default, "font-size=\"{$default_font_size}\"" ) === false ) {
+            return new WP_Error( 'wrong_default_font', "Default height should produce font-size {$default_font_size}. SVG: {$svg_default}" );
+        }
+
+        // Test with custom height (2.0mm) - font-size should be 2.0 × 1.4056 = 2.8112.
+        $svg_custom = $renderer::render_led_code( 'K7P', 50.0, 20.0, 0, 1.0, 2.0 );
+        $custom_font_size = number_format( 2.0 * 1.4056, 4, '.', '' );
+        if ( strpos( $svg_custom, "font-size=\"{$custom_font_size}\"" ) === false ) {
+            return new WP_Error( 'wrong_custom_font', "Custom height 2.0 should produce font-size {$custom_font_size}. SVG: {$svg_custom}" );
+        }
+
+        // Test with tracking > 1.0 and custom height - verify each character uses custom height.
+        $svg_tracked = $renderer::render_led_code( 'K7P', 50.0, 20.0, 0, 2.0, 1.5 );
+        $tracked_font_size = number_format( 1.5 * 1.4056, 4, '.', '' );
+        // All three text elements should have the tracked font size.
+        $tracked_count = substr_count( $svg_tracked, "font-size=\"{$tracked_font_size}\"" );
+        if ( $tracked_count !== 3 ) {
+            return new WP_Error( 'wrong_tracked_font', "Tracked LED code with height 1.5 should have 3 elements with font-size {$tracked_font_size}, got {$tracked_count}. SVG: {$svg_tracked}" );
+        }
+
+        echo "  LED code height correctly applied: 1.0mm->1.4056, 2.0mm->2.8112, 1.5mm (tracked)->2.1084.\n";
+
+        return true;
+    },
+    'LED code render_led_code() applies custom height parameter to font-size.'
+);
+
 // TC-DM-001, TC-DM-002, TC-DM-003: Data Matrix tests - REMOVED (Phase 2: datamatrix class deleted)
 
 run_test(
