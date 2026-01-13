@@ -269,10 +269,11 @@ class Text_Renderer {
     }
 
     /**
-     * Render text with letter-spacing based on tracking value.
+     * Render text with custom tracking using tspan dx positioning.
      *
-     * Instead of hair-spaces, this uses SVG's letter-spacing attribute
-     * which provides precise control over character spacing.
+     * Uses SVG tspan elements with dx attributes for precise character spacing.
+     * This approach is more reliable than letter-spacing for LightBurn import,
+     * as LightBurn handles dx positioning consistently across versions.
      *
      * @param string $text     The text content.
      * @param float  $x        X coordinate.
@@ -295,23 +296,43 @@ class Text_Renderer {
         // Calculate font size.
         $font_size = self::calculate_font_size( $height );
 
-        // Calculate letter-spacing from tracking value.
-        // Tracking 1.0 = 0 letter-spacing (normal)
-        // Tracking 1.3 = 0.3 × average character width added between chars
+        // Calculate extra spacing from tracking value.
+        // Tracking 1.0 = 0 extra spacing (normal kerning)
+        // Tracking 1.3 = 0.3 × avg_char_width extra spacing between chars
         // Average character width for Roboto Thin ≈ 0.5 × height
         $avg_char_width = $height * 0.5;
-        $letter_spacing = ( $tracking - 1.0 ) * $avg_char_width;
+        $extra_spacing  = ( $tracking - 1.0 ) * $avg_char_width;
 
-        // Escape text for XML (no hair-spaces added).
-        $escaped_text = htmlspecialchars( $text, ENT_XML1 | ENT_QUOTES, 'UTF-8' );
+        // Split text into individual characters (UTF-8 safe).
+        $chars = preg_split( '//u', $text, -1, PREG_SPLIT_NO_EMPTY );
+        if ( false === $chars || empty( $chars ) ) {
+            return '';
+        }
+
+        // Build tspan elements for each character.
+        // First character has no dx; subsequent characters have dx for extra spacing.
+        $tspans = '';
+        foreach ( $chars as $index => $char ) {
+            $escaped_char = htmlspecialchars( $char, ENT_XML1 | ENT_QUOTES, 'UTF-8' );
+            if ( 0 === $index ) {
+                // First character - no dx offset, positioned at text x,y.
+                $tspans .= sprintf( '<tspan>%s</tspan>', $escaped_char );
+            } else {
+                // Subsequent characters - add dx for extra spacing beyond normal kerning.
+                $tspans .= sprintf(
+                    '<tspan dx="%s">%s</tspan>',
+                    number_format( $extra_spacing, 4, '.', '' ),
+                    $escaped_char
+                );
+            }
+        }
 
         // Build attributes.
         $attrs = array(
-            'font-family'    => self::FONT_FAMILY,
-            'font-size'      => number_format( $font_size, 4, '.', '' ),
-            'text-anchor'    => $anchor,
-            'fill'           => self::TEXT_FILL,
-            'letter-spacing' => number_format( $letter_spacing, 4, '.', '' ),
+            'font-family' => self::FONT_FAMILY,
+            'font-size'   => number_format( $font_size, 4, '.', '' ),
+            'text-anchor' => $anchor,
+            'fill'        => self::TEXT_FILL,
         );
 
         // Add transform for rotation if non-zero.
@@ -334,7 +355,7 @@ class Text_Renderer {
             $attr_parts[] = sprintf( '%s="%s"', $name, esc_attr( (string) $value ) );
         }
 
-        return sprintf( '<text %s>%s</text>', implode( ' ', $attr_parts ), $escaped_text );
+        return sprintf( '<text %s>%s</text>', implode( ' ', $attr_parts ), $tspans );
     }
 
     /**
