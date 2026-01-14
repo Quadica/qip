@@ -694,6 +694,19 @@
 	line-height: 14px;
 }
 
+.qsa-btn-rerun .dashicons.spin {
+	animation: qsa-spin 1s linear infinite;
+}
+
+.qsa-btn-rerun.is-loading {
+	opacity: 0.8;
+	cursor: wait;
+}
+
+.qsa-btn-rerun:disabled {
+	cursor: wait;
+}
+
 .qsa-done-badge {
 	display: flex;
 	align-items: center;
