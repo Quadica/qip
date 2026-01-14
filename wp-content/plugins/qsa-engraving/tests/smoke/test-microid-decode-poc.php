@@ -29,7 +29,7 @@ use Quadica\QSA_Engraving\Services\Claude_Vision_Client;
 
 // Plugin paths.
 $plugin_dir       = dirname( __DIR__, 2 );
-$reference_dir    = dirname( $plugin_dir, 3 ) . '/docs/sample-data/reference-images';
+$reference_dir    = $plugin_dir . '/assets/reference-images';
 
 echo "=== Micro-ID Decode POC Test ===\n\n";
 echo "Plugin directory: {$plugin_dir}\n";
