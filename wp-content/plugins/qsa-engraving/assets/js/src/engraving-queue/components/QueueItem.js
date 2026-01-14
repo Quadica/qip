@@ -236,16 +236,17 @@ export default function QueueItem( {
 
 					{ item.status === 'partial' && (
 						<div className="qsa-action-buttons">
-							<button
-								type="button"
-								className="qsa-btn-resume"
-								onClick={ () => onStart( item.id ) }
-								disabled={ isRerunning }
-								title={ __( 'Resume engraving from where you left off', 'qsa-engraving' ) }
-							>
-								<span className="dashicons dashicons-controls-play"></span>
-								{ __( 'Resume', 'qsa-engraving' ) }
-							</button>
+							{ ! isRerunning && (
+								<button
+									type="button"
+									className="qsa-btn-resume"
+									onClick={ () => onStart( item.id ) }
+									title={ __( 'Resume engraving from where you left off', 'qsa-engraving' ) }
+								>
+									<span className="dashicons dashicons-controls-play"></span>
+									{ __( 'Resume', 'qsa-engraving' ) }
+								</button>
+							) }
 							<button
 								type="button"
 								className={ `qsa-btn-rerun ${ isRerunning ? 'is-loading' : '' }` }
@@ -259,6 +260,11 @@ export default function QueueItem( {
 								<span className={ `dashicons ${ isRerunning ? 'dashicons-update spin' : 'dashicons-controls-repeat' }` }></span>
 								{ isRerunning ? __( 'Resetting...', 'qsa-engraving' ) : __( 'Rerun', 'qsa-engraving' ) }
 							</button>
+							{ isRerunning && (
+								<span className="qsa-rerun-hint">
+									{ __( 'This may take a moment...', 'qsa-engraving' ) }
+								</span>
+							) }
 						</div>
 					) }
 
@@ -317,11 +323,18 @@ export default function QueueItem( {
 								<span className={ `dashicons ${ isRerunning ? 'dashicons-update spin' : 'dashicons-controls-repeat' }` }></span>
 								{ isRerunning ? __( 'Resetting...', 'qsa-engraving' ) : __( 'Rerun', 'qsa-engraving' ) }
 							</button>
+							{ isRerunning && (
+								<span className="qsa-rerun-hint">
+									{ __( 'This may take a moment...', 'qsa-engraving' ) }
+								</span>
+							) }
 
-							<span className="qsa-done-badge">
-								<span className="dashicons dashicons-yes-alt"></span>
-								{ __( 'Done', 'qsa-engraving' ) }
-							</span>
+							{ ! isRerunning && (
+								<span className="qsa-done-badge">
+									<span className="dashicons dashicons-yes-alt"></span>
+									{ __( 'Done', 'qsa-engraving' ) }
+								</span>
+							) }
 						</div>
 					) }
 				</div>
