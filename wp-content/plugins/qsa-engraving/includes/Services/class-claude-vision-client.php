@@ -827,6 +827,341 @@ PROMPT;
 	}
 
 	/**
+	 * Decode a Micro-ID code using reference images for improved accuracy.
+	 *
+	 * This method includes reference images (location markers, sample photos) in the
+	 * API request to help Claude identify and decode the Micro-ID code more accurately.
+	 *
+	 * @since 1.2.0
+	 *
+	 * @param string $image_base64    Base64-encoded image data to decode.
+	 * @param string $mime_type       Image MIME type (image/jpeg, image/png, image/webp).
+	 * @param array  $reference_images Array of reference images, each with keys:
+	 *                                 - 'path' (string): Absolute file path to the image.
+	 *                                 - 'description' (string): Description of what the image shows.
+	 * @return array{success: bool, serial: ?string, binary: ?string, parity_valid: ?bool, confidence: ?string, error: ?string, raw_response: ?string}|WP_Error
+	 */
+	public function decode_with_references( string $image_base64, string $mime_type, array $reference_images ): array|WP_Error {
+		// Reset metrics.
+		$this->last_response_time_ms = null;
+		$this->last_tokens_used      = null;
+		$this->last_error            = '';
+
+		// Validate API key.
+		if ( ! $this->has_api_key() ) {
+			$this->last_error = 'Claude API key is not configured.';
+			return new WP_Error(
+				'api_key_missing',
+				__( 'Claude API key is not configured. Please add your API key in QSA Engraving settings.', 'qsa-engraving' )
+			);
+		}
+
+		// Validate MIME type.
+		$allowed_types = array( 'image/jpeg', 'image/png', 'image/webp' );
+		if ( ! in_array( $mime_type, $allowed_types, true ) ) {
+			$this->last_error = 'Unsupported image type: ' . $mime_type;
+			return new WP_Error(
+				'invalid_mime_type',
+				sprintf(
+					/* translators: %s: MIME type */
+					__( 'Unsupported image type: %s. Allowed types: JPEG, PNG, WebP.', 'qsa-engraving' ),
+					$mime_type
+				)
+			);
+		}
+
+		// Validate base64 encoding.
+		if ( empty( $image_base64 ) ) {
+			$this->last_error = 'Image data is empty.';
+			return new WP_Error(
+				'invalid_image_data',
+				__( 'Image data is empty.', 'qsa-engraving' )
+			);
+		}
+
+		// Validate base64 format.
+		$decoded_image = base64_decode( $image_base64, true );
+		if ( false === $decoded_image ) {
+			$this->last_error = 'Invalid base64 encoding.';
+			return new WP_Error(
+				'invalid_base64',
+				__( 'Image data is not valid base64 encoding.', 'qsa-engraving' )
+			);
+		}
+
+		// Build multi-image request.
+		$request_body = $this->build_request_with_references( $image_base64, $mime_type, $reference_images );
+
+		if ( is_wp_error( $request_body ) ) {
+			return $request_body;
+		}
+
+		// Make the API request.
+		$start_time = microtime( true );
+
+		$response = wp_remote_post(
+			self::API_ENDPOINT,
+			array(
+				'timeout' => self::REQUEST_TIMEOUT,
+				'headers' => array(
+					'Content-Type'      => 'application/json',
+					'x-api-key'         => $this->api_key,
+					'anthropic-version' => self::API_VERSION,
+				),
+				'body'    => wp_json_encode( $request_body ),
+			)
+		);
+
+		$this->last_response_time_ms = (int) ( ( microtime( true ) - $start_time ) * 1000 );
+
+		// Handle request errors.
+		if ( is_wp_error( $response ) ) {
+			$this->last_error = $response->get_error_message();
+			return new WP_Error(
+				'api_request_failed',
+				sprintf(
+					/* translators: %s: Error message */
+					__( 'Failed to connect to Claude API: %s', 'qsa-engraving' ),
+					$this->last_error
+				)
+			);
+		}
+
+		// Check HTTP status.
+		$status_code = wp_remote_retrieve_response_code( $response );
+		$body        = wp_remote_retrieve_body( $response );
+
+		if ( $status_code !== 200 ) {
+			$error_data = json_decode( $body, true );
+			$error_msg  = $error_data['error']['message'] ?? "HTTP {$status_code}";
+
+			$this->last_error = $error_msg;
+
+			$error_code = 'api_error';
+			if ( $status_code === 401 ) {
+				$error_code = 'api_key_invalid';
+				$error_msg  = __( 'Invalid API key. Please check your Claude API key in settings.', 'qsa-engraving' );
+			} elseif ( $status_code === 429 ) {
+				$error_code = 'rate_limited';
+				$error_msg  = __( 'API rate limit exceeded. Please try again later.', 'qsa-engraving' );
+			} elseif ( $status_code >= 500 ) {
+				$error_code = 'api_server_error';
+				$error_msg  = __( 'Claude API is temporarily unavailable. Please try again later.', 'qsa-engraving' );
+			}
+
+			return new WP_Error( $error_code, $error_msg );
+		}
+
+		// Parse response.
+		$data = json_decode( $body, true );
+
+		if ( ! is_array( $data ) ) {
+			$this->last_error = 'Invalid JSON response from API.';
+			return new WP_Error(
+				'invalid_response',
+				__( 'Received invalid response from Claude API.', 'qsa-engraving' )
+			);
+		}
+
+		// Track token usage.
+		if ( isset( $data['usage']['input_tokens'], $data['usage']['output_tokens'] ) ) {
+			$this->last_tokens_used = $data['usage']['input_tokens'] + $data['usage']['output_tokens'];
+		}
+
+		// Extract the response text.
+		$response_text = '';
+		if ( isset( $data['content'] ) && is_array( $data['content'] ) ) {
+			foreach ( $data['content'] as $block ) {
+				if ( isset( $block['type'] ) && 'text' === $block['type'] && isset( $block['text'] ) ) {
+					$response_text .= $block['text'];
+				}
+			}
+		}
+
+		// Parse the decode result.
+		return $this->parse_decode_response( $response_text );
+	}
+
+	/**
+	 * Build API request body with reference images.
+	 *
+	 * @param string $user_image_base64 Base64-encoded user image to decode.
+	 * @param string $user_mime_type    MIME type of user image.
+	 * @param array  $reference_images  Array of reference images with 'path' and 'description'.
+	 * @return array|WP_Error Request body array or error.
+	 */
+	private function build_request_with_references( string $user_image_base64, string $user_mime_type, array $reference_images ): array|WP_Error {
+		$content = array();
+
+		// Add reference images first with descriptions.
+		$ref_count = 0;
+		foreach ( $reference_images as $ref ) {
+			if ( empty( $ref['path'] ) || ! file_exists( $ref['path'] ) ) {
+				continue;
+			}
+
+			// Read and encode the reference image.
+			$ref_data = file_get_contents( $ref['path'] ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+			if ( false === $ref_data ) {
+				continue;
+			}
+
+			$ref_base64 = base64_encode( $ref_data );
+
+			// Determine MIME type from extension.
+			$ext       = strtolower( pathinfo( $ref['path'], PATHINFO_EXTENSION ) );
+			$mime_map  = array(
+				'jpg'  => 'image/jpeg',
+				'jpeg' => 'image/jpeg',
+				'png'  => 'image/png',
+				'webp' => 'image/webp',
+			);
+			$ref_mime  = $mime_map[ $ext ] ?? 'image/jpeg';
+
+			++$ref_count;
+			$description = $ref['description'] ?? "Reference image {$ref_count}";
+
+			// Add reference image.
+			$content[] = array(
+				'type' => 'text',
+				'text' => "**Reference Image {$ref_count}:** {$description}",
+			);
+			$content[] = array(
+				'type'   => 'image',
+				'source' => array(
+					'type'       => 'base64',
+					'media_type' => $ref_mime,
+					'data'       => $ref_base64,
+				),
+			);
+		}
+
+		// Add the user's image to decode.
+		$content[] = array(
+			'type' => 'text',
+			'text' => '**Image to Decode:** This is the customer\'s photo. Find and decode the Micro-ID code in this image.',
+		);
+		$content[] = array(
+			'type'   => 'image',
+			'source' => array(
+				'type'       => 'base64',
+				'media_type' => $user_mime_type,
+				'data'       => $user_image_base64,
+			),
+		);
+
+		// Add the decode prompt with reference context.
+		$content[] = array(
+			'type' => 'text',
+			'text' => $this->get_decode_prompt_with_references( $ref_count ),
+		);
+
+		return array(
+			'model'      => $this->model,
+			'max_tokens' => self::MAX_TOKENS,
+			'messages'   => array(
+				array(
+					'role'    => 'user',
+					'content' => $content,
+				),
+			),
+		);
+	}
+
+	/**
+	 * Get the prompt for decoding with reference images.
+	 *
+	 * @param int $reference_count Number of reference images included.
+	 * @return string The decode prompt.
+	 */
+	private function get_decode_prompt_with_references( int $reference_count ): string {
+		$reference_section = '';
+		if ( $reference_count > 0 ) {
+			$reference_section = <<<REFS
+
+## Reference Images Provided
+
+You have been provided with {$reference_count} reference image(s) above showing:
+- **Location marker images** show exactly WHERE the Micro-ID code is located on this module type (marked with a red box/arrow)
+- **Sample photos** show what typical customer smartphone photos of this module look like
+
+Use these references to:
+1. Identify the correct location of the Micro-ID code on the module
+2. Understand the scale and appearance of the Micro-ID relative to other PCB features
+3. Distinguish the tiny Micro-ID dots from larger solder pads, mounting holes, and other features
+
+REFS;
+		}
+
+		return <<<PROMPT
+{$reference_section}
+## Your Task
+
+Analyze the **Image to Decode** (the final image above) and extract the Micro-ID serial number.
+
+## Micro-ID Specification
+
+**Physical Properties:**
+- 5x5 grid of 25 dot positions (1.0mm x 1.0mm total footprint - VERY SMALL)
+- Dot diameter: 0.10mm, pitch: 0.225mm center-to-center
+- Dots appear as copper/bronze OR dark brown/black marks on white PCB surface
+- Orientation marker: single fixed dot outside grid, near top-left corner
+
+**Structure:**
+- 4 corner anchors (always present as dots): positions (0,0), (0,4), (4,0), (4,4)
+- 20 data bit positions + 1 parity bit position
+- Parity position: row 4, col 3
+
+**Bit Layout (row-major, MSB first):**
+```
+Row 0: [ANCHOR] [Bit 19] [Bit 18] [Bit 17] [ANCHOR]
+Row 1: [Bit 16] [Bit 15] [Bit 14] [Bit 13] [Bit 12]
+Row 2: [Bit 11] [Bit 10] [Bit 9]  [Bit 8]  [Bit 7]
+Row 3: [Bit 6]  [Bit 5]  [Bit 4]  [Bit 3]  [Bit 2]
+Row 4: [ANCHOR] [Bit 1]  [Bit 0]  [PARITY] [ANCHOR]
+```
+
+**Decoding Steps:**
+1. Use the reference images to locate the Micro-ID position on the module
+2. Find the 4 corner anchor dots to confirm grid boundaries
+3. Read each of the 25 positions: dot present = 1, no dot/blank = 0
+4. Extract the 20-bit binary value from data positions
+5. Verify even parity (total 1s including parity must be even)
+6. Convert binary to decimal, format as 8-digit zero-padded string
+
+**Valid Range:** 00000001 to 01048575
+
+## Response Format
+
+Respond ONLY with a JSON object:
+```json
+{
+  "success": true,
+  "serial": "00123456",
+  "binary": "00000000000111100010",
+  "parity_valid": true,
+  "confidence": "high",
+  "error": null
+}
+```
+
+If you cannot decode, respond with:
+```json
+{
+  "success": false,
+  "serial": null,
+  "binary": null,
+  "parity_valid": null,
+  "confidence": null,
+  "error": "Description of why decoding failed"
+}
+```
+
+Confidence levels: "high" (all dots clear, parity verified), "medium" (some uncertainty), "low" (significant uncertainty)
+PROMPT;
+	}
+
+	/**
 	 * Mask an API key for display.
 	 *
 	 * @param string $api_key The API key to mask.
