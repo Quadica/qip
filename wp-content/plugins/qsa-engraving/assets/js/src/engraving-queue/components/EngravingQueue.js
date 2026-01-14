@@ -310,10 +310,17 @@ export default function EngravingQueue() {
 			return;
 		}
 
+		// For pending batches, always start from array 1.
 		// For partial batches, resume from the next incomplete array.
-		// For pending batches, start from array 1.
-		const completedArrays = item.completedArrays || 0;
-		const startingArray = completedArrays + 1;
+		// This ensures Rerun (which sets status to 'pending') always starts from array 1,
+		// even if completedArrays hasn't been updated yet due to React state batching.
+		let startingArray;
+		if ( item.status === 'pending' ) {
+			startingArray = 1;
+		} else {
+			const completedArrays = item.completedArrays || 0;
+			startingArray = completedArrays + 1;
+		}
 		const qsaSequence = getQsaSequenceForArray( item, startingArray );
 
 		// Validate the QSA sequence - prevents operating on wrong sequence if index is out of bounds.
