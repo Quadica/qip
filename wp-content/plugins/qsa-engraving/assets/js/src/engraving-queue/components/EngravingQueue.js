@@ -626,7 +626,9 @@ export default function EngravingQueue() {
 			setCurrentArrays( ( prev ) => ( { ...prev, [ itemId ]: 0 } ) );
 			setQueueItems( ( prev ) =>
 				prev.map( ( i ) =>
-					i.id === itemId ? { ...i, status: 'pending', serials: [] } : i
+					i.id === itemId
+						? { ...i, status: 'pending', serials: [], completedArrays: 0 }
+						: i
 				)
 			);
 		} catch ( err ) {
