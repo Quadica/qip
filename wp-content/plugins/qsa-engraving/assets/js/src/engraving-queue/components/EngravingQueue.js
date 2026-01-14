@@ -486,11 +486,18 @@ export default function EngravingQueue() {
 				// Advance the current array counter.
 				setCurrentArrays( ( prev ) => ( { ...prev, [ itemId ]: nextArray } ) );
 
-				// Update serials with new ones from next QSA and clear stale QSA ID from previous array.
+				// Update serials, increment completedArrays, and clear stale QSA ID.
+				// The currentArray counter just advanced to nextArray, so completedArrays = nextArray - 1.
 				setQueueItems( ( prev ) =>
 					prev.map( ( i ) =>
 						i.id === itemId
-							? { ...i, serials: startData.data.serials, qsaId: null }
+							? {
+									...i,
+									serials: startData.data.serials,
+									qsaId: null,
+									completedArrays: currentArray, // Current array just completed.
+									status: 'in_progress',
+							  }
 							: i
 					)
 				);
@@ -681,14 +688,68 @@ export default function EngravingQueue() {
 		}
 	};
 
+	/**
+	 * Calculate completed modules for a queue item based on completed arrays.
+	 *
+	 * For multi-array rows, we need to calculate how many modules have been
+	 * completed based on the number of completed arrays and their distribution.
+	 *
+	 * @param {Object} item The queue item.
+	 * @return {number} Number of completed modules.
+	 */
+	const getCompletedModulesForItem = ( item ) => {
+		// Fully complete rows - all modules done.
+		if ( item.status === 'complete' ) {
+			return item.totalModules;
+		}
+
+		// Pending rows - no modules done.
+		if ( item.status === 'pending' || ! item.completedArrays || item.completedArrays === 0 ) {
+			return 0;
+		}
+
+		// Partial or in_progress rows - calculate based on completed arrays.
+		const startPosition = item.startPosition || 1;
+		const totalModules = item.totalModules || 0;
+		const completedArrays = item.completedArrays || 0;
+		const arrayCount = item.arrayCount || 1;
+
+		// If all arrays completed but status not 'complete', count all modules.
+		if ( completedArrays >= arrayCount ) {
+			return totalModules;
+		}
+
+		// Calculate modules per array:
+		// First array: (9 - startPosition) modules (max 8 if startPosition = 1)
+		// Subsequent arrays: 8 modules each
+		// Last array: remaining modules
+		const firstArrayModules = Math.min( 9 - startPosition, totalModules );
+		let completedModules = 0;
+
+		for ( let i = 0; i < completedArrays; i++ ) {
+			if ( i === 0 ) {
+				// First array.
+				completedModules += firstArrayModules;
+			} else {
+				// Subsequent arrays - 8 modules each, but don't exceed total.
+				const remainingAfterFirst = totalModules - firstArrayModules;
+				const modulesInThisArray = Math.min( 8, remainingAfterFirst - ( ( i - 1 ) * 8 ) );
+				completedModules += Math.max( 0, modulesInThisArray );
+			}
+		}
+
+		return Math.min( completedModules, totalModules );
+	};
+
 	// Calculate stats for the stats bar.
 	const stats = {
 		totalItems: queueItems.length,
 		completedItems: queueItems.filter( ( item ) => item.status === 'complete' ).length,
 		totalModules: queueItems.reduce( ( sum, item ) => sum + item.totalModules, 0 ),
-		completedModules: queueItems
-			.filter( ( item ) => item.status === 'complete' )
-			.reduce( ( sum, item ) => sum + item.totalModules, 0 ),
+		completedModules: queueItems.reduce(
+			( sum, item ) => sum + getCompletedModulesForItem( item ),
+			0
+		),
 	};
 
 	// Render loading state.
