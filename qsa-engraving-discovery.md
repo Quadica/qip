@@ -470,6 +470,21 @@ The 17-character set was selected to prevent misreading of engraved text. At sma
 
 Examples of valid LED shortcodes: `K7P`, `C2L`, `R14`, `H3T`
 
+**Legacy LED Code Exception:**
+
+LEDs that have an existing 2-character code defined (in the `led_shortcode` product field) are allowed to use any uppercase alphanumeric characters (A-Z, 0-9) for their 3-character code. This exception exists to reduce confusion for assemblers and customers when migrating legacy LEDs from 2-character to 3-character codes.
+
+| Scenario | Allowed Characters |
+|----------|-------------------|
+| LED has no 2-char code | Restricted set only: `1234789CEFHJKLPRT` |
+| LED has 2-char code defined | Full alphanumeric: `A-Z`, `0-9` |
+
+**Example:**
+- Legacy LED with 2-char code `5B` can use 3-char code `5B0` (or any alphanumeric)
+- New LED with no 2-char code must use restricted charset (e.g., `K7P`)
+
+This approach allows familiar legacy codes like `5B` to become `5B0` rather than requiring a completely different code, maintaining continuity for production staff and documentation.
+
 **Data Source:**
 1. Query the `order_no` from `oms_batch_items` for the module being engraved
 2. Using the Order ID, retrieve the LED SKU(s) and their PCB position numbers from the Order BOM CPT

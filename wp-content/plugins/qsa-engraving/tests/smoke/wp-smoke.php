@@ -2768,6 +2768,66 @@ run_test(
 );
 
 run_test(
+    'TC-BC-010b: LED_Code_Resolver legacy shortcode validation',
+    function (): bool {
+        $resolver = \Quadica\QSA_Engraving\Services\LED_Code_Resolver::class;
+
+        // Verify legacy charset constant exists.
+        if ( ! defined( $resolver . '::LED_CODE_CHARSET_LEGACY' ) ) {
+            return new WP_Error( 'missing_const', 'LED_CODE_CHARSET_LEGACY constant not found.' );
+        }
+
+        $legacy_charset = $resolver::LED_CODE_CHARSET_LEGACY;
+        if ( $legacy_charset !== 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789' ) {
+            return new WP_Error( 'wrong_charset', "Expected full alphanumeric charset, got '{$legacy_charset}'." );
+        }
+
+        // Test 1: Without legacy flag (default), restricted charset applies.
+        // These codes use chars outside the restricted set (1234789CEFHJKLPRT).
+        $invalid_without_legacy = array( '5B0', 'ABC', 'XY9', 'M0N' );
+        foreach ( $invalid_without_legacy as $code ) {
+            if ( $resolver::is_valid_shortcode( $code, false ) ) {
+                return new WP_Error( 'validation_fail', "'{$code}' should be INVALID without legacy flag." );
+            }
+        }
+
+        // Test 2: With legacy flag, full alphanumeric allowed.
+        // These codes use chars outside the restricted set but are valid for legacy LEDs.
+        $valid_with_legacy = array( '5B0', 'ABC', 'XY9', 'M0N', 'A1B', 'Z99' );
+        foreach ( $valid_with_legacy as $code ) {
+            if ( ! $resolver::is_valid_shortcode( $code, true ) ) {
+                return new WP_Error( 'validation_fail', "'{$code}' should be VALID with legacy flag." );
+            }
+        }
+
+        // Test 3: Codes valid in restricted set should still be valid with legacy flag.
+        $valid_in_both = array( 'K7P', '4T9', 'CF4', 'HJL', '123', 'R1T' );
+        foreach ( $valid_in_both as $code ) {
+            if ( ! $resolver::is_valid_shortcode( $code, true ) ) {
+                return new WP_Error( 'validation_fail', "'{$code}' should be valid with legacy flag." );
+            }
+            if ( ! $resolver::is_valid_shortcode( $code, false ) ) {
+                return new WP_Error( 'validation_fail', "'{$code}' should be valid without legacy flag." );
+            }
+        }
+
+        // Test 4: Invalid codes (wrong length, special chars) should fail regardless of legacy flag.
+        $always_invalid = array( 'K7', 'K7P9', '', 'K-7', 'K 7', 'k7p' );
+        foreach ( $always_invalid as $code ) {
+            if ( $resolver::is_valid_shortcode( $code, true ) ) {
+                return new WP_Error( 'validation_fail', "'{$code}' should be invalid even with legacy flag." );
+            }
+        }
+
+        echo "  Legacy shortcode validation (full alphanumeric for LEDs with 2-char codes) verified.\n";
+        echo "  Legacy charset: {$legacy_charset}\n";
+
+        return true;
+    },
+    'LED_Code_Resolver validates legacy shortcodes with expanded character set.'
+);
+
+run_test(
     'TC-BC-011: Batch_Ajax_Handler service instantiation',
     function (): bool {
         // Verify class exists.

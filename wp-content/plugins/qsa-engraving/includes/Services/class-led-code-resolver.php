@@ -52,6 +52,13 @@ class LED_Code_Resolver {
 	private array $product_cache = array();
 
 	/**
+	 * Cache for legacy 2-character codes keyed by LED SKU.
+	 *
+	 * @var array
+	 */
+	private array $legacy_code_cache = array();
+
+	/**
 	 * Constructor.
 	 */
 	public function __construct() {
@@ -245,6 +252,8 @@ class LED_Code_Resolver {
 	/**
 	 * Get the LED shortcode for a LED product.
 	 *
+	 * Also retrieves and caches the legacy 2-character code for validation purposes.
+	 *
 	 * @param string $led_sku The LED product SKU.
 	 * @return string The 3-character LED shortcode or empty string.
 	 */
@@ -262,11 +271,12 @@ class LED_Code_Resolver {
 		$product_id = wc_get_product_id_by_sku( $led_sku );
 
 		if ( ! $product_id ) {
-			$this->product_cache[ $led_sku ] = '';
+			$this->product_cache[ $led_sku ]    = '';
+			$this->legacy_code_cache[ $led_sku ] = '';
 			return '';
 		}
 
-		// Get the led_shortcode_3 field.
+		// Get the led_shortcode_3 field (3-character code).
 		$shortcode = '';
 
 		// Try ACF first.
@@ -286,8 +296,60 @@ class LED_Code_Resolver {
 
 		$shortcode = is_string( $shortcode ) ? trim( $shortcode ) : '';
 
-		$this->product_cache[ $led_sku ] = $shortcode;
+		// Also get the led_shortcode field (legacy 2-character code).
+		$legacy_code = '';
+
+		if ( function_exists( 'get_field' ) ) {
+			$legacy_code = get_field( 'led_shortcode', $product_id );
+		}
+
+		if ( empty( $legacy_code ) ) {
+			$legacy_code = get_post_meta( $product_id, 'led_shortcode', true );
+		}
+
+		if ( empty( $legacy_code ) ) {
+			$legacy_code = get_post_meta( $product_id, '_led_shortcode', true );
+		}
+
+		$legacy_code = is_string( $legacy_code ) ? trim( $legacy_code ) : '';
+
+		$this->product_cache[ $led_sku ]     = $shortcode;
+		$this->legacy_code_cache[ $led_sku ] = $legacy_code;
+
 		return $shortcode;
+	}
+
+	/**
+	 * Get the legacy 2-character LED shortcode for a LED product.
+	 *
+	 * @param string $led_sku The LED product SKU.
+	 * @return string The 2-character LED shortcode or empty string.
+	 */
+	public function get_legacy_shortcode( string $led_sku ): string {
+		if ( empty( $led_sku ) ) {
+			return '';
+		}
+
+		// Ensure the cache is populated by calling get_led_shortcode first.
+		if ( ! isset( $this->legacy_code_cache[ $led_sku ] ) ) {
+			$this->get_led_shortcode( $led_sku );
+		}
+
+		return $this->legacy_code_cache[ $led_sku ] ?? '';
+	}
+
+	/**
+	 * Check if an LED product has a legacy 2-character code defined.
+	 *
+	 * LEDs with a legacy code are allowed to use any uppercase alphanumeric
+	 * characters (A-Z, 0-9) in their 3-character code, rather than the
+	 * restricted character set.
+	 *
+	 * @param string $led_sku The LED product SKU.
+	 * @return bool True if the LED has a non-empty legacy 2-character code.
+	 */
+	public function has_legacy_code( string $led_sku ): bool {
+		return ! empty( $this->get_legacy_shortcode( $led_sku ) );
 	}
 
 	/**
@@ -387,7 +449,7 @@ class LED_Code_Resolver {
 	}
 
 	/**
-	 * Allowed characters for LED shortcodes.
+	 * Allowed characters for LED shortcodes (restricted set).
 	 *
 	 * Restricted to 17 characters to avoid visual confusion when engraved:
 	 * - Excluded: 0 (looks like O), 5 (looks like S), 6 (looks like G)
@@ -399,24 +461,44 @@ class LED_Code_Resolver {
 	public const LED_CODE_CHARSET = '1234789CEFHJKLPRT';
 
 	/**
+	 * Allowed characters for legacy LED shortcodes (full alphanumeric set).
+	 *
+	 * LEDs with an existing 2-character code (led_shortcode field) are allowed
+	 * to use any uppercase alphanumeric characters for their 3-character code.
+	 * This reduces confusion for assemblers and customers when migrating from
+	 * 2-character to 3-character codes (e.g., "5B" can become "5B0").
+	 *
+	 * @var string
+	 */
+	public const LED_CODE_CHARSET_LEGACY = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+
+	/**
 	 * Validate that a LED shortcode is properly formatted.
 	 *
-	 * Valid characters: 1234789CEFHJKLPRT (17 characters).
+	 * By default, valid characters are restricted to: 1234789CEFHJKLPRT (17 characters).
 	 * This restricted set avoids visual confusion in engraved text
 	 * (e.g., 1/I, 0/O, 5/S, 6/G look similar when laser engraved).
 	 *
-	 * @param string $shortcode The LED shortcode to validate.
-	 * @return bool True if valid 3-character code using allowed charset.
+	 * When $has_legacy_code is true, any uppercase alphanumeric character (A-Z, 0-9)
+	 * is allowed. This supports LEDs migrating from 2-character to 3-character codes
+	 * where using the original characters reduces confusion (e.g., "5B" → "5B0").
+	 *
+	 * @param string $shortcode      The LED shortcode to validate.
+	 * @param bool   $has_legacy_code Whether this LED has a 2-character legacy code.
+	 * @return bool True if valid 3-character code using appropriate charset.
 	 */
-	public static function is_valid_shortcode( string $shortcode ): bool {
+	public static function is_valid_shortcode( string $shortcode, bool $has_legacy_code = false ): bool {
 		// Must be exactly 3 characters.
 		if ( strlen( $shortcode ) !== 3 ) {
 			return false;
 		}
 
+		// Select charset based on whether LED has a legacy 2-character code.
+		$charset = $has_legacy_code ? self::LED_CODE_CHARSET_LEGACY : self::LED_CODE_CHARSET;
+
 		// Check each character against allowed set.
 		for ( $i = 0; $i < 3; $i++ ) {
-			if ( strpos( self::LED_CODE_CHARSET, strtoupper( $shortcode[ $i ] ) ) === false ) {
+			if ( strpos( $charset, strtoupper( $shortcode[ $i ] ) ) === false ) {
 				return false;
 			}
 		}
@@ -439,7 +521,8 @@ class LED_Code_Resolver {
 	 * @return void
 	 */
 	public function clear_cache(): void {
-		$this->cache         = array();
-		$this->product_cache = array();
+		$this->cache             = array();
+		$this->product_cache     = array();
+		$this->legacy_code_cache = array();
 	}
 }
