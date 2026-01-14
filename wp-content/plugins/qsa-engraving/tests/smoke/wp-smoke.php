@@ -7610,6 +7610,140 @@ run_test(
     'Decode_Log_Repository::table_exists() should return boolean.'
 );
 
+// TC-MID-DEC-011: MicroID_Decoder_Ajax_Handler class exists
+run_test(
+    'TC-MID-DEC-011: MicroID_Decoder_Ajax_Handler class exists',
+    function (): bool {
+        $class = 'Quadica\\QSA_Engraving\\Ajax\\MicroID_Decoder_Ajax_Handler';
+
+        if ( ! class_exists( $class ) ) {
+            return new WP_Error( 'class_missing', "Class {$class} not found." );
+        }
+
+        // Check constants.
+        $constants = array( 'NONCE_ACTION', 'RATE_LIMIT_MAX', 'RATE_LIMIT_WINDOW', 'MAX_IMAGE_SIZE', 'MIN_IMAGE_DIMENSION', 'ALLOWED_MIME_TYPES', 'STAFF_CAPABILITY' );
+        foreach ( $constants as $const ) {
+            if ( ! defined( "{$class}::{$const}" ) ) {
+                return new WP_Error( 'constant_missing', "Constant {$const} not defined." );
+            }
+        }
+
+        return true;
+    },
+    'MicroID_Decoder_Ajax_Handler class should exist with required constants.'
+);
+
+// TC-MID-DEC-012: MicroID_Decoder_Ajax_Handler has required methods
+run_test(
+    'TC-MID-DEC-012: MicroID_Decoder_Ajax_Handler has required methods',
+    function (): bool {
+        $class = 'Quadica\\QSA_Engraving\\Ajax\\MicroID_Decoder_Ajax_Handler';
+
+        $required_methods = array(
+            'register',
+            'handle_decode',
+            'handle_full_details',
+            'create_nonce',
+        );
+
+        foreach ( $required_methods as $method ) {
+            if ( ! method_exists( $class, $method ) ) {
+                return new WP_Error( 'method_missing', "Method {$method}() not found." );
+            }
+        }
+
+        return true;
+    },
+    'MicroID_Decoder_Ajax_Handler should have all required public methods.'
+);
+
+// TC-MID-DEC-013: MicroID_Decoder_Ajax_Handler constants values
+run_test(
+    'TC-MID-DEC-013: MicroID_Decoder_Ajax_Handler constants values',
+    function (): bool {
+        $handler = \Quadica\QSA_Engraving\Ajax\MicroID_Decoder_Ajax_Handler::class;
+
+        // Verify rate limit values.
+        if ( $handler::RATE_LIMIT_MAX !== 10 ) {
+            return new WP_Error( 'wrong_value', 'RATE_LIMIT_MAX should be 10.' );
+        }
+        if ( $handler::RATE_LIMIT_WINDOW !== 60 ) {
+            return new WP_Error( 'wrong_value', 'RATE_LIMIT_WINDOW should be 60 seconds.' );
+        }
+
+        // Verify image constraints.
+        if ( $handler::MAX_IMAGE_SIZE !== 10 * 1024 * 1024 ) {
+            return new WP_Error( 'wrong_value', 'MAX_IMAGE_SIZE should be 10 MB.' );
+        }
+        if ( $handler::MIN_IMAGE_DIMENSION !== 120 ) {
+            return new WP_Error( 'wrong_value', 'MIN_IMAGE_DIMENSION should be 120 px.' );
+        }
+
+        // Verify allowed MIME types.
+        $expected_types = array( 'image/jpeg', 'image/png', 'image/webp' );
+        if ( $handler::ALLOWED_MIME_TYPES !== $expected_types ) {
+            return new WP_Error( 'wrong_value', 'ALLOWED_MIME_TYPES should be JPEG, PNG, WebP.' );
+        }
+
+        // Verify staff capability.
+        if ( $handler::STAFF_CAPABILITY !== 'manage_woocommerce' ) {
+            return new WP_Error( 'wrong_value', 'STAFF_CAPABILITY should be manage_woocommerce.' );
+        }
+
+        return true;
+    },
+    'MicroID_Decoder_Ajax_Handler constants should have correct values.'
+);
+
+// TC-MID-DEC-014: MicroID_Decoder_Ajax_Handler nonce creation
+run_test(
+    'TC-MID-DEC-014: MicroID_Decoder_Ajax_Handler nonce creation',
+    function (): bool {
+        $handler = \Quadica\QSA_Engraving\Ajax\MicroID_Decoder_Ajax_Handler::class;
+
+        $nonce = $handler::create_nonce();
+
+        if ( empty( $nonce ) ) {
+            return new WP_Error( 'empty_nonce', 'create_nonce() returned empty string.' );
+        }
+
+        if ( ! is_string( $nonce ) ) {
+            return new WP_Error( 'wrong_type', 'create_nonce() should return string.' );
+        }
+
+        // Verify nonce is valid.
+        if ( ! wp_verify_nonce( $nonce, $handler::NONCE_ACTION ) ) {
+            return new WP_Error( 'invalid_nonce', 'Generated nonce did not verify.' );
+        }
+
+        return true;
+    },
+    'MicroID_Decoder_Ajax_Handler::create_nonce() should create valid nonces.'
+);
+
+// TC-MID-DEC-015: MicroID_Decoder_Ajax_Handler instantiation
+run_test(
+    'TC-MID-DEC-015: MicroID_Decoder_Ajax_Handler instantiation',
+    function (): bool {
+        $vision_client = new \Quadica\QSA_Engraving\Services\Claude_Vision_Client();
+        $decode_log_repo = new \Quadica\QSA_Engraving\Database\Decode_Log_Repository();
+        $serial_repo = new \Quadica\QSA_Engraving\Database\Serial_Repository();
+
+        $handler = new \Quadica\QSA_Engraving\Ajax\MicroID_Decoder_Ajax_Handler(
+            $vision_client,
+            $decode_log_repo,
+            $serial_repo
+        );
+
+        if ( ! $handler instanceof \Quadica\QSA_Engraving\Ajax\MicroID_Decoder_Ajax_Handler ) {
+            return new WP_Error( 'wrong_type', 'Handler instantiation failed.' );
+        }
+
+        return true;
+    },
+    'MicroID_Decoder_Ajax_Handler should instantiate with dependencies.'
+);
+
 // ============================================
 // Summary
 // ============================================
