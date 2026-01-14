@@ -617,7 +617,9 @@ You are analyzing a smartphone photo of an LED module PCB to decode a Quadica 5x
 
 **IMPORTANT - Distinguishing Micro-ID from other PCB features:**
 - The Micro-ID is VERY SMALL: only 1.0mm x 1.0mm total (about the size of a pinhead)
-- Dots are **copper/reddish/brown colored** (laser ablation through white solder mask exposes copper)
+- Dot color varies depending on PCB layers beneath:
+  - **Copper/reddish/bronze** when engraved over a copper plane (exposes copper)
+  - **Dark brown/black** when engraved over FR4 substrate (no copper beneath)
 - The dots are much SMALLER and more closely spaced than solder pads, vias, or mounting holes
 - Usually located near product text/branding on the module
 - Look for a tight 5x5 grid pattern with uniform spacing - NOT the larger scattered circuit elements
@@ -634,7 +636,7 @@ You are analyzing a smartphone photo of an LED module PCB to decode a Quadica 5x
 **Physical Properties:**
 - 5x5 grid of 25 dot positions (1.0mm x 1.0mm total footprint)
 - Dot diameter: 0.10mm, pitch: 0.225mm center-to-center
-- Dots appear as copper/reddish/brown marks on white PCB surface
+- Dots appear as copper/bronze OR dark brown/black marks on white PCB surface
 - Orientation marker: single fixed dot outside grid, near top-left corner
 
 **Structure:**
@@ -653,7 +655,7 @@ Row 4: [ANCHOR] [Bit 1]  [Bit 0]  [PARITY] [ANCHOR]
 ```
 
 **Decoding Steps:**
-1. Scan the image for a tiny 5x5 grid of copper-colored dots (ignore larger PCB features)
+1. Scan the image for a tiny 5x5 grid of small dots (copper/bronze or dark brown/black colored)
 2. Locate the 4 corner anchors (always present) to confirm grid boundaries
 3. Find the orientation marker (single dot outside grid near top-left)
 4. Read each of the 25 positions: 1 = dot present, 0 = no dot/blank
@@ -665,7 +667,7 @@ Row 4: [ANCHOR] [Bit 1]  [Bit 0]  [PARITY] [ANCHOR]
 
 ## Your Task
 
-1. Locate the small Micro-ID code (copper dots, ~1mm square) - ignore large circuit features
+1. Locate the small Micro-ID code (~1mm square grid of tiny dots) - ignore large circuit features
 2. Identify all 25 grid positions using corner anchors as reference
 3. Determine which positions have dots (1) vs are blank (0)
 4. Extract and verify the serial number
