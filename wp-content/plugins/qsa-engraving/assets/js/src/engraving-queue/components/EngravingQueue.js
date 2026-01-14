@@ -7,7 +7,7 @@
  * @since 1.0.0
  */
 
-import { useState, useEffect, useCallback } from '@wordpress/element';
+import { useState, useEffect, useCallback, useRef } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 import QueueHeader from './QueueHeader';
 import StatsBar from './StatsBar';
@@ -63,7 +63,8 @@ export default function EngravingQueue() {
 	const [ currentArrays, setCurrentArrays ] = useState( {} ); // Track current array per item
 	const [ resendingItemId, setResendingItemId ] = useState( null ); // Track which item is being resent
 	const [ updatingStartPositionId, setUpdatingStartPositionId ] = useState( null ); // Track which item's start position is being updated
-	const [ processingNextArrayId, setProcessingNextArrayId ] = useState( null ); // Track which item's Next Array is being processed
+	const [ processingNextArrayId, setProcessingNextArrayId ] = useState( null ); // Track which item's Next Array is being processed (for UI)
+	const processingNextArrayRef = useRef( false ); // Synchronous guard to prevent rapid clicks
 	const [ lightburnStatus, setLightburnStatus ] = useState( {
 		enabled: window.qsaEngraving?.lightburnEnabled ?? false,
 		autoLoad: window.qsaEngraving?.lightburnAutoLoad ?? true,
@@ -457,17 +458,20 @@ export default function EngravingQueue() {
 	 * @param {number} currentArray The current array number.
 	 */
 	const handleNextArray = async ( itemId, currentArray ) => {
-		// Prevent concurrent Next Array operations - ignore if already processing.
-		if ( processingNextArrayId !== null ) {
+		// Synchronous guard using ref - prevents rapid clicks before React state updates.
+		// This is critical because useState updates are asynchronous.
+		if ( processingNextArrayRef.current ) {
 			return;
 		}
+		processingNextArrayRef.current = true;
 
 		const item = queueItems.find( ( i ) => i.id === itemId );
 		if ( ! item ) {
+			processingNextArrayRef.current = false;
 			return;
 		}
 
-		// Set processing state to prevent rapid clicks.
+		// Set processing state for UI (button disabled/loading indicator).
 		setProcessingNextArrayId( itemId );
 
 		const sequences = item.qsa_sequences || [ item.id ];
@@ -553,7 +557,8 @@ export default function EngravingQueue() {
 		} catch ( err ) {
 			alert( __( 'Network error advancing to next array.', 'qsa-engraving' ) );
 		} finally {
-			// Clear processing state to allow next operation.
+			// Clear both ref (synchronous guard) and state (UI).
+			processingNextArrayRef.current = false;
 			setProcessingNextArrayId( null );
 		}
 	};
