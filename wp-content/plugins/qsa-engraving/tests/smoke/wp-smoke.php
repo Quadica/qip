@@ -8431,6 +8431,94 @@ run_test(
     'API key format should be validated before saving.'
 );
 
+// TC-MID-P4-011: AJAX response excludes secret values (per SECURITY.md)
+run_test(
+    'TC-MID-P4-011: AJAX response excludes secret values',
+    function (): bool {
+        $class = new ReflectionClass( \Quadica\QSA_Engraving\Ajax\LightBurn_Ajax_Handler::class );
+
+        $method = $class->getMethod( 'handle_save_settings' );
+        $filename = $method->getFileName();
+        $start_line = $method->getStartLine();
+        $end_line = $method->getEndLine();
+
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+        $source = file_get_contents( $filename );
+        $lines = explode( "\n", $source );
+        $method_source = implode( "\n", array_slice( $lines, $start_line - 1, $end_line - $start_line + 1 ) );
+
+        // Should build a sanitized response_data array.
+        if ( ! str_contains( $method_source, 'response_data' ) ) {
+            return new WP_Error( 'no_sanitized_response', 'handle_save_settings should build sanitized response_data.' );
+        }
+
+        // Should return boolean for API key status, not the actual value.
+        if ( ! str_contains( $method_source, "'claude_api_key' => ! empty(" ) ) {
+            return new WP_Error( 'key_not_boolean', 'API key in response should be boolean, not actual value.' );
+        }
+
+        return true;
+    },
+    'AJAX response should exclude secret values per SECURITY.md.'
+);
+
+// TC-MID-P4-012: Invalid model returns validation error
+run_test(
+    'TC-MID-P4-012: Invalid model returns validation error',
+    function (): bool {
+        $class = new ReflectionClass( \Quadica\QSA_Engraving\Ajax\LightBurn_Ajax_Handler::class );
+
+        $method = $class->getMethod( 'handle_save_settings' );
+        $filename = $method->getFileName();
+        $start_line = $method->getStartLine();
+        $end_line = $method->getEndLine();
+
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+        $source = file_get_contents( $filename );
+        $lines = explode( "\n", $source );
+        $method_source = implode( "\n", array_slice( $lines, $start_line - 1, $end_line - $start_line + 1 ) );
+
+        // Should return error for invalid models instead of silently ignoring.
+        if ( ! str_contains( $method_source, 'invalid_claude_model' ) ) {
+            return new WP_Error( 'no_model_validation_error', 'Invalid model should return validation error, not be silently ignored.' );
+        }
+
+        return true;
+    },
+    'Invalid Claude model should return validation error.'
+);
+
+// TC-MID-P4-013: Model allowlist uses current Anthropic model IDs
+run_test(
+    'TC-MID-P4-013: Model allowlist uses current Anthropic model IDs',
+    function (): bool {
+        $class = new ReflectionClass( \Quadica\QSA_Engraving\Ajax\LightBurn_Ajax_Handler::class );
+
+        $method = $class->getMethod( 'handle_save_settings' );
+        $filename = $method->getFileName();
+        $start_line = $method->getStartLine();
+        $end_line = $method->getEndLine();
+
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+        $source = file_get_contents( $filename );
+        $lines = explode( "\n", $source );
+        $method_source = implode( "\n", array_slice( $lines, $start_line - 1, $end_line - $start_line + 1 ) );
+
+        // Should include Claude Sonnet 4.5 (latest).
+        if ( ! str_contains( $method_source, 'claude-sonnet-4-5-20250929' ) ) {
+            return new WP_Error( 'no_sonnet_45', 'Allowlist should include claude-sonnet-4-5-20250929.' );
+        }
+
+        // Should include Claude Haiku 4.5.
+        if ( ! str_contains( $method_source, 'claude-haiku-4-5-20251001' ) ) {
+            return new WP_Error( 'no_haiku_45', 'Allowlist should include claude-haiku-4-5-20251001.' );
+        }
+
+        return true;
+    },
+    'Model allowlist should use current Anthropic model IDs (2025).'
+);
+
 // ============================================
 // Summary
 // ============================================

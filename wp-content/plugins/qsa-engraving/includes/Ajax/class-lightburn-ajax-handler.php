@@ -877,14 +877,24 @@ class LightBurn_Ajax_Handler {
 		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce already verified.
 		if ( isset( $_POST['claude_model'] ) ) {
 			$model = sanitize_text_field( wp_unslash( $_POST['claude_model'] ) );
-			// Validate allowed models.
+			// Validate allowed models (per Anthropic docs 2025).
 			$allowed_models = array(
-				'claude-sonnet-4-20250514',
-				'claude-3-5-sonnet-20241022',
-				'claude-3-haiku-20240307',
+				'claude-sonnet-4-5-20250929', // Latest recommended model.
+				'claude-sonnet-4-20250514',   // Legacy model.
+				'claude-haiku-4-5-20251001',  // Fast/cheap option.
 			);
 			if ( in_array( $model, $allowed_models, true ) ) {
 				$settings['claude_model'] = $model;
+			} else {
+				$this->send_error(
+					sprintf(
+						/* translators: %s: submitted model ID */
+						__( 'Invalid Claude model: %s. Please select a valid model from the dropdown.', 'qsa-engraving' ),
+						esc_html( $model )
+					),
+					'invalid_claude_model'
+				);
+				return;
 			}
 		}
 
@@ -898,8 +908,16 @@ class LightBurn_Ajax_Handler {
 		// Save settings.
 		update_option( 'qsa_engraving_settings', $settings );
 
+		// Build sanitized response (exclude secrets per SECURITY.md).
+		$response_data = array(
+			'claude_api_key' => ! empty( $settings['claude_api_key'] ), // Boolean only, not the actual value.
+			'microid_decoder_enabled' => $settings['microid_decoder_enabled'] ?? false,
+			'claude_model' => $settings['claude_model'] ?? '',
+			'microid_log_retention_days' => $settings['microid_log_retention_days'] ?? 90,
+		);
+
 		$this->send_success(
-			$settings,
+			$response_data,
 			__( 'Settings saved successfully.', 'qsa-engraving' )
 		);
 	}

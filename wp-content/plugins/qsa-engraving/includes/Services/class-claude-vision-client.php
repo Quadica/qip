@@ -39,9 +39,11 @@ class Claude_Vision_Client {
 	/**
 	 * Default model to use for vision tasks.
 	 *
+	 * Updated to Claude Sonnet 4.5 per Anthropic docs (2025).
+	 *
 	 * @var string
 	 */
-	public const DEFAULT_MODEL = 'claude-sonnet-4-20250514';
+	public const DEFAULT_MODEL = 'claude-sonnet-4-5-20250929';
 
 	/**
 	 * Maximum tokens for response.
