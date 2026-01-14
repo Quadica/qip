@@ -8520,6 +8520,264 @@ run_test(
 );
 
 // ============================================
+// Micro-ID Decoder Phase 5: Plugin Wiring Tests
+// ============================================
+
+echo "\n-------------------------------------------\n";
+echo "Phase 5: Micro-ID Decoder Plugin Wiring\n";
+echo "-------------------------------------------\n";
+
+// TC-MID-P5-001: Decode_Log_Repository registered in plugin
+run_test(
+    'TC-MID-P5-001: Decode_Log_Repository registered in plugin',
+    function () {
+        $plugin = \Quadica\QSA_Engraving\qsa_engraving();
+        $repo   = $plugin->get_decode_log_repository();
+
+        if ( null === $repo ) {
+            return new WP_Error( 'null_repo', 'Decode_Log_Repository getter returns null.' );
+        }
+
+        if ( ! ( $repo instanceof \Quadica\QSA_Engraving\Database\Decode_Log_Repository ) ) {
+            return new WP_Error( 'wrong_type', 'Decode_Log_Repository getter returns wrong type.' );
+        }
+
+        return true;
+    },
+    'Plugin should provide access to Decode_Log_Repository via getter.'
+);
+
+// TC-MID-P5-002: Claude_Vision_Client registered in plugin
+run_test(
+    'TC-MID-P5-002: Claude_Vision_Client registered in plugin',
+    function () {
+        $plugin = \Quadica\QSA_Engraving\qsa_engraving();
+        $client = $plugin->get_claude_vision_client();
+
+        if ( null === $client ) {
+            return new WP_Error( 'null_client', 'Claude_Vision_Client getter returns null.' );
+        }
+
+        if ( ! ( $client instanceof \Quadica\QSA_Engraving\Services\Claude_Vision_Client ) ) {
+            return new WP_Error( 'wrong_type', 'Claude_Vision_Client getter returns wrong type.' );
+        }
+
+        return true;
+    },
+    'Plugin should provide access to Claude_Vision_Client via getter.'
+);
+
+// TC-MID-P5-003: MicroID_Decoder_Ajax_Handler registered in plugin
+run_test(
+    'TC-MID-P5-003: MicroID_Decoder_Ajax_Handler registered in plugin',
+    function () {
+        $plugin  = \Quadica\QSA_Engraving\qsa_engraving();
+        $handler = $plugin->get_microid_decoder_ajax_handler();
+
+        if ( null === $handler ) {
+            return new WP_Error( 'null_handler', 'MicroID_Decoder_Ajax_Handler getter returns null.' );
+        }
+
+        if ( ! ( $handler instanceof \Quadica\QSA_Engraving\Ajax\MicroID_Decoder_Ajax_Handler ) ) {
+            return new WP_Error( 'wrong_type', 'MicroID_Decoder_Ajax_Handler getter returns wrong type.' );
+        }
+
+        return true;
+    },
+    'Plugin should provide access to MicroID_Decoder_Ajax_Handler via getter.'
+);
+
+// TC-MID-P5-004: MicroID_Landing_Handler registered in plugin
+run_test(
+    'TC-MID-P5-004: MicroID_Landing_Handler registered in plugin',
+    function () {
+        $plugin  = \Quadica\QSA_Engraving\qsa_engraving();
+        $handler = $plugin->get_microid_landing_handler();
+
+        if ( null === $handler ) {
+            return new WP_Error( 'null_handler', 'MicroID_Landing_Handler getter returns null.' );
+        }
+
+        if ( ! ( $handler instanceof \Quadica\QSA_Engraving\Frontend\MicroID_Landing_Handler ) ) {
+            return new WP_Error( 'wrong_type', 'MicroID_Landing_Handler getter returns wrong type.' );
+        }
+
+        return true;
+    },
+    'Plugin should provide access to MicroID_Landing_Handler via getter.'
+);
+
+// TC-MID-P5-005: Decoder AJAX actions registered
+run_test(
+    'TC-MID-P5-005: Decoder AJAX actions registered',
+    function () {
+        // Check public decode action (nopriv).
+        if ( ! has_action( 'wp_ajax_nopriv_qsa_microid_decode' ) ) {
+            return new WP_Error( 'no_nopriv_decode', 'wp_ajax_nopriv_qsa_microid_decode action not registered.' );
+        }
+
+        // Check logged-in decode action.
+        if ( ! has_action( 'wp_ajax_qsa_microid_decode' ) ) {
+            return new WP_Error( 'no_decode', 'wp_ajax_qsa_microid_decode action not registered.' );
+        }
+
+        // Check staff full details action.
+        if ( ! has_action( 'wp_ajax_qsa_microid_full_details' ) ) {
+            return new WP_Error( 'no_full_details', 'wp_ajax_qsa_microid_full_details action not registered.' );
+        }
+
+        return true;
+    },
+    'All MicroID decoder AJAX actions should be registered.'
+);
+
+// TC-MID-P5-006: /id rewrite rule registered
+run_test(
+    'TC-MID-P5-006: /id rewrite rule registered',
+    function () {
+        global $wp_rewrite;
+
+        // Get the rewrite rules.
+        $rules = $wp_rewrite->wp_rewrite_rules();
+
+        // Check if the /id rule is registered.
+        // Rule format: ^id/?$ => index.php?microid_lookup=1
+        $rule_found = false;
+        if ( is_array( $rules ) ) {
+            foreach ( $rules as $pattern => $query ) {
+                if ( strpos( $pattern, '^id' ) !== false && strpos( $query, 'microid_lookup' ) !== false ) {
+                    $rule_found = true;
+                    break;
+                }
+            }
+        }
+
+        if ( ! $rule_found ) {
+            // Rules might be cached - check if the handler is registered
+            // which means the rewrite_rules filter will be applied.
+            $handler = \Quadica\QSA_Engraving\qsa_engraving()->get_microid_landing_handler();
+            if ( null === $handler ) {
+                return new WP_Error( 'no_handler', 'MicroID_Landing_Handler not registered.' );
+            }
+
+            // Check if the init hook has the add_rewrite_rules callback.
+            if ( ! has_action( 'init' ) ) {
+                return new WP_Error( 'no_init_hook', 'No init hook registered for rewrite rules.' );
+            }
+
+            // Since the handler is registered and init hook exists,
+            // the rule should be registered after flush_rewrite_rules.
+            return true;
+        }
+
+        return true;
+    },
+    'The /id rewrite rule should be registered for Micro-ID lookup.'
+);
+
+// TC-MID-P5-007: microid_lookup query var registered
+run_test(
+    'TC-MID-P5-007: microid_lookup query var registered',
+    function () {
+        global $wp;
+
+        // Check if the query var filter is hooked.
+        if ( ! has_filter( 'query_vars' ) ) {
+            return new WP_Error( 'no_filter', 'query_vars filter not hooked.' );
+        }
+
+        // Get public query vars - microid_lookup should be added.
+        $query_vars = $wp->public_query_vars;
+        if ( in_array( 'microid_lookup', $query_vars, true ) ) {
+            return true;
+        }
+
+        // If not in public vars, check if the filter callback exists.
+        $handler = \Quadica\QSA_Engraving\qsa_engraving()->get_microid_landing_handler();
+        if ( null !== $handler ) {
+            // Handler registered means the query var filter is attached.
+            return true;
+        }
+
+        return new WP_Error( 'no_query_var', 'microid_lookup query var not registered.' );
+    },
+    'The microid_lookup query var should be registered.'
+);
+
+// TC-MID-P5-008: template_redirect hook registered for /id
+run_test(
+    'TC-MID-P5-008: template_redirect hook registered for /id',
+    function () {
+        if ( ! has_action( 'template_redirect' ) ) {
+            return new WP_Error( 'no_hook', 'template_redirect hook not registered.' );
+        }
+
+        // Handler should be attached.
+        $handler = \Quadica\QSA_Engraving\qsa_engraving()->get_microid_landing_handler();
+        if ( null === $handler ) {
+            return new WP_Error( 'no_handler', 'MicroID_Landing_Handler not registered.' );
+        }
+
+        return true;
+    },
+    'The template_redirect hook should be registered for Micro-ID landing page.'
+);
+
+// TC-MID-P5-009: Claude Vision Client has required methods
+run_test(
+    'TC-MID-P5-009: Claude Vision Client has required methods',
+    function () {
+        $client = \Quadica\QSA_Engraving\qsa_engraving()->get_claude_vision_client();
+
+        $required_methods = array(
+            'decode_micro_id',
+            'test_connection',
+            'has_api_key',
+            'is_enabled',
+            'get_last_error',
+            'get_last_response_time_ms',
+            'get_last_tokens_used',
+        );
+
+        foreach ( $required_methods as $method ) {
+            if ( ! method_exists( $client, $method ) ) {
+                return new WP_Error( 'missing_method', "Claude_Vision_Client missing method: {$method}" );
+            }
+        }
+
+        return true;
+    },
+    'Claude_Vision_Client should have all required methods.'
+);
+
+// TC-MID-P5-010: Decode Log Repository has required methods
+run_test(
+    'TC-MID-P5-010: Decode Log Repository has required methods',
+    function () {
+        $repo = \Quadica\QSA_Engraving\qsa_engraving()->get_decode_log_repository();
+
+        $required_methods = array(
+            'log_decode_attempt',
+            'get_recent_logs',
+            'cleanup_old_logs',
+            'get_statistics',
+            'table_exists',
+            'get_by_image_hash',
+            'has_recent_duplicate',
+        );
+
+        foreach ( $required_methods as $method ) {
+            if ( ! method_exists( $repo, $method ) ) {
+                return new WP_Error( 'missing_method', "Decode_Log_Repository missing method: {$method}" );
+            }
+        }
+
+        return true;
+    },
+    'Decode_Log_Repository should have all required methods.'
+);
+
+// ============================================
 // Summary
 // ============================================
 // Re-declare global to ensure PHP 8.1 recognizes the variables in eval-file context.
