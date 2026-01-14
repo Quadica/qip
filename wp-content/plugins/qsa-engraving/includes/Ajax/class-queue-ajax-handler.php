@@ -704,6 +704,51 @@ class Queue_Ajax_Handler {
 
 		// Check current row status - only allow starting from 'pending' state.
 		$current_status = $this->normalize_row_status( $qsa_modules[0]['row_status'] ?? null );
+
+		// Idempotent handling for race conditions.
+		if ( 'done' === $current_status ) {
+			// Row already completed - return success with flag so frontend can skip to next.
+			$this->send_success(
+				array(
+					'batch_id'     => $batch_id,
+					'qsa_sequence' => $qsa_sequence,
+					'already_done' => true,
+					'serials'      => array(),
+				),
+				__( 'Row already completed.', 'qsa-engraving' )
+			);
+			return;
+		}
+
+		// Check for existing reserved serials.
+		$existing_serials = $this->serial_repository->get_by_batch( $batch_id, 'reserved' );
+		$existing_for_qsa = array_filter(
+			$existing_serials,
+			fn( $s ) => (int) $s['qsa_sequence'] === $qsa_sequence
+		);
+
+		if ( 'in_progress' === $current_status ) {
+			// Row already started - return existing serials (idempotent).
+			if ( ! empty( $existing_for_qsa ) ) {
+				$this->send_success(
+					array(
+						'batch_id'        => $batch_id,
+						'qsa_sequence'    => $qsa_sequence,
+						'already_started' => true,
+						'serials'         => array_values( $existing_for_qsa ),
+					),
+					__( 'Row already in progress.', 'qsa-engraving' )
+				);
+				return;
+			}
+			// In progress but no reserved serials - error state.
+			$this->send_error(
+				__( 'Row is in progress but has no reserved serials. Use Retry to get new serials.', 'qsa-engraving' ),
+				'invalid_state'
+			);
+			return;
+		}
+
 		if ( 'pending' !== $current_status ) {
 			$this->send_error(
 				sprintf(
@@ -716,13 +761,7 @@ class Queue_Ajax_Handler {
 			return;
 		}
 
-		// Check for existing reserved serials to prevent duplicate reservations.
-		$existing_serials = $this->serial_repository->get_by_batch( $batch_id, 'reserved' );
-		$existing_for_qsa = array_filter(
-			$existing_serials,
-			fn( $s ) => (int) $s['qsa_sequence'] === $qsa_sequence
-		);
-
+		// Row is pending - check for duplicate reservations (shouldn't exist but be safe).
 		if ( ! empty( $existing_for_qsa ) ) {
 			$this->send_error(
 				__( 'This row already has reserved serials. Use Retry to get new serials or Complete to finish.', 'qsa-engraving' ),
@@ -816,6 +855,21 @@ class Queue_Ajax_Handler {
 		}
 
 		$current_status = $this->normalize_row_status( reset( $qsa_modules )['row_status'] ?? null );
+
+		// Idempotent: if already done, return success immediately.
+		// This handles race conditions where rapid clicks may send duplicate complete requests.
+		if ( 'done' === $current_status ) {
+			$this->send_success(
+				array(
+					'batch_id'     => $batch_id,
+					'qsa_sequence' => $qsa_sequence,
+					'already_done' => true,
+				),
+				__( 'Row already completed.', 'qsa-engraving' )
+			);
+			return;
+		}
+
 		if ( 'in_progress' !== $current_status ) {
 			$this->send_error(
 				sprintf(
@@ -972,6 +1026,21 @@ class Queue_Ajax_Handler {
 		}
 
 		$current_status = $this->normalize_row_status( reset( $qsa_modules )['row_status'] ?? null );
+
+		// Idempotent: if already done, return success immediately.
+		// This handles race conditions where rapid clicks may send duplicate complete requests.
+		if ( 'done' === $current_status ) {
+			$this->send_success(
+				array(
+					'batch_id'     => $batch_id,
+					'qsa_sequence' => $qsa_sequence,
+					'already_done' => true,
+				),
+				__( 'Row already completed.', 'qsa-engraving' )
+			);
+			return;
+		}
+
 		if ( 'in_progress' !== $current_status ) {
 			$this->send_error(
 				sprintf(
