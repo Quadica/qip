@@ -112,6 +112,7 @@ function formatSerial( serial ) {
  * @param {boolean}  props.isResending              Whether a resend operation is in progress.
  * @param {boolean}  props.isUpdatingStartPosition  Whether start position is being updated (AJAX in flight).
  * @param {boolean}  props.isProcessingNextArray    Whether Next Array operation is in progress.
+ * @param {boolean}  props.isRerunning              Whether a rerun operation is in progress.
  * @param {Function} props.onStart                  Handler for start action.
  * @param {Function} props.onComplete               Handler for complete action.
  * @param {Function} props.onNextArray              Handler for next array action.
@@ -128,6 +129,7 @@ export default function QueueItem( {
 	isResending = false,
 	isUpdatingStartPosition = false,
 	isProcessingNextArray = false,
+	isRerunning = false,
 	onStart,
 	onComplete,
 	onNextArray,
@@ -238,6 +240,7 @@ export default function QueueItem( {
 								type="button"
 								className="qsa-btn-resume"
 								onClick={ () => onStart( item.id ) }
+								disabled={ isRerunning }
 								title={ __( 'Resume engraving from where you left off', 'qsa-engraving' ) }
 							>
 								<span className="dashicons dashicons-controls-play"></span>
@@ -245,12 +248,16 @@ export default function QueueItem( {
 							</button>
 							<button
 								type="button"
-								className="qsa-btn-rerun"
+								className={ `qsa-btn-rerun ${ isRerunning ? 'is-loading' : '' }` }
 								onClick={ () => onRerun( item.id ) }
-								title={ __( 'Reset and start over from beginning', 'qsa-engraving' ) }
+								disabled={ isRerunning }
+								title={ isRerunning
+									? __( 'Resetting row...', 'qsa-engraving' )
+									: __( 'Reset and start over from beginning', 'qsa-engraving' )
+								}
 							>
-								<span className="dashicons dashicons-controls-repeat"></span>
-								{ __( 'Rerun', 'qsa-engraving' ) }
+								<span className={ `dashicons ${ isRerunning ? 'dashicons-update spin' : 'dashicons-controls-repeat' }` }></span>
+								{ isRerunning ? __( 'Resetting...', 'qsa-engraving' ) : __( 'Rerun', 'qsa-engraving' ) }
 							</button>
 						</div>
 					) }
@@ -299,12 +306,16 @@ export default function QueueItem( {
 						<div className="qsa-action-buttons">
 							<button
 								type="button"
-								className="qsa-btn-rerun"
+								className={ `qsa-btn-rerun ${ isRerunning ? 'is-loading' : '' }` }
 								onClick={ () => onRerun( item.id ) }
-								title={ __( 'Rerun engraving from beginning', 'qsa-engraving' ) }
+								disabled={ isRerunning }
+								title={ isRerunning
+									? __( 'Resetting row...', 'qsa-engraving' )
+									: __( 'Rerun engraving from beginning', 'qsa-engraving' )
+								}
 							>
-								<span className="dashicons dashicons-controls-repeat"></span>
-								{ __( 'Rerun', 'qsa-engraving' ) }
+								<span className={ `dashicons ${ isRerunning ? 'dashicons-update spin' : 'dashicons-controls-repeat' }` }></span>
+								{ isRerunning ? __( 'Resetting...', 'qsa-engraving' ) : __( 'Rerun', 'qsa-engraving' ) }
 							</button>
 
 							<span className="qsa-done-badge">

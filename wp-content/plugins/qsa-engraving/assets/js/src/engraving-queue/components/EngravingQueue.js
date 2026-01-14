@@ -64,6 +64,7 @@ export default function EngravingQueue() {
 	const [ resendingItemId, setResendingItemId ] = useState( null ); // Track which item is being resent
 	const [ updatingStartPositionId, setUpdatingStartPositionId ] = useState( null ); // Track which item's start position is being updated
 	const [ processingNextArrayId, setProcessingNextArrayId ] = useState( null ); // Track which item's Next Array is being processed (for UI)
+	const [ rerunningItemId, setRerunningItemId ] = useState( null ); // Track which item is being rerun
 	const processingNextArrayRef = useRef( false ); // Synchronous guard to prevent rapid clicks
 	const [ lightburnStatus, setLightburnStatus ] = useState( {
 		enabled: window.qsaEngraving?.lightburnEnabled ?? false,
@@ -647,6 +648,9 @@ export default function EngravingQueue() {
 
 		const sequences = item.qsa_sequences || [ item.id ];
 
+		// Set loading state to show spinner.
+		setRerunningItemId( itemId );
+
 		try {
 			// Reset all QSA sequences in the group.
 			for ( const qsaSequence of sequences ) {
@@ -669,6 +673,9 @@ export default function EngravingQueue() {
 			);
 		} catch ( err ) {
 			alert( __( 'Network error during rerun.', 'qsa-engraving' ) );
+		} finally {
+			// Clear loading state.
+			setRerunningItemId( null );
 		}
 	};
 
@@ -939,6 +946,7 @@ export default function EngravingQueue() {
 							isResending={ resendingItemId === item.id }
 							isUpdatingStartPosition={ updatingStartPositionId === item.id }
 							isProcessingNextArray={ processingNextArrayId === item.id }
+							isRerunning={ rerunningItemId === item.id }
 							onStart={ handleStart }
 							onComplete={ handleComplete }
 							onNextArray={ handleNextArray }
