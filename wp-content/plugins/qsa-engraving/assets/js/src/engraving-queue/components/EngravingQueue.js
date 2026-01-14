@@ -312,13 +312,25 @@ export default function EngravingQueue() {
 		}
 
 		// For pending batches, always start from array 1.
-		// For partial batches, resume from the next incomplete array.
-		// This ensures Rerun (which sets status to 'pending') always starts from array 1,
-		// even if completedArrays hasn't been updated yet due to React state batching.
+		// For partial batches, use nextPendingArray from backend (reliable) or fall back to calculation.
+		// This handles race conditions where arrays may have been completed out of order.
 		let startingArray;
 		if ( item.status === 'pending' ) {
 			startingArray = 1;
+		} else if ( item.nextPendingArray > 0 ) {
+			// Backend tells us exactly which array has pending modules.
+			startingArray = item.nextPendingArray;
+		} else if ( item.status === 'partial' && item.nextPendingArray === 0 ) {
+			// Partial status but no pending arrays - inconsistent state from race condition.
+			// User needs to use Rerun to reset all arrays.
+			alert(
+				__( 'No pending arrays found. This may be due to a previous error.', 'qsa-engraving' ) +
+					'\n\n' +
+					__( 'Please use Rerun to reset this row and start over.', 'qsa-engraving' )
+			);
+			return;
 		} else {
+			// Fallback: calculate from completedArrays (may be inaccurate after race conditions).
 			const completedArrays = item.completedArrays || 0;
 			startingArray = completedArrays + 1;
 		}

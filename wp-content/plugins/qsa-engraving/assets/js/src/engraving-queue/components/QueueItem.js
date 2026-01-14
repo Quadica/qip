@@ -233,15 +233,26 @@ export default function QueueItem( {
 					) }
 
 					{ item.status === 'partial' && (
-						<button
-							type="button"
-							className="qsa-btn-resume"
-							onClick={ () => onStart( item.id ) }
-							title={ __( 'Resume engraving from where you left off', 'qsa-engraving' ) }
-						>
-							<span className="dashicons dashicons-controls-play"></span>
-							{ __( 'Resume', 'qsa-engraving' ) }
-						</button>
+						<div className="qsa-action-buttons">
+							<button
+								type="button"
+								className="qsa-btn-resume"
+								onClick={ () => onStart( item.id ) }
+								title={ __( 'Resume engraving from where you left off', 'qsa-engraving' ) }
+							>
+								<span className="dashicons dashicons-controls-play"></span>
+								{ __( 'Resume', 'qsa-engraving' ) }
+							</button>
+							<button
+								type="button"
+								className="qsa-btn-rerun"
+								onClick={ () => onRerun( item.id ) }
+								title={ __( 'Reset and start over from beginning', 'qsa-engraving' ) }
+							>
+								<span className="dashicons dashicons-controls-repeat"></span>
+								{ __( 'Rerun', 'qsa-engraving' ) }
+							</button>
+						</div>
 					) }
 
 					{ item.status === 'in_progress' && (

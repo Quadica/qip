@@ -463,15 +463,26 @@ class Queue_Ajax_Handler {
 				$status = 'pending';
 			}
 
-			// Count completed QSA sequences for partial progress tracking.
+			// Count completed QSA sequences and find first pending array.
 			$completed_qsa_count = 0;
+			$next_pending_array  = 0; // 0 means none pending (all done or error state).
+			$array_index         = 0;
 			foreach ( $by_current_qsa as $qsa_seq => $qsa_modules ) {
+				$array_index++;
 				$qsa_statuses = array_map(
 					fn( $s ) => $this->normalize_row_status( $s ),
 					array_column( $qsa_modules, 'row_status' )
 				);
-				if ( count( array_filter( $qsa_statuses, fn( $s ) => $s === 'done' ) ) === count( $qsa_modules ) ) {
+				$done_in_qsa = count( array_filter( $qsa_statuses, fn( $s ) => $s === 'done' ) );
+				if ( $done_in_qsa === count( $qsa_modules ) ) {
 					$completed_qsa_count++;
+				} elseif ( 0 === $next_pending_array ) {
+					// First QSA with any non-done modules - check if all are pending.
+					$pending_in_qsa = count( array_filter( $qsa_statuses, fn( $s ) => $s === 'pending' ) );
+					if ( $pending_in_qsa === count( $qsa_modules ) ) {
+						// All modules pending - this is the next array to start.
+						$next_pending_array = $array_index;
+					}
 				}
 			}
 
@@ -497,6 +508,7 @@ class Queue_Ajax_Handler {
 				'startPosition'    => $start_position,
 				'currentArray'     => $current_array,
 				'completedArrays'  => $completed_qsa_count, // How many QSA sequences are fully done.
+				'nextPendingArray' => $next_pending_array, // First array with all modules pending (0 if none).
 				'serials'          => $row_serials,
 			);
 		}
