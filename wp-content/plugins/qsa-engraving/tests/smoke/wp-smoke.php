@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 echo "\n";
 echo "================================================================\n";
-echo "QSA Engraving Plugin - Phase 1-9 + Legacy SKU Mapping Smoke Tests\n";
+echo "QSA Engraving Plugin - Phase 1-9 + Micro-ID Decoder Smoke Tests\n";
 echo "================================================================\n\n";
 
 $tests_passed = 0;
@@ -7319,6 +7319,295 @@ run_test(
         return true;
     },
     'Queue_Ajax_Handler should have Legacy_SKU_Resolver for base type extraction.'
+);
+
+// ============================================
+// Micro-ID Decoder Tests (Phase 1)
+// ============================================
+
+echo "========================================\n";
+echo "Micro-ID Decoder Tests (Phase 1)\n";
+echo "========================================\n\n";
+
+// TC-MID-DEC-001: Claude_Vision_Client class exists
+run_test(
+    'TC-MID-DEC-001: Claude_Vision_Client class exists',
+    function (): bool {
+        if ( ! class_exists( 'Quadica\\QSA_Engraving\\Services\\Claude_Vision_Client' ) ) {
+            return new WP_Error( 'missing_class', 'Claude_Vision_Client class not found.' );
+        }
+
+        // Verify required constants.
+        $class = 'Quadica\\QSA_Engraving\\Services\\Claude_Vision_Client';
+
+        if ( ! defined( "{$class}::API_ENDPOINT" ) ) {
+            return new WP_Error( 'missing_constant', 'API_ENDPOINT constant not found.' );
+        }
+
+        if ( ! defined( "{$class}::DEFAULT_MODEL" ) ) {
+            return new WP_Error( 'missing_constant', 'DEFAULT_MODEL constant not found.' );
+        }
+
+        return true;
+    },
+    'Claude Vision Client service class should exist with constants.'
+);
+
+// TC-MID-DEC-002: Claude_Vision_Client has required methods
+run_test(
+    'TC-MID-DEC-002: Claude_Vision_Client has required methods',
+    function (): bool {
+        $required_methods = array(
+            'decode_micro_id',
+            'test_connection',
+            'has_api_key',
+            'is_enabled',
+            'get_last_error',
+            'get_last_response_time_ms',
+            'get_last_tokens_used',
+            'encrypt',
+            'mask_api_key',
+        );
+
+        $class = 'Quadica\\QSA_Engraving\\Services\\Claude_Vision_Client';
+
+        foreach ( $required_methods as $method ) {
+            if ( ! method_exists( $class, $method ) ) {
+                return new WP_Error( 'missing_method', "Method {$method}() not found in Claude_Vision_Client." );
+            }
+        }
+
+        return true;
+    },
+    'Claude_Vision_Client should have all required public methods.'
+);
+
+// TC-MID-DEC-003: Claude_Vision_Client instantiation
+run_test(
+    'TC-MID-DEC-003: Claude_Vision_Client instantiation',
+    function (): bool {
+        $client = new \Quadica\QSA_Engraving\Services\Claude_Vision_Client();
+
+        if ( ! ( $client instanceof \Quadica\QSA_Engraving\Services\Claude_Vision_Client ) ) {
+            return new WP_Error( 'instantiation_failed', 'Failed to instantiate Claude_Vision_Client.' );
+        }
+
+        // Without API key, has_api_key() should return false.
+        // Note: This may return true if API key is configured in settings.
+        $has_key = $client->has_api_key();
+        if ( ! is_bool( $has_key ) ) {
+            return new WP_Error( 'wrong_type', 'has_api_key() should return boolean.' );
+        }
+
+        return true;
+    },
+    'Claude_Vision_Client should instantiate without errors.'
+);
+
+// TC-MID-DEC-004: Claude_Vision_Client encryption
+run_test(
+    'TC-MID-DEC-004: Claude_Vision_Client encryption',
+    function (): bool {
+        $test_value = 'sk-ant-test-api-key-12345';
+        $encrypted  = \Quadica\QSA_Engraving\Services\Claude_Vision_Client::encrypt( $test_value );
+
+        if ( empty( $encrypted ) ) {
+            return new WP_Error( 'encryption_failed', 'encrypt() returned empty string.' );
+        }
+
+        // Encrypted value should be different from original.
+        if ( $encrypted === $test_value ) {
+            return new WP_Error( 'encryption_failed', 'Encrypted value same as original.' );
+        }
+
+        // Encrypted value should be base64-encoded.
+        if ( base64_decode( $encrypted, true ) === false ) {
+            return new WP_Error( 'not_base64', 'Encrypted value is not valid base64.' );
+        }
+
+        return true;
+    },
+    'Claude_Vision_Client::encrypt() should produce valid encrypted output.'
+);
+
+// TC-MID-DEC-005: Claude_Vision_Client API key masking
+run_test(
+    'TC-MID-DEC-005: Claude_Vision_Client API key masking',
+    function (): bool {
+        $test_key = 'sk-ant-api03-abcdefghijklmnopqrstuvwxyz1234567890';
+        $masked   = \Quadica\QSA_Engraving\Services\Claude_Vision_Client::mask_api_key( $test_key );
+
+        // Should show first 7 chars + ... + last 6 chars.
+        if ( strpos( $masked, 'sk-ant-' ) !== 0 ) {
+            return new WP_Error( 'wrong_prefix', 'Masked key should start with original prefix.' );
+        }
+
+        if ( strpos( $masked, '...' ) === false ) {
+            return new WP_Error( 'no_ellipsis', 'Masked key should contain ellipsis.' );
+        }
+
+        // Full key should not be visible.
+        if ( $masked === $test_key ) {
+            return new WP_Error( 'not_masked', 'Key was not masked.' );
+        }
+
+        // Empty key should return empty string.
+        $empty_masked = \Quadica\QSA_Engraving\Services\Claude_Vision_Client::mask_api_key( '' );
+        if ( $empty_masked !== '' ) {
+            return new WP_Error( 'empty_not_handled', 'Empty key should return empty string.' );
+        }
+
+        return true;
+    },
+    'Claude_Vision_Client::mask_api_key() should properly mask API keys.'
+);
+
+// TC-MID-DEC-006: Decode_Log_Repository class exists
+run_test(
+    'TC-MID-DEC-006: Decode_Log_Repository class exists',
+    function (): bool {
+        if ( ! class_exists( 'Quadica\\QSA_Engraving\\Database\\Decode_Log_Repository' ) ) {
+            return new WP_Error( 'missing_class', 'Decode_Log_Repository class not found.' );
+        }
+
+        // Verify required constants.
+        $class = 'Quadica\\QSA_Engraving\\Database\\Decode_Log_Repository';
+
+        if ( ! defined( "{$class}::VALID_STATUSES" ) ) {
+            return new WP_Error( 'missing_constant', 'VALID_STATUSES constant not found.' );
+        }
+
+        $statuses = \Quadica\QSA_Engraving\Database\Decode_Log_Repository::VALID_STATUSES;
+        $expected = array( 'success', 'failed', 'error', 'invalid_image' );
+
+        if ( $statuses !== $expected ) {
+            return new WP_Error( 'wrong_statuses', 'VALID_STATUSES does not match expected values.' );
+        }
+
+        return true;
+    },
+    'Decode_Log_Repository class should exist with constants.'
+);
+
+// TC-MID-DEC-007: Decode_Log_Repository has required methods
+run_test(
+    'TC-MID-DEC-007: Decode_Log_Repository has required methods',
+    function (): bool {
+        $required_methods = array(
+            'log_decode_attempt',
+            'get_by_id',
+            'get_by_session',
+            'get_recent_logs',
+            'count_logs',
+            'get_statistics',
+            'cleanup_old_logs',
+            'has_recent_duplicate',
+            'generate_session_id',
+            'hash_image',
+            'table_exists',
+        );
+
+        $class = 'Quadica\\QSA_Engraving\\Database\\Decode_Log_Repository';
+
+        foreach ( $required_methods as $method ) {
+            if ( ! method_exists( $class, $method ) ) {
+                return new WP_Error( 'missing_method', "Method {$method}() not found in Decode_Log_Repository." );
+            }
+        }
+
+        return true;
+    },
+    'Decode_Log_Repository should have all required public methods.'
+);
+
+// TC-MID-DEC-008: Decode_Log_Repository instantiation
+run_test(
+    'TC-MID-DEC-008: Decode_Log_Repository instantiation',
+    function (): bool {
+        $repo = new \Quadica\QSA_Engraving\Database\Decode_Log_Repository();
+
+        if ( ! ( $repo instanceof \Quadica\QSA_Engraving\Database\Decode_Log_Repository ) ) {
+            return new WP_Error( 'instantiation_failed', 'Failed to instantiate Decode_Log_Repository.' );
+        }
+
+        // Table name should include prefix.
+        global $wpdb;
+        $expected_table = $wpdb->prefix . 'quad_microid_decode_logs';
+
+        if ( $repo->get_table_name() !== $expected_table ) {
+            return new WP_Error(
+                'wrong_table_name',
+                "Expected {$expected_table}, got " . $repo->get_table_name()
+            );
+        }
+
+        return true;
+    },
+    'Decode_Log_Repository should instantiate with correct table name.'
+);
+
+// TC-MID-DEC-009: Decode_Log_Repository static helpers
+run_test(
+    'TC-MID-DEC-009: Decode_Log_Repository static helpers',
+    function (): bool {
+        // Test session ID generation.
+        $session_id = \Quadica\QSA_Engraving\Database\Decode_Log_Repository::generate_session_id();
+
+        if ( empty( $session_id ) ) {
+            return new WP_Error( 'empty_session_id', 'generate_session_id() returned empty string.' );
+        }
+
+        // Should be UUID format (36 chars with hyphens).
+        if ( strlen( $session_id ) !== 36 ) {
+            return new WP_Error( 'wrong_length', "Session ID length should be 36, got " . strlen( $session_id ) );
+        }
+
+        // Test image hashing.
+        $test_data  = 'test image binary data';
+        $hash       = \Quadica\QSA_Engraving\Database\Decode_Log_Repository::hash_image( $test_data );
+
+        if ( empty( $hash ) ) {
+            return new WP_Error( 'empty_hash', 'hash_image() returned empty string.' );
+        }
+
+        // SHA-256 produces 64 character hex string.
+        if ( strlen( $hash ) !== 64 ) {
+            return new WP_Error( 'wrong_hash_length', "Hash length should be 64, got " . strlen( $hash ) );
+        }
+
+        // Hash should be deterministic.
+        $hash2 = \Quadica\QSA_Engraving\Database\Decode_Log_Repository::hash_image( $test_data );
+        if ( $hash !== $hash2 ) {
+            return new WP_Error( 'non_deterministic', 'hash_image() should be deterministic.' );
+        }
+
+        return true;
+    },
+    'Decode_Log_Repository static helper methods should work correctly.'
+);
+
+// TC-MID-DEC-010: Micro-ID decode logs table existence check
+run_test(
+    'TC-MID-DEC-010: Micro-ID decode logs table check',
+    function (): bool {
+        $repo = new \Quadica\QSA_Engraving\Database\Decode_Log_Repository();
+
+        // table_exists() should work (may return false if table not created yet).
+        $exists = $repo->table_exists();
+
+        if ( ! is_bool( $exists ) ) {
+            return new WP_Error( 'wrong_type', 'table_exists() should return boolean.' );
+        }
+
+        if ( ! $exists ) {
+            // Table doesn't exist yet - this is expected for Phase 1.
+            // The SQL script needs to be run manually.
+            echo "  Note: Table does not exist yet. Run 05-microid-decode-logs.sql to create it.\n";
+        }
+
+        return true;
+    },
+    'Decode_Log_Repository::table_exists() should return boolean.'
 );
 
 // ============================================
