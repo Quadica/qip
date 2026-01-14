@@ -271,6 +271,22 @@ class Claude_Vision_Client {
 			);
 		}
 
+		// Pre-decode size guard: Check encoded length before decoding to prevent
+		// memory exhaustion from very large payloads. Base64 increases size by ~33%,
+		// so max encoded size is approximately MAX_IMAGE_SIZE_BYTES * 1.4.
+		$max_encoded_size = (int) ( self::MAX_IMAGE_SIZE_BYTES * 1.4 );
+		if ( strlen( $image_base64 ) > $max_encoded_size ) {
+			$this->last_error = 'Image data exceeds maximum encoded size.';
+			return new WP_Error(
+				'image_too_large',
+				sprintf(
+					/* translators: %s: Maximum file size */
+					__( 'Image exceeds maximum size of %s.', 'qsa-engraving' ),
+					size_format( self::MAX_IMAGE_SIZE_BYTES )
+				)
+			);
+		}
+
 		// Validate base64 format (strict mode).
 		$decoded_image = base64_decode( $image_base64, true );
 		if ( false === $decoded_image ) {
@@ -433,9 +449,26 @@ class Claude_Vision_Client {
 					);
 				}
 
-				// Validate serial from JSON response.
-				$serial = $decoded['serial'] ?? null;
-				if ( null !== $serial && ! $this->is_valid_serial( $serial ) ) {
+				// Validate and normalize serial from JSON response.
+				// Serial can be string "00123456" or numeric 123456 from JSON.
+				$raw_serial = $decoded['serial'] ?? null;
+
+				// Success requires a valid serial - can't succeed without one.
+				if ( null === $raw_serial ) {
+					return array(
+						'success'      => false,
+						'serial'       => null,
+						'binary'       => $decoded['binary'] ?? null,
+						'parity_valid' => $decoded['parity_valid'] ?? null,
+						'confidence'   => null,
+						'error'        => 'Decode reported success but no serial number was provided.',
+						'raw_response' => $response_text,
+					);
+				}
+
+				// Normalize serial (handles int/string, validates range).
+				$normalized_serial = $this->normalize_serial( $raw_serial );
+				if ( null === $normalized_serial ) {
 					return array(
 						'success'      => false,
 						'serial'       => null,
@@ -449,7 +482,7 @@ class Claude_Vision_Client {
 
 				return array(
 					'success'      => true,
-					'serial'       => $serial,
+					'serial'       => $normalized_serial,
 					'binary'       => $decoded['binary'] ?? null,
 					'parity_valid' => $decoded['parity_valid'] ?? null,
 					'confidence'   => $decoded['confidence'] ?? null,
@@ -515,18 +548,58 @@ class Claude_Vision_Client {
 	/**
 	 * Validate a serial number format and range.
 	 *
-	 * @param string $serial The serial number to validate.
+	 * Accepts mixed input to handle JSON numeric values (e.g., 12345678 vs "12345678").
+	 *
+	 * @param mixed $serial The serial number to validate.
 	 * @return bool True if valid.
 	 */
-	private function is_valid_serial( string $serial ): bool {
+	private function is_valid_serial( mixed $serial ): bool {
+		// Handle non-scalar types (arrays, objects, null).
+		if ( ! is_scalar( $serial ) ) {
+			return false;
+		}
+
+		// Convert to string for validation (handles int/float from JSON).
+		$serial_str = (string) $serial;
+
 		// Must be exactly 8 digits.
-		if ( ! preg_match( '/^[0-9]{8}$/', $serial ) ) {
+		if ( ! preg_match( '/^[0-9]{8}$/', $serial_str ) ) {
 			return false;
 		}
 
 		// Convert to integer and check range (1 to 1,048,575 per Micro-ID spec).
-		$serial_int = (int) $serial;
+		$serial_int = (int) $serial_str;
 		return $serial_int >= 1 && $serial_int <= 1048575;
+	}
+
+	/**
+	 * Normalize a serial to 8-digit string format.
+	 *
+	 * @param mixed $serial The serial number to normalize.
+	 * @return string|null The normalized 8-digit serial or null if invalid.
+	 */
+	private function normalize_serial( mixed $serial ): ?string {
+		// Handle non-scalar types.
+		if ( ! is_scalar( $serial ) ) {
+			return null;
+		}
+
+		// Convert to string (handles int/float from JSON).
+		$serial_str = (string) $serial;
+
+		// Must be numeric.
+		if ( ! preg_match( '/^[0-9]+$/', $serial_str ) ) {
+			return null;
+		}
+
+		// Convert to integer and check range.
+		$serial_int = (int) $serial_str;
+		if ( $serial_int < 1 || $serial_int > 1048575 ) {
+			return null;
+		}
+
+		// Return as zero-padded 8-digit string.
+		return str_pad( (string) $serial_int, 8, '0', STR_PAD_LEFT );
 	}
 
 	/**

@@ -530,20 +530,27 @@ class Decode_Log_Repository {
 	/**
 	 * Normalize and validate a serial number to 8-digit format.
 	 *
-	 * @param string $serial The serial number to normalize.
+	 * Accepts mixed input to handle JSON numeric values (e.g., 12345678 vs "12345678").
+	 *
+	 * @param mixed $serial The serial number to normalize.
 	 * @return string|null The normalized 8-digit serial or null if invalid.
 	 */
-	private function normalize_serial( string $serial ): ?string {
-		// Remove any whitespace.
-		$serial = trim( $serial );
+	private function normalize_serial( mixed $serial ): ?string {
+		// Handle non-scalar types (arrays, objects, null).
+		if ( ! is_scalar( $serial ) ) {
+			return null;
+		}
+
+		// Convert to string and trim whitespace (handles int/float from JSON).
+		$serial_str = trim( (string) $serial );
 
 		// Check if it's numeric (allows leading zeros).
-		if ( ! preg_match( '/^[0-9]+$/', $serial ) ) {
+		if ( ! preg_match( '/^[0-9]+$/', $serial_str ) ) {
 			return null;
 		}
 
 		// Parse as integer to validate range.
-		$serial_int = (int) $serial;
+		$serial_int = (int) $serial_str;
 
 		// Valid range: 1 to 1,048,575 (per Micro-ID spec).
 		if ( $serial_int < 1 || $serial_int > 1048575 ) {
