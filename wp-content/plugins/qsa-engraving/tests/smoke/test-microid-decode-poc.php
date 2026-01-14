@@ -1,9 +1,8 @@
 <?php
 /**
- * POC Test: Micro-ID Decode with Reference Images.
+ * POC Test: Micro-ID Decode with Reference Images and Extended Thinking.
  *
- * Tests the decode_with_references() method to validate that including
- * reference images improves decode accuracy.
+ * Tests various decode methods to validate accuracy improvements.
  *
  * Usage:
  *   wp eval-file wp-content/plugins/qsa-engraving/tests/smoke/test-microid-decode-poc.php
@@ -12,6 +11,8 @@
  *   TEST_IMAGE     - Path to image to decode (default: sample-1)
  *   WITH_REFS      - Include reference images: 1 or 0 (default: 1)
  *   REFS_ONLY      - Only use location marker, not samples: 1 or 0 (default: 0)
+ *   WITH_THINKING  - Use extended thinking mode: 1 or 0 (default: 0)
+ *   THINKING_BUDGET - Token budget for thinking (default: 10000)
  *
  * @package QSA_Engraving
  * @since 1.2.0
@@ -58,9 +59,11 @@ foreach ( $ref_files as $name => $path ) {
 echo "\n";
 
 // Parse options.
-$with_refs  = getenv( 'WITH_REFS' ) !== '0';
-$refs_only  = getenv( 'REFS_ONLY' ) === '1';
-$test_image = getenv( 'TEST_IMAGE' );
+$with_refs       = getenv( 'WITH_REFS' ) !== '0';
+$refs_only       = getenv( 'REFS_ONLY' ) === '1';
+$with_thinking   = getenv( 'WITH_THINKING' ) === '1';
+$thinking_budget = getenv( 'THINKING_BUDGET' ) ? (int) getenv( 'THINKING_BUDGET' ) : 10000;
+$test_image      = getenv( 'TEST_IMAGE' );
 
 // Determine which image to decode.
 if ( empty( $test_image ) ) {
@@ -77,7 +80,8 @@ if ( ! file_exists( $test_image ) ) {
 
 echo "Test image: {$test_image}\n";
 echo "With references: " . ( $with_refs ? 'YES' : 'NO' ) . "\n";
-echo "Location marker only: " . ( $refs_only ? 'YES' : 'NO' ) . "\n\n";
+echo "Location marker only: " . ( $refs_only ? 'YES' : 'NO' ) . "\n";
+echo "Extended thinking: " . ( $with_thinking ? "YES (budget: {$thinking_budget})" : 'NO' ) . "\n\n";
 
 // Create the client.
 $client = new Claude_Vision_Client();
@@ -136,7 +140,10 @@ if ( $with_refs ) {
 echo "Sending decode request...\n";
 $start_time = microtime( true );
 
-if ( $with_refs && ! empty( $reference_images ) ) {
+if ( $with_thinking ) {
+	// Extended thinking mode (ignores refs for now).
+	$result = $client->decode_micro_id_with_thinking( $image_base64, $mime_type, $thinking_budget );
+} elseif ( $with_refs && ! empty( $reference_images ) ) {
 	$result = $client->decode_with_references( $image_base64, $mime_type, $reference_images );
 } else {
 	$result = $client->decode_micro_id( $image_base64, $mime_type );
@@ -159,6 +166,19 @@ if ( is_wp_error( $result ) ) {
 		echo "Confidence: {$result['confidence']}\n";
 	} else {
 		echo "Error: {$result['error']}\n";
+	}
+
+	if ( ! empty( $result['thinking'] ) ) {
+		echo "\nThinking (internal reasoning):\n";
+		echo "---\n";
+		// Truncate thinking output if very long.
+		$thinking = $result['thinking'];
+		if ( strlen( $thinking ) > 3000 ) {
+			echo substr( $thinking, 0, 3000 ) . "\n...[truncated]...\n";
+		} else {
+			echo $thinking . "\n";
+		}
+		echo "---\n";
 	}
 
 	if ( ! empty( $result['raw_response'] ) ) {

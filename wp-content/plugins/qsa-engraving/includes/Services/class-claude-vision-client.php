@@ -230,6 +230,191 @@ class Claude_Vision_Client {
 	}
 
 	/**
+	 * Decode a Micro-ID code from an image using extended thinking.
+	 *
+	 * Extended thinking gives the model a dedicated "thinking budget" for internal
+	 * reasoning before responding, which can improve accuracy on complex visual tasks.
+	 *
+	 * @since 1.2.0
+	 *
+	 * @param string $image_base64   Base64-encoded image data.
+	 * @param string $mime_type      Image MIME type (image/jpeg, image/png, image/webp).
+	 * @param int    $thinking_budget Tokens allocated for thinking (default 10000).
+	 * @return array{success: bool, serial: ?string, binary: ?string, parity_valid: ?bool, confidence: ?string, error: ?string, raw_response: ?string, thinking: ?string}|WP_Error
+	 */
+	public function decode_micro_id_with_thinking( string $image_base64, string $mime_type, int $thinking_budget = 10000 ): array|WP_Error {
+		// Reset metrics.
+		$this->last_response_time_ms = null;
+		$this->last_tokens_used      = null;
+		$this->last_error            = '';
+
+		// Validate API key.
+		if ( ! $this->has_api_key() ) {
+			$this->last_error = 'Claude API key is not configured.';
+			return new WP_Error(
+				'api_key_missing',
+				__( 'Claude API key is not configured. Please add your API key in QSA Engraving settings.', 'qsa-engraving' )
+			);
+		}
+
+		// Validate MIME type.
+		$allowed_types = array( 'image/jpeg', 'image/png', 'image/webp' );
+		if ( ! in_array( $mime_type, $allowed_types, true ) ) {
+			$this->last_error = 'Unsupported image type: ' . $mime_type;
+			return new WP_Error(
+				'invalid_mime_type',
+				sprintf(
+					/* translators: %s: MIME type */
+					__( 'Unsupported image type: %s. Allowed types: JPEG, PNG, WebP.', 'qsa-engraving' ),
+					$mime_type
+				)
+			);
+		}
+
+		// Validate base64 encoding.
+		if ( empty( $image_base64 ) ) {
+			$this->last_error = 'Image data is empty.';
+			return new WP_Error(
+				'invalid_image_data',
+				__( 'Image data is empty.', 'qsa-engraving' )
+			);
+		}
+
+		// Validate base64 format.
+		$decoded_image = base64_decode( $image_base64, true );
+		if ( false === $decoded_image ) {
+			$this->last_error = 'Invalid base64 encoding.';
+			return new WP_Error(
+				'invalid_base64',
+				__( 'Image data is not valid base64 encoding.', 'qsa-engraving' )
+			);
+		}
+
+		// Build the request with extended thinking enabled.
+		// Extended thinking requires higher max_tokens to accommodate thinking + response.
+		$request_body = array(
+			'model'      => $this->model,
+			'max_tokens' => 16000, // Higher limit for thinking + response.
+			'thinking'   => array(
+				'type'          => 'enabled',
+				'budget_tokens' => $thinking_budget,
+			),
+			'messages'   => array(
+				array(
+					'role'    => 'user',
+					'content' => array(
+						array(
+							'type'   => 'image',
+							'source' => array(
+								'type'       => 'base64',
+								'media_type' => $mime_type,
+								'data'       => $image_base64,
+							),
+						),
+						array(
+							'type' => 'text',
+							'text' => $this->get_decode_prompt(),
+						),
+					),
+				),
+			),
+		);
+
+		// Make the API request with extended timeout for thinking.
+		$start_time = microtime( true );
+
+		$response = wp_remote_post(
+			self::API_ENDPOINT,
+			array(
+				'timeout' => 120, // Extended timeout for thinking.
+				'headers' => array(
+					'Content-Type'      => 'application/json',
+					'x-api-key'         => $this->api_key,
+					'anthropic-version' => self::API_VERSION,
+				),
+				'body'    => wp_json_encode( $request_body ),
+			)
+		);
+
+		$this->last_response_time_ms = (int) ( ( microtime( true ) - $start_time ) * 1000 );
+
+		// Handle request errors.
+		if ( is_wp_error( $response ) ) {
+			$this->last_error = $response->get_error_message();
+			return new WP_Error(
+				'api_request_failed',
+				sprintf(
+					/* translators: %s: Error message */
+					__( 'Failed to connect to Claude API: %s', 'qsa-engraving' ),
+					$this->last_error
+				)
+			);
+		}
+
+		// Check HTTP status.
+		$status_code = wp_remote_retrieve_response_code( $response );
+		$body        = wp_remote_retrieve_body( $response );
+
+		if ( $status_code !== 200 ) {
+			$error_data = json_decode( $body, true );
+			$error_msg  = $error_data['error']['message'] ?? "HTTP {$status_code}";
+
+			$this->last_error = $error_msg;
+
+			$error_code = 'api_error';
+			if ( $status_code === 401 ) {
+				$error_code = 'api_key_invalid';
+				$error_msg  = __( 'Invalid API key. Please check your Claude API key in settings.', 'qsa-engraving' );
+			} elseif ( $status_code === 429 ) {
+				$error_code = 'rate_limited';
+				$error_msg  = __( 'API rate limit exceeded. Please try again later.', 'qsa-engraving' );
+			} elseif ( $status_code >= 500 ) {
+				$error_code = 'api_server_error';
+				$error_msg  = __( 'Claude API is temporarily unavailable. Please try again later.', 'qsa-engraving' );
+			}
+
+			return new WP_Error( $error_code, $error_msg );
+		}
+
+		// Parse response.
+		$data = json_decode( $body, true );
+
+		if ( ! is_array( $data ) ) {
+			$this->last_error = 'Invalid JSON response from API.';
+			return new WP_Error(
+				'invalid_response',
+				__( 'Received invalid response from Claude API.', 'qsa-engraving' )
+			);
+		}
+
+		// Track token usage.
+		if ( isset( $data['usage']['input_tokens'], $data['usage']['output_tokens'] ) ) {
+			$this->last_tokens_used = $data['usage']['input_tokens'] + $data['usage']['output_tokens'];
+		}
+
+		// Extract thinking and response text from content blocks.
+		$thinking_text = '';
+		$response_text = '';
+		if ( isset( $data['content'] ) && is_array( $data['content'] ) ) {
+			foreach ( $data['content'] as $block ) {
+				if ( isset( $block['type'] ) ) {
+					if ( 'thinking' === $block['type'] && isset( $block['thinking'] ) ) {
+						$thinking_text .= $block['thinking'];
+					} elseif ( 'text' === $block['type'] && isset( $block['text'] ) ) {
+						$response_text .= $block['text'];
+					}
+				}
+			}
+		}
+
+		// Parse the decode result and include thinking.
+		$result = $this->parse_decode_response( $response_text );
+		$result['thinking'] = $thinking_text;
+
+		return $result;
+	}
+
+	/**
 	 * Decode a Micro-ID code from an image.
 	 *
 	 * @param string $image_base64 Base64-encoded image data.
