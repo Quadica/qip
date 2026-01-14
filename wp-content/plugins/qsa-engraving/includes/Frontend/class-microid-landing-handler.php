@@ -574,6 +574,35 @@ class MicroID_Landing_Handler {
 			<h1><?php esc_html_e( 'Micro-ID Decoder', 'qsa-engraving' ); ?></h1>
 			<p class="subtitle"><?php esc_html_e( 'Upload a photo of your LED module to retrieve product information', 'qsa-engraving' ); ?></p>
 
+			<!-- Noscript Fallback for JavaScript-disabled browsers -->
+			<noscript>
+				<div class="noscript-notice">
+					<div class="noscript-icon">⚠️</div>
+					<h2><?php esc_html_e( 'JavaScript Required', 'qsa-engraving' ); ?></h2>
+					<p><?php esc_html_e( 'This Micro-ID decoder requires JavaScript to process images.', 'qsa-engraving' ); ?></p>
+					<p><?php esc_html_e( 'Please enable JavaScript in your browser settings, or contact our support team for assistance with decoding your LED module serial number.', 'qsa-engraving' ); ?></p>
+					<p style="margin-top: 16px;">
+						<a href="<?php echo esc_url( home_url( '/contact/' ) ); ?>" class="btn btn-primary">
+							<?php esc_html_e( 'Contact Support', 'qsa-engraving' ); ?>
+						</a>
+					</p>
+				</div>
+				<style>
+					.noscript-notice {
+						text-align: center;
+						padding: 24px;
+						background: #fcf9e8;
+						border: 1px solid #dba617;
+						border-radius: 8px;
+					}
+					.noscript-icon { font-size: 48px; margin-bottom: 16px; }
+					.noscript-notice h2 { font-size: 18px; margin-bottom: 12px; }
+					.noscript-notice p { color: #646970; margin-bottom: 8px; }
+					/* Hide JS-dependent sections when JS is disabled */
+					#upload-section, #loading-section, #result-section, #error-section { display: none !important; }
+				</style>
+			</noscript>
+
 			<!-- Upload Section -->
 			<div id="upload-section">
 				<div class="drop-zone" id="drop-zone">
@@ -714,6 +743,7 @@ class MicroID_Landing_Handler {
 				loadingDetails: <?php echo wp_json_encode( __( 'Loading details...', 'qsa-engraving' ) ); ?>,
 				fileTooLarge: <?php echo wp_json_encode( __( 'File is too large. Maximum size is 10MB.', 'qsa-engraving' ) ); ?>,
 				invalidType: <?php echo wp_json_encode( __( 'Invalid file type. Please upload a JPEG, PNG, or WebP image.', 'qsa-engraving' ) ); ?>,
+				imageTooSmall: <?php echo wp_json_encode( sprintf( __( 'Image is too small. Minimum dimension is %dpx.', 'qsa-engraving' ), $min_dimension ) ); ?>,
 				uploadError: <?php echo wp_json_encode( __( 'Failed to upload image. Please try again.', 'qsa-engraving' ) ); ?>,
 				networkError: <?php echo wp_json_encode( __( 'Network error. Please check your connection and try again.', 'qsa-engraving' ) ); ?>,
 				cached: <?php echo wp_json_encode( __( 'Cached result', 'qsa-engraving' ) ); ?>,
@@ -772,7 +802,45 @@ class MicroID_Landing_Handler {
 				return;
 			}
 
-			uploadFile(file);
+			// Check image dimensions before upload to save bandwidth.
+			checkImageDimensions(file).then(dimensionResult => {
+				if (!dimensionResult.valid) {
+					showError(dimensionResult.error, '');
+					return;
+				}
+				uploadFile(file);
+			}).catch(() => {
+				// If dimension check fails, proceed with upload and let server validate.
+				uploadFile(file);
+			});
+		}
+
+		/**
+		 * Check image dimensions using the Image API.
+		 * Returns a promise that resolves with validation result.
+		 */
+		function checkImageDimensions(file) {
+			return new Promise((resolve, reject) => {
+				const img = new Image();
+				const objectUrl = URL.createObjectURL(file);
+
+				img.onload = function() {
+					URL.revokeObjectURL(objectUrl);
+					const minDim = Math.min(img.width, img.height);
+					if (minDim < config.minDimension) {
+						resolve({ valid: false, error: config.strings.imageTooSmall });
+					} else {
+						resolve({ valid: true });
+					}
+				};
+
+				img.onerror = function() {
+					URL.revokeObjectURL(objectUrl);
+					reject(new Error('Failed to load image'));
+				};
+
+				img.src = objectUrl;
+			});
 		}
 
 		/**
@@ -879,7 +947,7 @@ class MicroID_Landing_Handler {
 			// Order ID with link
 			const orderEl = document.getElementById('info-order');
 			if (data.order_id && data.order_url) {
-				orderEl.innerHTML = '<a href="' + escapeHtml(data.order_url) + '" target="_blank">#' + escapeHtml(data.order_id) + '</a>';
+				orderEl.innerHTML = '<a href="' + escapeHtml(data.order_url) + '" target="_blank" rel="noopener noreferrer">#' + escapeHtml(data.order_id) + '</a>';
 			} else if (data.order_id) {
 				orderEl.textContent = '#' + data.order_id;
 			} else {
