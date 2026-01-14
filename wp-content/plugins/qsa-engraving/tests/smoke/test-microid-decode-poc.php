@@ -17,7 +17,7 @@
  * @since 1.2.0
  */
 
-declare(strict_types=1);
+// Note: Cannot use declare(strict_types=1) with wp eval-file.
 
 // Ensure we're in WP-CLI context.
 if ( ! defined( 'WP_CLI' ) || ! WP_CLI ) {
