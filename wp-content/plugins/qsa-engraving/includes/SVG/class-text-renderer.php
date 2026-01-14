@@ -371,23 +371,41 @@ class Text_Renderer {
     }
 
     /**
+     * Restricted character set for LED codes (default).
+     */
+    public const LED_CODE_CHARSET_RESTRICTED = '1234789CEFHJKLPRT';
+
+    /**
+     * Full alphanumeric character set for legacy LED codes.
+     */
+    public const LED_CODE_CHARSET_LEGACY = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+
+    /**
      * Validate LED code against allowed character set.
      *
-     * Valid characters: 1234789CEFHJKLPRT (17 characters).
+     * By default, validates against the restricted charset (17 characters).
+     * When $allow_legacy is true, allows any uppercase alphanumeric (A-Z, 0-9).
      *
-     * @param string $led_code The LED code to validate.
+     * LEDs with an existing 2-character code (legacy LEDs) are allowed to use
+     * any alphanumeric characters for their 3-character code to reduce confusion
+     * when migrating (e.g., "5B" can become "5B0").
+     *
+     * @param string $led_code     The LED code to validate.
+     * @param bool   $allow_legacy Allow full alphanumeric charset for legacy LEDs.
      * @return bool True if valid.
      */
-    public static function validate_led_code( string $led_code ): bool {
+    public static function validate_led_code( string $led_code, bool $allow_legacy = false ): bool {
         // Must be exactly 3 characters.
         if ( strlen( $led_code ) !== 3 ) {
             return false;
         }
 
-        // Check each character against allowed set.
-        $allowed = '1234789CEFHJKLPRT';
+        // Select charset based on legacy mode.
+        $allowed = $allow_legacy ? self::LED_CODE_CHARSET_LEGACY : self::LED_CODE_CHARSET_RESTRICTED;
+
+        // Check each character against allowed set (case-insensitive).
         for ( $i = 0; $i < 3; $i++ ) {
-            if ( strpos( $allowed, $led_code[ $i ] ) === false ) {
+            if ( strpos( $allowed, strtoupper( $led_code[ $i ] ) ) === false ) {
                 return false;
             }
         }
@@ -398,10 +416,11 @@ class Text_Renderer {
     /**
      * Get the allowed LED code character set.
      *
+     * @param bool $legacy Return the legacy (full alphanumeric) charset.
      * @return string Allowed characters for LED codes.
      */
-    public static function get_led_code_charset(): string {
-        return '1234789CEFHJKLPRT';
+    public static function get_led_code_charset( bool $legacy = false ): string {
+        return $legacy ? self::LED_CODE_CHARSET_LEGACY : self::LED_CODE_CHARSET_RESTRICTED;
     }
 
     /**

@@ -741,8 +741,11 @@ class SVG_Document {
         foreach ( $led_codes as $led_position => $led_code ) {
             $config_key = 'led_code_' . $led_position;
             if ( ! empty( $led_code ) && isset( $config[ $config_key ] ) ) {
-                // Validate LED code against allowed character set.
-                if ( ! Text_Renderer::validate_led_code( $led_code ) ) {
+                // Validate LED code format.
+                // Allow legacy alphanumeric characters since LED codes come from
+                // the Order BOM (trusted source) and legacy LEDs can use any
+                // alphanumeric characters in their 3-character code.
+                if ( ! Text_Renderer::validate_led_code( $led_code, true ) ) {
                     return new WP_Error(
                         'invalid_led_code',
                         sprintf(
@@ -750,7 +753,7 @@ class SVG_Document {
                             __( 'Invalid LED code "%1$s" at position %2$d. Only these characters allowed: %3$s', 'qsa-engraving' ),
                             $led_code,
                             $led_position,
-                            Text_Renderer::get_led_code_charset()
+                            Text_Renderer::get_led_code_charset( true )
                         )
                     );
                 }

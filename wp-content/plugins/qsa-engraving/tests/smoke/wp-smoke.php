@@ -1629,7 +1629,23 @@ run_test(
             return new WP_Error( 'charset_fail', 'LED code charset incorrect.' );
         }
 
+        // Test legacy mode validation (full alphanumeric allowed).
+        if ( ! $renderer::validate_led_code( 'H60', true ) ) {
+            return new WP_Error( 'legacy_fail', "'H60' should be valid with legacy flag." );
+        }
+
+        if ( ! $renderer::validate_led_code( '5B0', true ) ) {
+            return new WP_Error( 'legacy_fail', "'5B0' should be valid with legacy flag." );
+        }
+
+        // Legacy charset should be full alphanumeric.
+        $legacy_charset = $renderer::get_led_code_charset( true );
+        if ( $legacy_charset !== 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789' ) {
+            return new WP_Error( 'legacy_charset_fail', 'Legacy LED code charset incorrect.' );
+        }
+
         echo "  LED code validation verified (17-char set, 3-char codes).\n";
+        echo "  Legacy mode validation verified (full alphanumeric).\n";
 
         return true;
     },
