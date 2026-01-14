@@ -48,6 +48,13 @@ class Decode_Log_Repository {
 	public const DEFAULT_IMAGE_RETENTION_DAYS = 30;
 
 	/**
+	 * Maximum limit for paginated queries.
+	 *
+	 * @var int
+	 */
+	public const MAX_QUERY_LIMIT = 500;
+
+	/**
 	 * WordPress database instance.
 	 *
 	 * @var \wpdb
@@ -176,8 +183,13 @@ class Decode_Log_Repository {
 		}
 
 		if ( isset( $data['decoded_serial'] ) && ! empty( $data['decoded_serial'] ) ) {
-			$insert_data['decoded_serial'] = sanitize_text_field( $data['decoded_serial'] );
-			$insert_format[]               = '%s';
+			// Validate and normalize serial to 8-digit format.
+			$serial = $this->normalize_serial( $data['decoded_serial'] );
+			if ( null !== $serial ) {
+				$insert_data['decoded_serial'] = $serial;
+				$insert_format[]               = '%s';
+			}
+			// Invalid serials are silently ignored to prevent polluting analytics.
 		}
 
 		if ( isset( $data['error_code'] ) && ! empty( $data['error_code'] ) ) {
@@ -273,13 +285,22 @@ class Decode_Log_Repository {
 	/**
 	 * Get recent decode logs with pagination.
 	 *
-	 * @param int         $limit   Maximum records to return.
-	 * @param int         $offset  Records to skip.
+	 * @param int         $limit   Maximum records to return (clamped to MAX_QUERY_LIMIT).
+	 * @param int         $offset  Records to skip (must be non-negative).
 	 * @param string|null $status  Optional status filter.
 	 * @param string|null $serial  Optional serial number filter.
 	 * @return array<int, array<string, mixed>> Array of log entries.
 	 */
 	public function get_recent_logs( int $limit = 100, int $offset = 0, ?string $status = null, ?string $serial = null ): array {
+		// Clamp limit and offset to safe values.
+		$limit  = min( absint( $limit ), self::MAX_QUERY_LIMIT );
+		$offset = absint( $offset );
+
+		// Ensure minimum limit of 1.
+		if ( $limit < 1 ) {
+			$limit = 1;
+		}
+
 		$sql    = "SELECT * FROM {$this->table_name} WHERE 1=1";
 		$params = array();
 
@@ -504,6 +525,33 @@ class Decode_Log_Repository {
 		);
 
 		return $result ?: null;
+	}
+
+	/**
+	 * Normalize and validate a serial number to 8-digit format.
+	 *
+	 * @param string $serial The serial number to normalize.
+	 * @return string|null The normalized 8-digit serial or null if invalid.
+	 */
+	private function normalize_serial( string $serial ): ?string {
+		// Remove any whitespace.
+		$serial = trim( $serial );
+
+		// Check if it's numeric (allows leading zeros).
+		if ( ! preg_match( '/^[0-9]+$/', $serial ) ) {
+			return null;
+		}
+
+		// Parse as integer to validate range.
+		$serial_int = (int) $serial;
+
+		// Valid range: 1 to 1,048,575 (per Micro-ID spec).
+		if ( $serial_int < 1 || $serial_int > 1048575 ) {
+			return null;
+		}
+
+		// Return as zero-padded 8-digit string.
+		return str_pad( (string) $serial_int, 8, '0', STR_PAD_LEFT );
 	}
 
 	/**

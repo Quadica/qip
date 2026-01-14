@@ -65,6 +65,13 @@ class Claude_Vision_Client {
 	public const REQUEST_TIMEOUT = 60;
 
 	/**
+	 * Maximum image size in bytes (10 MB).
+	 *
+	 * @var int
+	 */
+	public const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024;
+
+	/**
 	 * Encryption cipher for API key storage.
 	 *
 	 * @var string
@@ -241,16 +248,49 @@ class Claude_Vision_Client {
 			);
 		}
 
-		// Validate MIME type.
-		$allowed_types = array( 'image/jpeg', 'image/png', 'image/webp', 'image/gif' );
+		// Validate MIME type (JPEG, PNG, WebP only per spec - no GIF support).
+		$allowed_types = array( 'image/jpeg', 'image/png', 'image/webp' );
 		if ( ! in_array( $mime_type, $allowed_types, true ) ) {
 			$this->last_error = 'Unsupported image type: ' . $mime_type;
 			return new WP_Error(
 				'invalid_mime_type',
 				sprintf(
 					/* translators: %s: MIME type */
-					__( 'Unsupported image type: %s. Allowed types: JPEG, PNG, WebP, GIF.', 'qsa-engraving' ),
+					__( 'Unsupported image type: %s. Allowed types: JPEG, PNG, WebP.', 'qsa-engraving' ),
 					$mime_type
+				)
+			);
+		}
+
+		// Validate base64 encoding.
+		if ( empty( $image_base64 ) ) {
+			$this->last_error = 'Image data is empty.';
+			return new WP_Error(
+				'invalid_image_data',
+				__( 'Image data is empty.', 'qsa-engraving' )
+			);
+		}
+
+		// Validate base64 format (strict mode).
+		$decoded_image = base64_decode( $image_base64, true );
+		if ( false === $decoded_image ) {
+			$this->last_error = 'Invalid base64 encoding.';
+			return new WP_Error(
+				'invalid_base64',
+				__( 'Image data is not valid base64 encoding.', 'qsa-engraving' )
+			);
+		}
+
+		// Validate image size (check decoded size to prevent oversized payloads).
+		$image_size = strlen( $decoded_image );
+		if ( $image_size > self::MAX_IMAGE_SIZE_BYTES ) {
+			$this->last_error = 'Image exceeds maximum size of 10 MB.';
+			return new WP_Error(
+				'image_too_large',
+				sprintf(
+					/* translators: %s: Maximum file size */
+					__( 'Image exceeds maximum size of %s.', 'qsa-engraving' ),
+					size_format( self::MAX_IMAGE_SIZE_BYTES )
 				)
 			);
 		}
@@ -380,30 +420,83 @@ class Claude_Vision_Client {
 			$decoded = json_decode( $json_match[0], true );
 
 			if ( is_array( $decoded ) && isset( $decoded['success'] ) ) {
+				// If JSON explicitly indicates success=false, respect that.
+				if ( ! $decoded['success'] ) {
+					return array(
+						'success'      => false,
+						'serial'       => null,
+						'binary'       => $decoded['binary'] ?? null,
+						'parity_valid' => $decoded['parity_valid'] ?? null,
+						'confidence'   => $decoded['confidence'] ?? null,
+						'error'        => $decoded['error'] ?? 'Decoding failed.',
+						'raw_response' => $response_text,
+					);
+				}
+
+				// Validate serial from JSON response.
+				$serial = $decoded['serial'] ?? null;
+				if ( null !== $serial && ! $this->is_valid_serial( $serial ) ) {
+					return array(
+						'success'      => false,
+						'serial'       => null,
+						'binary'       => $decoded['binary'] ?? null,
+						'parity_valid' => false,
+						'confidence'   => null,
+						'error'        => 'Decoded serial number is invalid (out of range or wrong format).',
+						'raw_response' => $response_text,
+					);
+				}
+
 				return array(
-					'success'      => (bool) $decoded['success'],
-					'serial'       => $decoded['serial'] ?? null,
+					'success'      => true,
+					'serial'       => $serial,
 					'binary'       => $decoded['binary'] ?? null,
 					'parity_valid' => $decoded['parity_valid'] ?? null,
 					'confidence'   => $decoded['confidence'] ?? null,
-					'error'        => $decoded['error'] ?? null,
+					'error'        => null,
 					'raw_response' => $response_text,
 				);
 			}
 		}
 
-		// Try to find a serial number pattern in the response.
+		// Fallback: Try to find a serial number pattern, but only if response contains
+		// affirmative success indicators (not failure messages).
 		$serial_match = array();
 		if ( preg_match( '/\b([0-9]{8})\b/', $response_text, $serial_match ) ) {
-			return array(
-				'success'      => true,
-				'serial'       => $serial_match[1],
-				'binary'       => null,
-				'parity_valid' => null,
-				'confidence'   => 'low',
-				'error'        => null,
-				'raw_response' => $response_text,
+			$potential_serial = $serial_match[1];
+
+			// Check for negative indicators - if found, don't treat as success.
+			$negative_patterns = array(
+				'/\bfailed?\b/i',
+				'/\bcannot\b/i',
+				'/\bcould\s*n[o\']t\b/i',
+				'/\bunable\b/i',
+				'/\berror\b/i',
+				'/\bnot\s+(visible|readable|detected|found)\b/i',
+				'/"success"\s*:\s*false/i',
+				'/parity\s+(invalid|failed|error)/i',
 			);
+
+			$has_negative_indicator = false;
+			foreach ( $negative_patterns as $pattern ) {
+				if ( preg_match( $pattern, $response_text ) ) {
+					$has_negative_indicator = true;
+					break;
+				}
+			}
+
+			// Only accept fallback if no negative indicators AND serial is valid.
+			if ( ! $has_negative_indicator && $this->is_valid_serial( $potential_serial ) ) {
+				return array(
+					'success'      => true,
+					'serial'       => $potential_serial,
+					'binary'       => null,
+					'parity_valid' => null,
+					'confidence'   => 'low',
+					'error'        => null,
+					'raw_response' => $response_text,
+				);
+			}
 		}
 
 		// Could not parse response.
@@ -417,6 +510,23 @@ class Claude_Vision_Client {
 			'error'        => 'Could not decode Micro-ID from the image. Please ensure the code is clearly visible and try again.',
 			'raw_response' => $response_text,
 		);
+	}
+
+	/**
+	 * Validate a serial number format and range.
+	 *
+	 * @param string $serial The serial number to validate.
+	 * @return bool True if valid.
+	 */
+	private function is_valid_serial( string $serial ): bool {
+		// Must be exactly 8 digits.
+		if ( ! preg_match( '/^[0-9]{8}$/', $serial ) ) {
+			return false;
+		}
+
+		// Convert to integer and check range (1 to 1,048,575 per Micro-ID spec).
+		$serial_int = (int) $serial;
+		return $serial_int >= 1 && $serial_int <= 1048575;
 	}
 
 	/**
