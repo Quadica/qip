@@ -2812,11 +2812,17 @@ run_test(
         }
 
         // Test 4: Invalid codes (wrong length, special chars) should fail regardless of legacy flag.
-        $always_invalid = array( 'K7', 'K7P9', '', 'K-7', 'K 7', 'k7p' );
+        // Note: 'k7p' is NOT in this list because validation does strtoupper(), so 'k7p' becomes 'K7P' which is valid.
+        $always_invalid = array( 'K7', 'K7P9', '', 'K-7', 'K 7' );
         foreach ( $always_invalid as $code ) {
             if ( $resolver::is_valid_shortcode( $code, true ) ) {
                 return new WP_Error( 'validation_fail', "'{$code}' should be invalid even with legacy flag." );
             }
+        }
+
+        // Test 5: Lowercase codes are converted to uppercase and validated (case-insensitive).
+        if ( ! $resolver::is_valid_shortcode( 'k7p', true ) ) {
+            return new WP_Error( 'validation_fail', "'k7p' should be valid (case-insensitive)." );
         }
 
         echo "  Legacy shortcode validation (full alphanumeric for LEDs with 2-char codes) verified.\n";
