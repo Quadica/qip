@@ -611,20 +611,37 @@ class Claude_Vision_Client {
 	 */
 	private function get_decode_prompt(): string {
 		return <<<'PROMPT'
-You are analyzing an image of a Quadica 5x5 Micro-ID dot matrix code engraved on an LED module.
+You are analyzing a smartphone photo of an LED module PCB to decode a Quadica 5x5 Micro-ID dot matrix code.
+
+## How to Find the Micro-ID Code
+
+**IMPORTANT - Distinguishing Micro-ID from other PCB features:**
+- The Micro-ID is VERY SMALL: only 1.0mm x 1.0mm total (about the size of a pinhead)
+- Dots are **copper/reddish/brown colored** (laser ablation through white solder mask exposes copper)
+- The dots are much SMALLER and more closely spaced than solder pads, vias, or mounting holes
+- Usually located near product text/branding on the module
+- Look for a tight 5x5 grid pattern with uniform spacing - NOT the larger scattered circuit elements
+
+**What to IGNORE (these are NOT the Micro-ID):**
+- Large circular solder pads (typically 1-3mm diameter, silver/gray)
+- Mounting holes (large, often 2-4mm)
+- Thermal vias (larger dots, often in arrays but with different spacing)
+- LED dome areas
+- Through-hole component pads
 
 ## Micro-ID Specification
 
 **Physical Properties:**
-- 5x5 grid of dots (1.0mm x 1.0mm total footprint)
+- 5x5 grid of 25 dot positions (1.0mm x 1.0mm total footprint)
 - Dot diameter: 0.10mm, pitch: 0.225mm center-to-center
-- Black dots laser-engraved on white PCB surface
-- Orientation marker: fixed dot outside grid, near top-left corner
+- Dots appear as copper/reddish/brown marks on white PCB surface
+- Orientation marker: single fixed dot outside grid, near top-left corner
 
 **Structure:**
-- 4 corner anchors (always ON): positions (0,0), (0,4), (4,0), (4,4)
-- 20 data bits + 1 parity bit
+- 4 corner anchors (always present as dots): positions (0,0), (0,4), (4,0), (4,4)
+- 20 data bit positions + 1 parity bit position
 - Parity position: row 4, col 3
+- Some positions will have dots (1), others will be blank/unmarked (0)
 
 **Bit Layout (row-major, MSB first):**
 ```
@@ -636,20 +653,21 @@ Row 4: [ANCHOR] [Bit 1]  [Bit 0]  [PARITY] [ANCHOR]
 ```
 
 **Decoding Steps:**
-1. Locate the 5x5 grid using the 4 corner anchors (always present as dots)
-2. Find the orientation marker (dot outside grid near top-left)
-3. Read each position: 1 = dot present (marked), 0 = no dot (unmarked)
-4. Extract the 20-bit binary value from positions
-5. Verify even parity (count of ON bits including parity must be even)
-6. Convert binary to decimal, format as 8-digit zero-padded string
+1. Scan the image for a tiny 5x5 grid of copper-colored dots (ignore larger PCB features)
+2. Locate the 4 corner anchors (always present) to confirm grid boundaries
+3. Find the orientation marker (single dot outside grid near top-left)
+4. Read each of the 25 positions: 1 = dot present, 0 = no dot/blank
+5. Extract the 20-bit binary value from data positions
+6. Verify even parity (total count of 1s including parity bit must be even)
+7. Convert binary to decimal, format as 8-digit zero-padded string
 
 **Valid Range:** 00000001 to 01048575 (serial 0 is not used)
 
 ## Your Task
 
-1. Locate the Micro-ID code in the image
-2. Identify all 25 grid positions
-3. Determine which positions have dots (1) vs no dots (0)
+1. Locate the small Micro-ID code (copper dots, ~1mm square) - ignore large circuit features
+2. Identify all 25 grid positions using corner anchors as reference
+3. Determine which positions have dots (1) vs are blank (0)
 4. Extract and verify the serial number
 
 Respond ONLY with a JSON object in this exact format:
