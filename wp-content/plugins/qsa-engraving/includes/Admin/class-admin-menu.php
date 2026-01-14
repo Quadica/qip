@@ -1951,6 +1951,120 @@ class Admin_Menu {
                     </div>
                 </div>
 
+                <!-- Micro-ID Decoder Settings -->
+                <div class="qsa-settings-section">
+                    <h2><?php esc_html_e( 'Micro-ID Decoder', 'qsa-engraving' ); ?></h2>
+                    <p class="description">
+                        <?php esc_html_e( 'Configure the Micro-ID decoder which allows customers to scan their LED modules at /id.', 'qsa-engraving' ); ?>
+                    </p>
+
+                    <table class="form-table">
+                        <tr>
+                            <th scope="row">
+                                <label for="microid_decoder_enabled"><?php esc_html_e( 'Enable Decoder', 'qsa-engraving' ); ?></label>
+                            </th>
+                            <td>
+                                <label>
+                                    <input type="checkbox" name="microid_decoder_enabled" id="microid_decoder_enabled" value="1" <?php checked( $settings['microid_decoder_enabled'] ?? false ); ?>>
+                                    <?php esc_html_e( 'Enable the /id URL for Micro-ID decoding', 'qsa-engraving' ); ?>
+                                </label>
+                                <p class="description">
+                                    <?php esc_html_e( 'When enabled, customers can upload photos of their LED modules to decode the Micro-ID code and view product information.', 'qsa-engraving' ); ?>
+                                </p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row">
+                                <label for="claude_api_key"><?php esc_html_e( 'Claude API Key', 'qsa-engraving' ); ?></label>
+                            </th>
+                            <td>
+                                <?php
+                                $has_api_key      = ! empty( $settings['claude_api_key'] ?? '' );
+                                $api_key_display  = $has_api_key ? '**********' : '';
+                                ?>
+                                <input type="password" name="claude_api_key" id="claude_api_key"
+                                    value="<?php echo esc_attr( $api_key_display ); ?>"
+                                    class="regular-text"
+                                    autocomplete="new-password"
+                                    placeholder="<?php esc_attr_e( 'Enter your Claude API key', 'qsa-engraving' ); ?>">
+                                <?php if ( $has_api_key ) : ?>
+                                    <span class="qsa-api-key-status configured">
+                                        <span class="dashicons dashicons-yes-alt"></span>
+                                        <?php esc_html_e( 'Configured', 'qsa-engraving' ); ?>
+                                    </span>
+                                <?php endif; ?>
+                                <p class="description">
+                                    <?php
+                                    printf(
+                                        /* translators: %s: Anthropic Console URL */
+                                        esc_html__( 'Get your API key from the %s. The key is encrypted before storage.', 'qsa-engraving' ),
+                                        '<a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer">' . esc_html__( 'Anthropic Console', 'qsa-engraving' ) . '</a>'
+                                    );
+                                    ?>
+                                </p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row">
+                                <label for="claude_model"><?php esc_html_e( 'Claude Model', 'qsa-engraving' ); ?></label>
+                            </th>
+                            <td>
+                                <?php
+                                $current_model = $settings['claude_model'] ?? \Quadica\QSA_Engraving\Services\Claude_Vision_Client::DEFAULT_MODEL;
+                                ?>
+                                <select name="claude_model" id="claude_model">
+                                    <option value="claude-sonnet-4-20250514" <?php selected( $current_model, 'claude-sonnet-4-20250514' ); ?>>Claude Sonnet 4 (Recommended)</option>
+                                    <option value="claude-3-5-sonnet-20241022" <?php selected( $current_model, 'claude-3-5-sonnet-20241022' ); ?>>Claude 3.5 Sonnet</option>
+                                    <option value="claude-3-haiku-20240307" <?php selected( $current_model, 'claude-3-haiku-20240307' ); ?>>Claude 3 Haiku (Faster/Cheaper)</option>
+                                </select>
+                                <p class="description">
+                                    <?php esc_html_e( 'Select the Claude model to use for image analysis. Sonnet offers the best balance of speed and accuracy.', 'qsa-engraving' ); ?>
+                                </p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row">
+                                <label for="microid_log_retention_days"><?php esc_html_e( 'Log Retention', 'qsa-engraving' ); ?></label>
+                            </th>
+                            <td>
+                                <input type="number" name="microid_log_retention_days" id="microid_log_retention_days"
+                                    value="<?php echo esc_attr( $settings['microid_log_retention_days'] ?? 90 ); ?>"
+                                    min="7" max="365" step="1" style="width: 80px;">
+                                <span class="description"><?php esc_html_e( 'days', 'qsa-engraving' ); ?></span>
+                                <p class="description">
+                                    <?php esc_html_e( 'How long to keep decode logs. Logs older than this are automatically deleted. Minimum 7 days.', 'qsa-engraving' ); ?>
+                                </p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row"><?php esc_html_e( 'Connection Test', 'qsa-engraving' ); ?></th>
+                            <td>
+                                <button type="button" id="qsa-test-claude-api" class="button" <?php disabled( ! $has_api_key ); ?>>
+                                    <?php esc_html_e( 'Test Connection', 'qsa-engraving' ); ?>
+                                </button>
+                                <span id="qsa-claude-test-result" class="qsa-test-result"></span>
+                                <p class="description">
+                                    <?php esc_html_e( 'Test the connection to Claude API. Save settings first if you have changed the API key.', 'qsa-engraving' ); ?>
+                                </p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row"><?php esc_html_e( 'Decoder URL', 'qsa-engraving' ); ?></th>
+                            <td>
+                                <code><?php echo esc_url( home_url( '/id' ) ); ?></code>
+                                <?php if ( $settings['microid_decoder_enabled'] ?? false ) : ?>
+                                    <a href="<?php echo esc_url( home_url( '/id' ) ); ?>" target="_blank" rel="noopener noreferrer" class="button button-small" style="margin-left: 10px;">
+                                        <?php esc_html_e( 'Open', 'qsa-engraving' ); ?>
+                                    </a>
+                                <?php endif; ?>
+                                <p class="description">
+                                    <?php esc_html_e( 'This is the public URL where customers can upload photos to decode their Micro-ID codes.', 'qsa-engraving' ); ?>
+                                </p>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+
                 <p class="submit">
                     <button type="submit" id="qsa-save-settings" class="button button-primary">
                         <?php esc_html_e( 'Save Settings', 'qsa-engraving' ); ?>
@@ -1993,6 +2107,34 @@ class Admin_Menu {
             }
             .qsa-save-result.error {
                 color: #d63638;
+            }
+
+            /* Micro-ID Decoder Styles */
+            .qsa-api-key-status {
+                margin-left: 10px;
+                font-weight: 500;
+            }
+            .qsa-api-key-status.configured {
+                color: #00a32a;
+            }
+            .qsa-api-key-status .dashicons {
+                font-size: 16px;
+                width: 16px;
+                height: 16px;
+                vertical-align: text-bottom;
+            }
+            .qsa-test-result {
+                margin-left: 10px;
+                font-style: italic;
+            }
+            .qsa-test-result.success {
+                color: #00a32a;
+            }
+            .qsa-test-result.error {
+                color: #d63638;
+            }
+            .qsa-test-result.loading {
+                color: #666;
             }
 
             /* QSA Config Import Styles */
@@ -2106,20 +2248,70 @@ class Admin_Menu {
                     svg_output_dir: $('#svg_output_dir').val(),
                     svg_rotation: $('#svg_rotation').val(),
                     svg_top_offset: $('#svg_top_offset').val(),
-                    led_code_tracking: $('#led_code_tracking').val()
+                    led_code_tracking: $('#led_code_tracking').val(),
+                    // Micro-ID Decoder settings
+                    microid_decoder_enabled: $('#microid_decoder_enabled').is(':checked') ? 1 : 0,
+                    claude_model: $('#claude_model').val(),
+                    microid_log_retention_days: $('#microid_log_retention_days').val()
                 };
+
+                // Only include API key if it has been changed from the masked placeholder
+                var apiKeyVal = $('#claude_api_key').val();
+                if (apiKeyVal && apiKeyVal !== '**********') {
+                    data.claude_api_key = apiKeyVal;
+                }
 
                 $.post(ajaxUrl, data, function(response) {
                     $btn.prop('disabled', false);
                     if (response.success) {
                         $result.addClass('success').text('<?php echo esc_js( __( 'Settings saved!', 'qsa-engraving' ) ); ?>');
                         setTimeout(function() { $result.text(''); }, 3000);
+
+                        // Update UI elements based on new state
+                        var hasApiKey = response.data && response.data.claude_api_key;
+                        $('#qsa-test-claude-api').prop('disabled', !hasApiKey);
+
+                        // If API key was just saved, update the field to show it's configured
+                        if (apiKeyVal && apiKeyVal !== '**********') {
+                            $('#claude_api_key').val('**********');
+                            if (!$('.qsa-api-key-status.configured').length) {
+                                $('#claude_api_key').after('<span class="qsa-api-key-status configured"><span class="dashicons dashicons-yes-alt"></span> <?php echo esc_js( __( 'Configured', 'qsa-engraving' ) ); ?></span>');
+                            }
+                        }
                     } else {
                         $result.addClass('error').text(response.message || '<?php echo esc_js( __( 'Save failed', 'qsa-engraving' ) ); ?>');
                     }
                 }).fail(function() {
                     $btn.prop('disabled', false);
                     $result.addClass('error').text('<?php echo esc_js( __( 'Request failed', 'qsa-engraving' ) ); ?>');
+                });
+            });
+
+            // =====================================================
+            // Claude API Connection Test
+            // =====================================================
+            $('#qsa-test-claude-api').on('click', function() {
+                var $btn = $(this);
+                var $result = $('#qsa-claude-test-result');
+
+                $btn.prop('disabled', true);
+                $result.removeClass('success error').addClass('loading').text('<?php echo esc_js( __( 'Testing...', 'qsa-engraving' ) ); ?>');
+
+                $.post(ajaxUrl, {
+                    action: 'qsa_test_claude_connection',
+                    nonce: nonce
+                }, function(response) {
+                    $btn.prop('disabled', false);
+                    $result.removeClass('loading');
+
+                    if (response.success) {
+                        $result.addClass('success').text(response.message || '<?php echo esc_js( __( 'Connection successful!', 'qsa-engraving' ) ); ?>');
+                    } else {
+                        $result.addClass('error').text(response.message || '<?php echo esc_js( __( 'Connection failed', 'qsa-engraving' ) ); ?>');
+                    }
+                }).fail(function() {
+                    $btn.prop('disabled', false);
+                    $result.removeClass('loading').addClass('error').text('<?php echo esc_js( __( 'Request failed', 'qsa-engraving' ) ); ?>');
                 });
             });
 

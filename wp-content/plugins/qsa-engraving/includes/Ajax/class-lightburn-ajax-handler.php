@@ -18,6 +18,7 @@ use Quadica\QSA_Engraving\Services\SVG_Generator;
 use Quadica\QSA_Engraving\Services\LED_Code_Resolver;
 use Quadica\QSA_Engraving\Services\Config_Loader;
 use Quadica\QSA_Engraving\Services\Legacy_SKU_Resolver;
+use Quadica\QSA_Engraving\Services\Claude_Vision_Client;
 use Quadica\QSA_Engraving\Database\Batch_Repository;
 use Quadica\QSA_Engraving\Database\Serial_Repository;
 use Quadica\QSA_Engraving\Database\QSA_Identifier_Repository;
@@ -160,6 +161,7 @@ class LightBurn_Ajax_Handler {
 		add_action( 'wp_ajax_qsa_clear_test_data', array( $this, 'handle_clear_test_data' ) );
 		add_action( 'wp_ajax_qsa_get_tweaker_elements', array( $this, 'handle_get_tweaker_elements' ) );
 		add_action( 'wp_ajax_qsa_save_tweaker_elements', array( $this, 'handle_save_tweaker_elements' ) );
+		add_action( 'wp_ajax_qsa_test_claude_connection', array( $this, 'handle_test_claude_connection' ) );
 	}
 
 	/**
@@ -845,6 +847,54 @@ class LightBurn_Ajax_Handler {
 			$settings['led_code_tracking'] = $tracking;
 		}
 
+		// =====================================================
+		// Micro-ID Decoder Settings
+		// =====================================================
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce already verified.
+		if ( isset( $_POST['microid_decoder_enabled'] ) ) {
+			$settings['microid_decoder_enabled'] = filter_var( $_POST['microid_decoder_enabled'], FILTER_VALIDATE_BOOLEAN );
+		}
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce already verified.
+		if ( isset( $_POST['claude_api_key'] ) ) {
+			$api_key = sanitize_text_field( wp_unslash( $_POST['claude_api_key'] ) );
+			// Only update if a new key is provided (not the masked placeholder).
+			if ( ! empty( $api_key ) && '**********' !== $api_key ) {
+				// Validate API key format (Anthropic keys start with sk-ant-).
+				if ( strpos( $api_key, 'sk-ant-' ) !== 0 ) {
+					$this->send_error(
+						__( 'Invalid API key format. Claude API keys should start with "sk-ant-".', 'qsa-engraving' ),
+						'invalid_api_key_format'
+					);
+					return;
+				}
+				// Encrypt the API key before storage per SECURITY.md.
+				$settings['claude_api_key'] = Claude_Vision_Client::encrypt( $api_key );
+			}
+		}
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce already verified.
+		if ( isset( $_POST['claude_model'] ) ) {
+			$model = sanitize_text_field( wp_unslash( $_POST['claude_model'] ) );
+			// Validate allowed models.
+			$allowed_models = array(
+				'claude-sonnet-4-20250514',
+				'claude-3-5-sonnet-20241022',
+				'claude-3-haiku-20240307',
+			);
+			if ( in_array( $model, $allowed_models, true ) ) {
+				$settings['claude_model'] = $model;
+			}
+		}
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce already verified.
+		if ( isset( $_POST['microid_log_retention_days'] ) ) {
+			$days = absint( $_POST['microid_log_retention_days'] );
+			// Clamp to valid range: 7 to 365 days.
+			$settings['microid_log_retention_days'] = max( 7, min( 365, $days ) );
+		}
+
 		// Save settings.
 		update_option( 'qsa_engraving_settings', $settings );
 
@@ -852,6 +902,39 @@ class LightBurn_Ajax_Handler {
 			$settings,
 			__( 'Settings saved successfully.', 'qsa-engraving' )
 		);
+	}
+
+	/**
+	 * Handle Claude API connection test.
+	 *
+	 * Tests the connection to the Claude API using the configured API key.
+	 *
+	 * @return void
+	 */
+	public function handle_test_claude_connection(): void {
+		$verify = $this->verify_request();
+		if ( is_wp_error( $verify ) ) {
+			$this->send_error( $verify->get_error_message(), $verify->get_error_code(), 403 );
+			return;
+		}
+
+		$client = new Claude_Vision_Client();
+
+		if ( ! $client->has_api_key() ) {
+			$this->send_error(
+				__( 'Claude API key is not configured. Please save an API key first.', 'qsa-engraving' ),
+				'api_key_missing'
+			);
+			return;
+		}
+
+		$result = $client->test_connection();
+
+		if ( $result['success'] ) {
+			$this->send_success( $result['details'], $result['message'] );
+		} else {
+			$this->send_error( $result['message'], 'connection_failed' );
+		}
 	}
 
 	/**

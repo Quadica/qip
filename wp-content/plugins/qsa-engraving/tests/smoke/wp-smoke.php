@@ -8133,6 +8133,305 @@ run_test(
 );
 
 // ============================================
+// Micro-ID Decoder Phase 4: Admin Integration Tests
+// ============================================
+
+echo "\n-------------------------------------------\n";
+echo "Phase 4: Micro-ID Decoder Admin Integration\n";
+echo "-------------------------------------------\n";
+
+// TC-MID-P4-001: Settings page includes Micro-ID Decoder section
+run_test(
+    'TC-MID-P4-001: Settings page includes Micro-ID Decoder section',
+    function (): bool {
+        // Verify the Admin_Menu class has render_settings_content method.
+        $class = new ReflectionClass( \Quadica\QSA_Engraving\Admin\Admin_Menu::class );
+
+        if ( ! $class->hasMethod( 'render_settings_content' ) ) {
+            return new WP_Error( 'no_method', 'Admin_Menu should have render_settings_content method.' );
+        }
+
+        // Get the source code of the method.
+        $method = $class->getMethod( 'render_settings_content' );
+        $filename = $method->getFileName();
+        $start_line = $method->getStartLine();
+        $end_line = $method->getEndLine();
+
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+        $source = file_get_contents( $filename );
+        $lines = explode( "\n", $source );
+        $method_source = implode( "\n", array_slice( $lines, $start_line - 1, $end_line - $start_line + 1 ) );
+
+        // Should have Micro-ID Decoder section.
+        if ( ! str_contains( $method_source, 'Micro-ID Decoder' ) ) {
+            return new WP_Error( 'no_section', 'Settings page should have Micro-ID Decoder section.' );
+        }
+
+        return true;
+    },
+    'Admin_Menu::render_settings_content() should include Micro-ID Decoder section.'
+);
+
+// TC-MID-P4-002: Settings include Claude API key field
+run_test(
+    'TC-MID-P4-002: Settings include Claude API key field',
+    function (): bool {
+        $class = new ReflectionClass( \Quadica\QSA_Engraving\Admin\Admin_Menu::class );
+        $method = $class->getMethod( 'render_settings_content' );
+        $filename = $method->getFileName();
+        $start_line = $method->getStartLine();
+        $end_line = $method->getEndLine();
+
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+        $source = file_get_contents( $filename );
+        $lines = explode( "\n", $source );
+        $method_source = implode( "\n", array_slice( $lines, $start_line - 1, $end_line - $start_line + 1 ) );
+
+        // Should have API key input field.
+        if ( ! str_contains( $method_source, 'claude_api_key' ) ) {
+            return new WP_Error( 'no_api_key_field', 'Settings should include claude_api_key field.' );
+        }
+
+        // Should be a password type for security.
+        if ( ! str_contains( $method_source, 'type="password"' ) ) {
+            return new WP_Error( 'not_password_type', 'API key field should be type="password".' );
+        }
+
+        return true;
+    },
+    'Settings page should include password-type Claude API key field.'
+);
+
+// TC-MID-P4-003: Settings include decoder enable toggle
+run_test(
+    'TC-MID-P4-003: Settings include decoder enable toggle',
+    function (): bool {
+        $class = new ReflectionClass( \Quadica\QSA_Engraving\Admin\Admin_Menu::class );
+        $method = $class->getMethod( 'render_settings_content' );
+        $filename = $method->getFileName();
+        $start_line = $method->getStartLine();
+        $end_line = $method->getEndLine();
+
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+        $source = file_get_contents( $filename );
+        $lines = explode( "\n", $source );
+        $method_source = implode( "\n", array_slice( $lines, $start_line - 1, $end_line - $start_line + 1 ) );
+
+        // Should have decoder enable toggle.
+        if ( ! str_contains( $method_source, 'microid_decoder_enabled' ) ) {
+            return new WP_Error( 'no_enable_toggle', 'Settings should include microid_decoder_enabled checkbox.' );
+        }
+
+        return true;
+    },
+    'Settings page should include decoder enable/disable toggle.'
+);
+
+// TC-MID-P4-004: Settings include model selection
+run_test(
+    'TC-MID-P4-004: Settings include model selection',
+    function (): bool {
+        $class = new ReflectionClass( \Quadica\QSA_Engraving\Admin\Admin_Menu::class );
+        $method = $class->getMethod( 'render_settings_content' );
+        $filename = $method->getFileName();
+        $start_line = $method->getStartLine();
+        $end_line = $method->getEndLine();
+
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+        $source = file_get_contents( $filename );
+        $lines = explode( "\n", $source );
+        $method_source = implode( "\n", array_slice( $lines, $start_line - 1, $end_line - $start_line + 1 ) );
+
+        // Should have model selection.
+        if ( ! str_contains( $method_source, 'claude_model' ) ) {
+            return new WP_Error( 'no_model_select', 'Settings should include claude_model select.' );
+        }
+
+        // Should include at least one model option.
+        if ( ! str_contains( $method_source, 'claude-sonnet-4' ) ) {
+            return new WP_Error( 'no_model_options', 'Settings should include Claude model options.' );
+        }
+
+        return true;
+    },
+    'Settings page should include Claude model selection dropdown.'
+);
+
+// TC-MID-P4-005: Settings include log retention setting
+run_test(
+    'TC-MID-P4-005: Settings include log retention setting',
+    function (): bool {
+        $class = new ReflectionClass( \Quadica\QSA_Engraving\Admin\Admin_Menu::class );
+        $method = $class->getMethod( 'render_settings_content' );
+        $filename = $method->getFileName();
+        $start_line = $method->getStartLine();
+        $end_line = $method->getEndLine();
+
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+        $source = file_get_contents( $filename );
+        $lines = explode( "\n", $source );
+        $method_source = implode( "\n", array_slice( $lines, $start_line - 1, $end_line - $start_line + 1 ) );
+
+        // Should have log retention setting.
+        if ( ! str_contains( $method_source, 'microid_log_retention_days' ) ) {
+            return new WP_Error( 'no_retention_setting', 'Settings should include microid_log_retention_days field.' );
+        }
+
+        return true;
+    },
+    'Settings page should include log retention days setting.'
+);
+
+// TC-MID-P4-006: Settings include test connection button
+run_test(
+    'TC-MID-P4-006: Settings include test connection button',
+    function (): bool {
+        $class = new ReflectionClass( \Quadica\QSA_Engraving\Admin\Admin_Menu::class );
+        $method = $class->getMethod( 'render_settings_content' );
+        $filename = $method->getFileName();
+        $start_line = $method->getStartLine();
+        $end_line = $method->getEndLine();
+
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+        $source = file_get_contents( $filename );
+        $lines = explode( "\n", $source );
+        $method_source = implode( "\n", array_slice( $lines, $start_line - 1, $end_line - $start_line + 1 ) );
+
+        // Should have test connection button.
+        if ( ! str_contains( $method_source, 'qsa-test-claude-api' ) ) {
+            return new WP_Error( 'no_test_button', 'Settings should include test connection button.' );
+        }
+
+        return true;
+    },
+    'Settings page should include Claude API test connection button.'
+);
+
+// TC-MID-P4-007: AJAX handler has test claude connection action
+run_test(
+    'TC-MID-P4-007: AJAX handler has test claude connection action',
+    function (): bool {
+        $class = new ReflectionClass( \Quadica\QSA_Engraving\Ajax\LightBurn_Ajax_Handler::class );
+
+        // Verify handle_test_claude_connection method exists.
+        if ( ! $class->hasMethod( 'handle_test_claude_connection' ) ) {
+            return new WP_Error( 'no_test_method', 'LightBurn_Ajax_Handler should have handle_test_claude_connection method.' );
+        }
+
+        // Verify register method includes the action.
+        $method = $class->getMethod( 'register' );
+        $filename = $method->getFileName();
+        $start_line = $method->getStartLine();
+        $end_line = $method->getEndLine();
+
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+        $source = file_get_contents( $filename );
+        $lines = explode( "\n", $source );
+        $method_source = implode( "\n", array_slice( $lines, $start_line - 1, $end_line - $start_line + 1 ) );
+
+        if ( ! str_contains( $method_source, 'qsa_test_claude_connection' ) ) {
+            return new WP_Error( 'action_not_registered', 'AJAX action qsa_test_claude_connection should be registered.' );
+        }
+
+        return true;
+    },
+    'LightBurn_Ajax_Handler should register qsa_test_claude_connection action.'
+);
+
+// TC-MID-P4-008: AJAX handler saves Micro-ID decoder settings
+run_test(
+    'TC-MID-P4-008: AJAX handler saves Micro-ID decoder settings',
+    function (): bool {
+        $class = new ReflectionClass( \Quadica\QSA_Engraving\Ajax\LightBurn_Ajax_Handler::class );
+
+        $method = $class->getMethod( 'handle_save_settings' );
+        $filename = $method->getFileName();
+        $start_line = $method->getStartLine();
+        $end_line = $method->getEndLine();
+
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+        $source = file_get_contents( $filename );
+        $lines = explode( "\n", $source );
+        $method_source = implode( "\n", array_slice( $lines, $start_line - 1, $end_line - $start_line + 1 ) );
+
+        // Should handle microid_decoder_enabled.
+        if ( ! str_contains( $method_source, 'microid_decoder_enabled' ) ) {
+            return new WP_Error( 'no_enabled_handling', 'handle_save_settings should process microid_decoder_enabled.' );
+        }
+
+        // Should handle claude_api_key.
+        if ( ! str_contains( $method_source, 'claude_api_key' ) ) {
+            return new WP_Error( 'no_api_key_handling', 'handle_save_settings should process claude_api_key.' );
+        }
+
+        // Should handle claude_model.
+        if ( ! str_contains( $method_source, 'claude_model' ) ) {
+            return new WP_Error( 'no_model_handling', 'handle_save_settings should process claude_model.' );
+        }
+
+        // Should handle microid_log_retention_days.
+        if ( ! str_contains( $method_source, 'microid_log_retention_days' ) ) {
+            return new WP_Error( 'no_retention_handling', 'handle_save_settings should process microid_log_retention_days.' );
+        }
+
+        return true;
+    },
+    'handle_save_settings should process all Micro-ID decoder settings.'
+);
+
+// TC-MID-P4-009: API key is encrypted before storage
+run_test(
+    'TC-MID-P4-009: API key is encrypted before storage',
+    function (): bool {
+        $class = new ReflectionClass( \Quadica\QSA_Engraving\Ajax\LightBurn_Ajax_Handler::class );
+
+        $method = $class->getMethod( 'handle_save_settings' );
+        $filename = $method->getFileName();
+        $start_line = $method->getStartLine();
+        $end_line = $method->getEndLine();
+
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+        $source = file_get_contents( $filename );
+        $lines = explode( "\n", $source );
+        $method_source = implode( "\n", array_slice( $lines, $start_line - 1, $end_line - $start_line + 1 ) );
+
+        // Should use Claude_Vision_Client::encrypt() for API key.
+        if ( ! str_contains( $method_source, 'Claude_Vision_Client::encrypt' ) ) {
+            return new WP_Error( 'no_encryption', 'API key should be encrypted using Claude_Vision_Client::encrypt().' );
+        }
+
+        return true;
+    },
+    'API key should be encrypted before storage per SECURITY.md.'
+);
+
+// TC-MID-P4-010: API key format validation
+run_test(
+    'TC-MID-P4-010: API key format validation',
+    function (): bool {
+        $class = new ReflectionClass( \Quadica\QSA_Engraving\Ajax\LightBurn_Ajax_Handler::class );
+
+        $method = $class->getMethod( 'handle_save_settings' );
+        $filename = $method->getFileName();
+        $start_line = $method->getStartLine();
+        $end_line = $method->getEndLine();
+
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+        $source = file_get_contents( $filename );
+        $lines = explode( "\n", $source );
+        $method_source = implode( "\n", array_slice( $lines, $start_line - 1, $end_line - $start_line + 1 ) );
+
+        // Should validate sk-ant- prefix.
+        if ( ! str_contains( $method_source, 'sk-ant-' ) ) {
+            return new WP_Error( 'no_format_validation', 'API key format should be validated (sk-ant- prefix).' );
+        }
+
+        return true;
+    },
+    'API key format should be validated before saving.'
+);
+
+// ============================================
 // Summary
 // ============================================
 // Re-declare global to ensure PHP 8.1 recognizes the variables in eval-file context.
