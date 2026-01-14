@@ -7943,6 +7943,195 @@ run_test(
     'validate_upload() should use min(width, height) to ensure both dimensions meet minimum.'
 );
 
+// TC-MID-DEC-022: MicroID_Landing_Handler class exists
+run_test(
+    'TC-MID-DEC-022: MicroID_Landing_Handler class exists',
+    function (): bool {
+        if ( ! class_exists( '\Quadica\QSA_Engraving\Frontend\MicroID_Landing_Handler' ) ) {
+            return new WP_Error( 'class_not_found', 'MicroID_Landing_Handler class not found.' );
+        }
+
+        // Check QUERY_VAR constant exists.
+        $reflection = new ReflectionClass( '\Quadica\QSA_Engraving\Frontend\MicroID_Landing_Handler' );
+        if ( ! $reflection->hasConstant( 'QUERY_VAR' ) ) {
+            return new WP_Error( 'missing_constant', 'QUERY_VAR constant not found.' );
+        }
+
+        $query_var = $reflection->getConstant( 'QUERY_VAR' );
+        if ( 'microid_lookup' !== $query_var ) {
+            return new WP_Error( 'wrong_value', "QUERY_VAR should be 'microid_lookup', got: {$query_var}" );
+        }
+
+        return true;
+    },
+    'MicroID_Landing_Handler class should exist with QUERY_VAR constant.'
+);
+
+// TC-MID-DEC-023: MicroID_Landing_Handler has required methods
+run_test(
+    'TC-MID-DEC-023: MicroID_Landing_Handler has required methods',
+    function (): bool {
+        $required_methods = array(
+            'register',
+            'add_rewrite_rules',
+            'add_query_vars',
+            'handle_microid_lookup',
+        );
+
+        $reflection = new ReflectionClass( '\Quadica\QSA_Engraving\Frontend\MicroID_Landing_Handler' );
+
+        foreach ( $required_methods as $method ) {
+            if ( ! $reflection->hasMethod( $method ) ) {
+                return new WP_Error( 'missing_method', "Method '{$method}' not found." );
+            }
+        }
+
+        return true;
+    },
+    'MicroID_Landing_Handler should have all required public methods.'
+);
+
+// TC-MID-DEC-024: MicroID_Landing_Handler instantiation
+run_test(
+    'TC-MID-DEC-024: MicroID_Landing_Handler instantiation',
+    function (): bool {
+        $handler = new \Quadica\QSA_Engraving\Frontend\MicroID_Landing_Handler();
+
+        if ( ! $handler instanceof \Quadica\QSA_Engraving\Frontend\MicroID_Landing_Handler ) {
+            return new WP_Error( 'wrong_type', 'Handler instantiation failed.' );
+        }
+
+        return true;
+    },
+    'MicroID_Landing_Handler should instantiate without dependencies.'
+);
+
+// TC-MID-DEC-025: MicroID_Landing_Handler rewrite rule pattern
+run_test(
+    'TC-MID-DEC-025: MicroID_Landing_Handler rewrite rule pattern',
+    function (): bool {
+        // Use reflection to verify add_rewrite_rules adds the correct pattern.
+        $reflection = new ReflectionClass( \Quadica\QSA_Engraving\Frontend\MicroID_Landing_Handler::class );
+        $method = $reflection->getMethod( 'add_rewrite_rules' );
+
+        $filename = $method->getFileName();
+        $start_line = $method->getStartLine();
+        $end_line = $method->getEndLine();
+
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+        $source = file_get_contents( $filename );
+        $lines = explode( "\n", $source );
+        $method_source = implode( "\n", array_slice( $lines, $start_line - 1, $end_line - $start_line + 1 ) );
+
+        // Should add rewrite rule for ^id/?$.
+        if ( ! str_contains( $method_source, "'^id/?$'" ) && ! str_contains( $method_source, '^id/?' ) ) {
+            return new WP_Error( 'wrong_pattern', 'Rewrite rule should match ^id/?$ pattern.' );
+        }
+
+        // Should use add_rewrite_rule.
+        if ( ! str_contains( $method_source, 'add_rewrite_rule' ) ) {
+            return new WP_Error( 'missing_call', 'Should call add_rewrite_rule().' );
+        }
+
+        return true;
+    },
+    'add_rewrite_rules() should register ^id/?$ pattern.'
+);
+
+// TC-MID-DEC-026: MicroID_Landing_Handler renders complete HTML page
+run_test(
+    'TC-MID-DEC-026: MicroID_Landing_Handler renders complete HTML page',
+    function (): bool {
+        // Use reflection to verify render_landing_page outputs necessary elements.
+        $reflection = new ReflectionClass( \Quadica\QSA_Engraving\Frontend\MicroID_Landing_Handler::class );
+        $method = $reflection->getMethod( 'render_landing_page' );
+
+        $filename = $method->getFileName();
+        $start_line = $method->getStartLine();
+        $end_line = $method->getEndLine();
+
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+        $source = file_get_contents( $filename );
+        $lines = explode( "\n", $source );
+        $method_source = implode( "\n", array_slice( $lines, $start_line - 1, $end_line - $start_line + 1 ) );
+
+        // Should output DOCTYPE.
+        if ( ! str_contains( $method_source, '<!DOCTYPE html>' ) ) {
+            return new WP_Error( 'missing_doctype', 'Should output <!DOCTYPE html>.' );
+        }
+
+        // Should have drop-zone element.
+        if ( ! str_contains( $method_source, 'drop-zone' ) ) {
+            return new WP_Error( 'missing_dropzone', 'Should have drop-zone element for file uploads.' );
+        }
+
+        // Should have file input with capture attribute for mobile.
+        if ( ! str_contains( $method_source, 'capture="environment"' ) ) {
+            return new WP_Error( 'missing_capture', 'Should have capture="environment" for mobile camera.' );
+        }
+
+        // Should have result section.
+        if ( ! str_contains( $method_source, 'result-section' ) ) {
+            return new WP_Error( 'missing_result', 'Should have result-section element.' );
+        }
+
+        // Should have error section.
+        if ( ! str_contains( $method_source, 'error-section' ) ) {
+            return new WP_Error( 'missing_error', 'Should have error-section element.' );
+        }
+
+        // Should use nonce from AJAX handler.
+        if ( ! str_contains( $method_source, 'MicroID_Decoder_Ajax_Handler::create_nonce()' ) ) {
+            return new WP_Error( 'missing_nonce', 'Should use create_nonce() from AJAX handler.' );
+        }
+
+        return true;
+    },
+    'render_landing_page() should output complete HTML with all required UI elements.'
+);
+
+// TC-MID-DEC-027: MicroID_Landing_Handler JavaScript includes AJAX calls
+run_test(
+    'TC-MID-DEC-027: MicroID_Landing_Handler JavaScript includes AJAX calls',
+    function (): bool {
+        // Use reflection to verify render_landing_page contains JavaScript with AJAX calls.
+        $reflection = new ReflectionClass( \Quadica\QSA_Engraving\Frontend\MicroID_Landing_Handler::class );
+        $method = $reflection->getMethod( 'render_landing_page' );
+
+        $filename = $method->getFileName();
+        $start_line = $method->getStartLine();
+        $end_line = $method->getEndLine();
+
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+        $source = file_get_contents( $filename );
+        $lines = explode( "\n", $source );
+        $method_source = implode( "\n", array_slice( $lines, $start_line - 1, $end_line - $start_line + 1 ) );
+
+        // Should have JavaScript for decode action.
+        if ( ! str_contains( $method_source, 'qsa_microid_decode' ) ) {
+            return new WP_Error( 'missing_decode_action', 'JavaScript should call qsa_microid_decode action.' );
+        }
+
+        // Should have JavaScript for full details action.
+        if ( ! str_contains( $method_source, 'qsa_microid_full_details' ) ) {
+            return new WP_Error( 'missing_details_action', 'JavaScript should call qsa_microid_full_details action.' );
+        }
+
+        // Should use fetch API.
+        if ( ! str_contains( $method_source, 'fetch(' ) ) {
+            return new WP_Error( 'missing_fetch', 'JavaScript should use fetch() for AJAX calls.' );
+        }
+
+        // Should handle FormData.
+        if ( ! str_contains( $method_source, 'FormData' ) ) {
+            return new WP_Error( 'missing_formdata', 'JavaScript should use FormData for file uploads.' );
+        }
+
+        return true;
+    },
+    'JavaScript should include AJAX calls to decode and full_details endpoints.'
+);
+
 // ============================================
 // Summary
 // ============================================
