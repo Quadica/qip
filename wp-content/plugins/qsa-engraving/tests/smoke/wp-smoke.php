@@ -7744,6 +7744,205 @@ run_test(
     'MicroID_Decoder_Ajax_Handler should instantiate with dependencies.'
 );
 
+// TC-MID-DEC-016: MicroID_Decoder_Ajax_Handler get_request_param POST-only
+run_test(
+    'TC-MID-DEC-016: MicroID_Decoder_Ajax_Handler get_request_param POST-only',
+    function (): bool {
+        // Use reflection to verify get_request_param only reads from $_POST (security fix).
+        $reflection = new ReflectionClass( \Quadica\QSA_Engraving\Ajax\MicroID_Decoder_Ajax_Handler::class );
+        $method = $reflection->getMethod( 'get_request_param' );
+
+        // Check the method source for security.
+        $filename = $method->getFileName();
+        $start_line = $method->getStartLine();
+        $end_line = $method->getEndLine();
+
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+        $source = file_get_contents( $filename );
+        $lines = explode( "\n", $source );
+        $method_source = implode( "\n", array_slice( $lines, $start_line - 1, $end_line - $start_line + 1 ) );
+
+        // Should NOT contain $_GET (security requirement).
+        if ( str_contains( $method_source, '$_GET' ) ) {
+            return new WP_Error( 'security_issue', 'get_request_param should not read from $_GET (exposes nonces in URLs).' );
+        }
+
+        // Should contain $_POST.
+        if ( ! str_contains( $method_source, '$_POST' ) ) {
+            return new WP_Error( 'missing_post', 'get_request_param should read from $_POST.' );
+        }
+
+        return true;
+    },
+    'get_request_param() should only read from POST to prevent nonce exposure in URLs.'
+);
+
+// TC-MID-DEC-017: MicroID_Decoder_Ajax_Handler secure IP detection
+run_test(
+    'TC-MID-DEC-017: MicroID_Decoder_Ajax_Handler secure IP detection',
+    function (): bool {
+        // Use reflection to verify get_client_ip only trusts secure headers.
+        $reflection = new ReflectionClass( \Quadica\QSA_Engraving\Ajax\MicroID_Decoder_Ajax_Handler::class );
+        $method = $reflection->getMethod( 'get_client_ip' );
+
+        $filename = $method->getFileName();
+        $start_line = $method->getStartLine();
+        $end_line = $method->getEndLine();
+
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+        $source = file_get_contents( $filename );
+        $lines = explode( "\n", $source );
+        $method_source = implode( "\n", array_slice( $lines, $start_line - 1, $end_line - $start_line + 1 ) );
+
+        // Should NOT contain X-Forwarded-For (easily spoofed).
+        if ( str_contains( $method_source, 'X_FORWARDED_FOR' ) || str_contains( $method_source, 'X-Forwarded-For' ) ) {
+            return new WP_Error( 'security_issue', 'get_client_ip should not trust X-Forwarded-For header (spoofable).' );
+        }
+
+        // Should NOT contain X-Real-IP (easily spoofed).
+        if ( str_contains( $method_source, 'X_REAL_IP' ) || str_contains( $method_source, 'X-Real-IP' ) ) {
+            return new WP_Error( 'security_issue', 'get_client_ip should not trust X-Real-IP header (spoofable).' );
+        }
+
+        // Should contain CF_CONNECTING_IP (trusted from Cloudflare).
+        if ( ! str_contains( $method_source, 'CF_CONNECTING_IP' ) ) {
+            return new WP_Error( 'missing_cloudflare', 'get_client_ip should check CF-Connecting-IP for Cloudflare.' );
+        }
+
+        // Should contain REMOTE_ADDR (direct connection, cannot be spoofed).
+        if ( ! str_contains( $method_source, 'REMOTE_ADDR' ) ) {
+            return new WP_Error( 'missing_remote_addr', 'get_client_ip should check REMOTE_ADDR.' );
+        }
+
+        return true;
+    },
+    'get_client_ip() should only trust CF-Connecting-IP and REMOTE_ADDR (not spoofable headers).'
+);
+
+// TC-MID-DEC-018: MicroID_Decoder_Ajax_Handler cached lookup guards table existence
+run_test(
+    'TC-MID-DEC-018: MicroID_Decoder_Ajax_Handler cached lookup guards table existence',
+    function (): bool {
+        // Use reflection to verify handle_decode checks table_exists before cached lookup.
+        $reflection = new ReflectionClass( \Quadica\QSA_Engraving\Ajax\MicroID_Decoder_Ajax_Handler::class );
+        $method = $reflection->getMethod( 'handle_decode' );
+
+        $filename = $method->getFileName();
+        $start_line = $method->getStartLine();
+        $end_line = $method->getEndLine();
+
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+        $source = file_get_contents( $filename );
+        $lines = explode( "\n", $source );
+        $method_source = implode( "\n", array_slice( $lines, $start_line - 1, $end_line - $start_line + 1 ) );
+
+        // Should have table_exists() check before get_by_image_hash.
+        // Looking for pattern: table_exists() check wrapping get_by_image_hash.
+        if ( ! str_contains( $method_source, 'table_exists()' ) ) {
+            return new WP_Error( 'missing_guard', 'handle_decode should check table_exists() before cached lookup.' );
+        }
+
+        return true;
+    },
+    'handle_decode() should guard cached lookup with table_exists() to prevent DB errors.'
+);
+
+// TC-MID-DEC-019: MicroID_Decoder_Ajax_Handler validate_upload uses is_uploaded_file
+run_test(
+    'TC-MID-DEC-019: MicroID_Decoder_Ajax_Handler validate_upload uses is_uploaded_file',
+    function (): bool {
+        // Use reflection to verify validate_upload uses is_uploaded_file security check.
+        $reflection = new ReflectionClass( \Quadica\QSA_Engraving\Ajax\MicroID_Decoder_Ajax_Handler::class );
+        $method = $reflection->getMethod( 'validate_upload' );
+
+        $filename = $method->getFileName();
+        $start_line = $method->getStartLine();
+        $end_line = $method->getEndLine();
+
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+        $source = file_get_contents( $filename );
+        $lines = explode( "\n", $source );
+        $method_source = implode( "\n", array_slice( $lines, $start_line - 1, $end_line - $start_line + 1 ) );
+
+        // Should contain is_uploaded_file check.
+        if ( ! str_contains( $method_source, 'is_uploaded_file' ) ) {
+            return new WP_Error( 'missing_check', 'validate_upload should use is_uploaded_file() to verify upload authenticity.' );
+        }
+
+        // Should contain file_exists check.
+        if ( ! str_contains( $method_source, 'file_exists' ) ) {
+            return new WP_Error( 'missing_check', 'validate_upload should use file_exists() to verify file presence.' );
+        }
+
+        return true;
+    },
+    'validate_upload() should use is_uploaded_file() and file_exists() security checks.'
+);
+
+// TC-MID-DEC-020: MicroID_Decoder_Ajax_Handler validate_upload rejects on getimagesize failure
+run_test(
+    'TC-MID-DEC-020: MicroID_Decoder_Ajax_Handler validate_upload rejects on getimagesize failure',
+    function (): bool {
+        // Use reflection to verify validate_upload rejects when getimagesize fails.
+        $reflection = new ReflectionClass( \Quadica\QSA_Engraving\Ajax\MicroID_Decoder_Ajax_Handler::class );
+        $method = $reflection->getMethod( 'validate_upload' );
+
+        $filename = $method->getFileName();
+        $start_line = $method->getStartLine();
+        $end_line = $method->getEndLine();
+
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+        $source = file_get_contents( $filename );
+        $lines = explode( "\n", $source );
+        $method_source = implode( "\n", array_slice( $lines, $start_line - 1, $end_line - $start_line + 1 ) );
+
+        // Should call getimagesize.
+        if ( ! str_contains( $method_source, 'getimagesize' ) ) {
+            return new WP_Error( 'missing_check', 'validate_upload should call getimagesize().' );
+        }
+
+        // Should return WP_Error when getimagesize fails (check for 'invalid_image' error).
+        if ( ! str_contains( $method_source, 'invalid_image' ) ) {
+            return new WP_Error( 'missing_error', 'validate_upload should return WP_Error(invalid_image) when getimagesize fails.' );
+        }
+
+        return true;
+    },
+    'validate_upload() should return WP_Error when getimagesize() fails (not a valid image).'
+);
+
+// TC-MID-DEC-021: MicroID_Decoder_Ajax_Handler validate_upload uses min() for dimension check
+run_test(
+    'TC-MID-DEC-021: MicroID_Decoder_Ajax_Handler validate_upload uses min() for dimension check',
+    function (): bool {
+        // Use reflection to verify validate_upload uses min() for dimension validation.
+        $reflection = new ReflectionClass( \Quadica\QSA_Engraving\Ajax\MicroID_Decoder_Ajax_Handler::class );
+        $method = $reflection->getMethod( 'validate_upload' );
+
+        $filename = $method->getFileName();
+        $start_line = $method->getStartLine();
+        $end_line = $method->getEndLine();
+
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+        $source = file_get_contents( $filename );
+        $lines = explode( "\n", $source );
+        $method_source = implode( "\n", array_slice( $lines, $start_line - 1, $end_line - $start_line + 1 ) );
+
+        // Should use min() to check both dimensions.
+        if ( ! str_contains( $method_source, 'min(' ) ) {
+            return new WP_Error( 'missing_min', 'validate_upload should use min() to check both width and height.' );
+        }
+
+        // Should have MIN_IMAGE_DIMENSION constant check.
+        if ( ! str_contains( $method_source, 'MIN_IMAGE_DIMENSION' ) ) {
+            return new WP_Error( 'missing_constant', 'validate_upload should check against MIN_IMAGE_DIMENSION.' );
+        }
+
+        return true;
+    },
+    'validate_upload() should use min(width, height) to ensure both dimensions meet minimum.'
+);
+
 // ============================================
 // Summary
 // ============================================

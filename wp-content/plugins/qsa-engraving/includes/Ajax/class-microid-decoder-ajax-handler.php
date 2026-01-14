@@ -177,20 +177,22 @@ class MicroID_Decoder_Ajax_Handler {
 		$file_size  = $validation['file_size'];
 		$dimensions = $validation['dimensions'];
 
-		// Check for duplicate/cached result.
-		$cached = $this->decode_log_repository->get_by_image_hash( $image_hash );
-		if ( $cached && 'success' === $cached['decode_status'] && ! empty( $cached['decoded_serial'] ) ) {
-			// Return cached result.
-			$serial_info = $this->get_basic_serial_info( $cached['decoded_serial'] );
-			$this->send_success(
-				array(
-					'serial'     => $cached['decoded_serial'],
-					'cached'     => true,
-					'product'    => $serial_info,
-				),
-				__( 'Serial number decoded (cached result).', 'qsa-engraving' )
-			);
-			return;
+		// Check for duplicate/cached result (only if table exists).
+		if ( $this->decode_log_repository->table_exists() ) {
+			$cached = $this->decode_log_repository->get_by_image_hash( $image_hash );
+			if ( $cached && 'success' === $cached['decode_status'] && ! empty( $cached['decoded_serial'] ) ) {
+				// Return cached result.
+				$serial_info = $this->get_basic_serial_info( $cached['decoded_serial'] );
+				$this->send_success(
+					array(
+						'serial'     => $cached['decoded_serial'],
+						'cached'     => true,
+						'product'    => $serial_info,
+					),
+					__( 'Serial number decoded (cached result).', 'qsa-engraving' )
+				);
+				return;
+			}
 		}
 
 		// Encode image as base64 for API.
@@ -362,31 +364,40 @@ class MicroID_Decoder_Ajax_Handler {
 			);
 		}
 
+		// Security check: Verify this is a genuine PHP upload (prevents path tampering).
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		if ( ! is_uploaded_file( $file['tmp_name'] ) || ! file_exists( $file['tmp_name'] ) ) {
+			return new WP_Error( 'invalid_upload', __( 'Invalid file upload.', 'qsa-engraving' ) );
+		}
+
+		// Validate image dimensions using getimagesize() - this also confirms the file is a valid image.
+		$image_info = getimagesize( $file['tmp_name'] );
+		if ( false === $image_info || ! is_array( $image_info ) ) {
+			return new WP_Error( 'invalid_image', __( 'File is not a valid image.', 'qsa-engraving' ) );
+		}
+
+		$dimensions = array(
+			'width'  => $image_info[0],
+			'height' => $image_info[1],
+		);
+
+		// Check minimum dimension - BOTH width and height must meet the minimum.
+		if ( min( $dimensions['width'], $dimensions['height'] ) < self::MIN_IMAGE_DIMENSION ) {
+			return new WP_Error(
+				'image_too_small',
+				sprintf(
+					/* translators: %d: Minimum dimension in pixels */
+					__( 'Image is too small. Minimum dimension is %dpx.', 'qsa-engraving' ),
+					self::MIN_IMAGE_DIMENSION
+				)
+			);
+		}
+
 		// Read image data.
 		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
 		$image_data = file_get_contents( $file['tmp_name'] );
 		if ( false === $image_data ) {
 			return new WP_Error( 'read_error', __( 'Could not read uploaded file.', 'qsa-engraving' ) );
-		}
-
-		// Get image dimensions.
-		$dimensions = array( 'width' => null, 'height' => null );
-		$image_info = getimagesize( $file['tmp_name'] );
-		if ( is_array( $image_info ) ) {
-			$dimensions['width']  = $image_info[0];
-			$dimensions['height'] = $image_info[1];
-
-			// Check minimum dimension.
-			if ( $dimensions['width'] < self::MIN_IMAGE_DIMENSION && $dimensions['height'] < self::MIN_IMAGE_DIMENSION ) {
-				return new WP_Error(
-					'image_too_small',
-					sprintf(
-						/* translators: %d: Minimum dimension in pixels */
-						__( 'Image is too small. Minimum dimension is %dpx.', 'qsa-engraving' ),
-						self::MIN_IMAGE_DIMENSION
-					)
-				);
-			}
 		}
 
 		// Calculate image hash for caching/deduplication.
@@ -436,28 +447,31 @@ class MicroID_Decoder_Ajax_Handler {
 	/**
 	 * Get client IP address.
 	 *
+	 * Uses a secure approach that only trusts headers that cannot be easily spoofed:
+	 * 1. CF-Connecting-IP (Cloudflare sets this; trusted since site uses Cloudflare)
+	 * 2. REMOTE_ADDR (direct connection IP, cannot be spoofed)
+	 *
+	 * X-Forwarded-For and X-Real-IP are NOT trusted as they can be spoofed by attackers
+	 * to bypass rate limiting. These headers are only useful when behind a known trusted
+	 * proxy with proper configuration.
+	 *
 	 * @return string|null
 	 */
 	private function get_client_ip(): ?string {
-		// Check various headers (respecting proxy forwarding).
-		$headers = array(
-			'HTTP_CF_CONNECTING_IP', // Cloudflare.
-			'HTTP_X_FORWARDED_FOR',  // Standard proxy header.
-			'HTTP_X_REAL_IP',        // Nginx proxy.
-			'REMOTE_ADDR',           // Direct connection.
-		);
+		// 1. Cloudflare header - trusted because our site uses Cloudflare CDN.
+		//    Cloudflare sets this header with the original client IP.
+		if ( ! empty( $_SERVER['HTTP_CF_CONNECTING_IP'] ) ) {
+			$ip = sanitize_text_field( wp_unslash( $_SERVER['HTTP_CF_CONNECTING_IP'] ) );
+			if ( filter_var( $ip, FILTER_VALIDATE_IP ) ) {
+				return $ip;
+			}
+		}
 
-		foreach ( $headers as $header ) {
-			if ( ! empty( $_SERVER[ $header ] ) ) {
-				$ip = sanitize_text_field( wp_unslash( $_SERVER[ $header ] ) );
-				// X-Forwarded-For may contain multiple IPs - use first.
-				if ( str_contains( $ip, ',' ) ) {
-					$ip = trim( explode( ',', $ip )[0] );
-				}
-				// Validate IP format.
-				if ( filter_var( $ip, FILTER_VALIDATE_IP ) ) {
-					return $ip;
-				}
+		// 2. Direct connection - cannot be spoofed, always available.
+		if ( ! empty( $_SERVER['REMOTE_ADDR'] ) ) {
+			$ip = sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) );
+			if ( filter_var( $ip, FILTER_VALIDATE_IP ) ) {
+				return $ip;
 			}
 		}
 
@@ -645,21 +659,19 @@ class MicroID_Decoder_Ajax_Handler {
 	}
 
 	/**
-	 * Get request parameter from POST or GET.
+	 * Get request parameter from POST only.
+	 *
+	 * POST-only retrieval prevents nonces from being exposed in URLs, referrer headers,
+	 * and browser history. This is a security best practice for AJAX endpoints.
 	 *
 	 * @param string $key Parameter key.
 	 * @return string
 	 */
 	private function get_request_param( string $key ): string {
-		// phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.NonceVerification.Recommended
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing
 		if ( isset( $_POST[ $key ] ) ) {
 			// phpcs:ignore WordPress.Security.NonceVerification.Missing
 			return sanitize_text_field( wp_unslash( $_POST[ $key ] ) );
-		}
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		if ( isset( $_GET[ $key ] ) ) {
-			// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-			return sanitize_text_field( wp_unslash( $_GET[ $key ] ) );
 		}
 		return '';
 	}
