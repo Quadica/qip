@@ -19,8 +19,10 @@ import { __ } from '@wordpress/i18n';
  * @return {JSX.Element} The component.
  */
 export default function StatsBar( { stats, capacity } ) {
-	const progressPercent = stats.totalItems > 0
-		? Math.round( ( stats.completedItems / stats.totalItems ) * 100 )
+	// Calculate progress based on modules completed, not rows completed.
+	// This provides more accurate progress tracking for multi-array rows.
+	const progressPercent = stats.totalModules > 0
+		? Math.round( ( stats.completedModules / stats.totalModules ) * 100 )
 		: 0;
 
 	return (
