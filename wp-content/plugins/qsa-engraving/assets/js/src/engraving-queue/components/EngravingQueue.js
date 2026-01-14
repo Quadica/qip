@@ -63,6 +63,7 @@ export default function EngravingQueue() {
 	const [ currentArrays, setCurrentArrays ] = useState( {} ); // Track current array per item
 	const [ resendingItemId, setResendingItemId ] = useState( null ); // Track which item is being resent
 	const [ updatingStartPositionId, setUpdatingStartPositionId ] = useState( null ); // Track which item's start position is being updated
+	const [ processingNextArrayId, setProcessingNextArrayId ] = useState( null ); // Track which item's Next Array is being processed
 	const [ lightburnStatus, setLightburnStatus ] = useState( {
 		enabled: window.qsaEngraving?.lightburnEnabled ?? false,
 		autoLoad: window.qsaEngraving?.lightburnAutoLoad ?? true,
@@ -444,10 +445,18 @@ export default function EngravingQueue() {
 	 * @param {number} currentArray The current array number.
 	 */
 	const handleNextArray = async ( itemId, currentArray ) => {
+		// Prevent concurrent Next Array operations - ignore if already processing.
+		if ( processingNextArrayId !== null ) {
+			return;
+		}
+
 		const item = queueItems.find( ( i ) => i.id === itemId );
 		if ( ! item ) {
 			return;
 		}
+
+		// Set processing state to prevent rapid clicks.
+		setProcessingNextArrayId( itemId );
 
 		const sequences = item.qsa_sequences || [ item.id ];
 		// Calculate array count based on modules and start position.
@@ -531,6 +540,9 @@ export default function EngravingQueue() {
 			}
 		} catch ( err ) {
 			alert( __( 'Network error advancing to next array.', 'qsa-engraving' ) );
+		} finally {
+			// Clear processing state to allow next operation.
+			setProcessingNextArrayId( null );
 		}
 	};
 
@@ -909,6 +921,7 @@ export default function EngravingQueue() {
 							currentArray={ getCurrentArray( item.id ) }
 							isResending={ resendingItemId === item.id }
 							isUpdatingStartPosition={ updatingStartPositionId === item.id }
+							isProcessingNextArray={ processingNextArrayId === item.id }
 							onStart={ handleStart }
 							onComplete={ handleComplete }
 							onNextArray={ handleNextArray }

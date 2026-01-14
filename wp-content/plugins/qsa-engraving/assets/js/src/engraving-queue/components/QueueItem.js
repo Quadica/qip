@@ -111,6 +111,7 @@ function formatSerial( serial ) {
  * @param {number}   props.currentArray             Current array number (1-based) for this item.
  * @param {boolean}  props.isResending              Whether a resend operation is in progress.
  * @param {boolean}  props.isUpdatingStartPosition  Whether start position is being updated (AJAX in flight).
+ * @param {boolean}  props.isProcessingNextArray    Whether Next Array operation is in progress.
  * @param {Function} props.onStart                  Handler for start action.
  * @param {Function} props.onComplete               Handler for complete action.
  * @param {Function} props.onNextArray              Handler for next array action.
@@ -126,6 +127,7 @@ export default function QueueItem( {
 	currentArray = 1,
 	isResending = false,
 	isUpdatingStartPosition = false,
+	isProcessingNextArray = false,
 	onStart,
 	onComplete,
 	onNextArray,
@@ -267,12 +269,16 @@ export default function QueueItem( {
 							) : (
 								<button
 									type="button"
-									className="qsa-btn-next-array"
+									className={ `qsa-btn-next-array ${ isProcessingNextArray ? 'is-loading' : '' }` }
 									onClick={ () => onNextArray( item.id, currentArray ) }
-									title={ __( 'Press SPACEBAR or click', 'qsa-engraving' ) }
+									disabled={ isProcessingNextArray }
+									title={ isProcessingNextArray
+										? __( 'Processing...', 'qsa-engraving' )
+										: __( 'Press SPACEBAR or click', 'qsa-engraving' )
+									}
 								>
-									<span className="dashicons dashicons-arrow-right-alt2"></span>
-									{ __( 'Next Array', 'qsa-engraving' ) }
+									<span className={ `dashicons ${ isProcessingNextArray ? 'dashicons-update spin' : 'dashicons-arrow-right-alt2' }` }></span>
+									{ isProcessingNextArray ? __( 'Processing...', 'qsa-engraving' ) : __( 'Next Array', 'qsa-engraving' ) }
 								</button>
 							) }
 						</div>
