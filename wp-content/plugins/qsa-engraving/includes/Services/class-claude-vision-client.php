@@ -39,11 +39,12 @@ class Claude_Vision_Client {
 	/**
 	 * Default model to use for vision tasks.
 	 *
-	 * Updated to Claude Sonnet 4.5 per Anthropic docs (2025).
+	 * Claude Opus 4.5 recommended for Micro-ID decoding due to superior
+	 * visual reasoning capabilities with complex PCB images.
 	 *
 	 * @var string
 	 */
-	public const DEFAULT_MODEL = 'claude-sonnet-4-5-20250929';
+	public const DEFAULT_MODEL = 'claude-opus-4-5-20251101';
 
 	/**
 	 * Maximum tokens for response.

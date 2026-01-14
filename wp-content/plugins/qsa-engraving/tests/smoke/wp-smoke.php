@@ -8504,7 +8504,12 @@ run_test(
         $lines = explode( "\n", $source );
         $method_source = implode( "\n", array_slice( $lines, $start_line - 1, $end_line - $start_line + 1 ) );
 
-        // Should include Claude Sonnet 4.5 (latest).
+        // Should include Claude Opus 4.5 (recommended for Micro-ID).
+        if ( ! str_contains( $method_source, 'claude-opus-4-5-20251101' ) ) {
+            return new WP_Error( 'no_opus_45', 'Allowlist should include claude-opus-4-5-20251101.' );
+        }
+
+        // Should include Claude Sonnet 4.5.
         if ( ! str_contains( $method_source, 'claude-sonnet-4-5-20250929' ) ) {
             return new WP_Error( 'no_sonnet_45', 'Allowlist should include claude-sonnet-4-5-20250929.' );
         }

@@ -879,7 +879,8 @@ class LightBurn_Ajax_Handler {
 			$model = sanitize_text_field( wp_unslash( $_POST['claude_model'] ) );
 			// Validate allowed models (per Anthropic docs 2025).
 			$allowed_models = array(
-				'claude-sonnet-4-5-20250929', // Latest recommended model.
+				'claude-opus-4-5-20251101',   // Most capable - recommended for Micro-ID.
+				'claude-sonnet-4-5-20250929', // Good balance of speed/accuracy.
 				'claude-sonnet-4-20250514',   // Legacy model.
 				'claude-haiku-4-5-20251001',  // Fast/cheap option.
 			);

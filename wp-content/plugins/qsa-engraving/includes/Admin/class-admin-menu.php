@@ -2013,12 +2013,13 @@ class Admin_Menu {
                                 $current_model = $settings['claude_model'] ?? \Quadica\QSA_Engraving\Services\Claude_Vision_Client::DEFAULT_MODEL;
                                 ?>
                                 <select name="claude_model" id="claude_model">
-                                    <option value="claude-sonnet-4-5-20250929" <?php selected( $current_model, 'claude-sonnet-4-5-20250929' ); ?>>Claude Sonnet 4.5 (Recommended)</option>
+                                    <option value="claude-opus-4-5-20251101" <?php selected( $current_model, 'claude-opus-4-5-20251101' ); ?>>Claude Opus 4.5 (Recommended)</option>
+                                    <option value="claude-sonnet-4-5-20250929" <?php selected( $current_model, 'claude-sonnet-4-5-20250929' ); ?>>Claude Sonnet 4.5 (Faster)</option>
                                     <option value="claude-sonnet-4-20250514" <?php selected( $current_model, 'claude-sonnet-4-20250514' ); ?>>Claude Sonnet 4 (Legacy)</option>
-                                    <option value="claude-haiku-4-5-20251001" <?php selected( $current_model, 'claude-haiku-4-5-20251001' ); ?>>Claude Haiku 4.5 (Faster/Cheaper)</option>
+                                    <option value="claude-haiku-4-5-20251001" <?php selected( $current_model, 'claude-haiku-4-5-20251001' ); ?>>Claude Haiku 4.5 (Fastest/Cheapest)</option>
                                 </select>
                                 <p class="description">
-                                    <?php esc_html_e( 'Select the Claude model to use for image analysis. Sonnet offers the best balance of speed and accuracy.', 'qsa-engraving' ); ?>
+                                    <?php esc_html_e( 'Select the Claude model to use for image analysis. Opus 4.5 offers superior accuracy for Micro-ID decoding.', 'qsa-engraving' ); ?>
                                 </p>
                             </td>
                         </tr>
