@@ -8777,6 +8777,90 @@ run_test(
     'Decode_Log_Repository should have all required methods.'
 );
 
+// TC-MID-P5-011: Landing handler has is_decoder_enabled check
+run_test(
+    'TC-MID-P5-011: Landing handler respects enable/disable setting',
+    function () {
+        // Use reflection to check the private method exists.
+        $handler = \Quadica\QSA_Engraving\qsa_engraving()->get_microid_landing_handler();
+        $reflection = new ReflectionClass( $handler );
+
+        // Check is_decoder_enabled method exists.
+        if ( ! $reflection->hasMethod( 'is_decoder_enabled' ) ) {
+            return new WP_Error( 'missing_method', 'MicroID_Landing_Handler missing is_decoder_enabled method.' );
+        }
+
+        // Check render_disabled_page method exists.
+        if ( ! $reflection->hasMethod( 'render_disabled_page' ) ) {
+            return new WP_Error( 'missing_method', 'MicroID_Landing_Handler missing render_disabled_page method.' );
+        }
+
+        // Check handle_microid_lookup method calls is_decoder_enabled.
+        $method = $reflection->getMethod( 'handle_microid_lookup' );
+        $filename = $method->getFileName();
+        $start_line = $method->getStartLine();
+        $end_line = $method->getEndLine();
+
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+        $source = file_get_contents( $filename );
+        $lines = explode( "\n", $source );
+        $method_source = implode( "\n", array_slice( $lines, $start_line - 1, $end_line - $start_line + 1 ) );
+
+        if ( strpos( $method_source, 'is_decoder_enabled' ) === false ) {
+            return new WP_Error( 'no_check', 'handle_microid_lookup does not check is_decoder_enabled.' );
+        }
+
+        if ( strpos( $method_source, 'render_disabled_page' ) === false ) {
+            return new WP_Error( 'no_disabled_page', 'handle_microid_lookup does not call render_disabled_page.' );
+        }
+
+        return true;
+    },
+    'Landing handler should check if decoder is enabled and show disabled page when off.'
+);
+
+// TC-MID-P5-012: Activation hook registers rewrite rules before flush
+run_test(
+    'TC-MID-P5-012: Activation hook registers rewrite rules before flush',
+    function () {
+        // Read the main plugin file to verify activation hook.
+        $plugin_file = QSA_ENGRAVING_PLUGIN_DIR . 'qsa-engraving.php';
+
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+        $source = file_get_contents( $plugin_file );
+
+        // Find the activate function.
+        if ( strpos( $source, 'function activate()' ) === false ) {
+            return new WP_Error( 'no_activate', 'activate() function not found in plugin file.' );
+        }
+
+        // Check that add_rewrite_rule comes BEFORE flush_rewrite_rules.
+        $add_rule_pos = strpos( $source, 'add_rewrite_rule' );
+        $flush_pos = strpos( $source, 'flush_rewrite_rules()' );
+
+        if ( $add_rule_pos === false ) {
+            return new WP_Error( 'no_add_rule', 'add_rewrite_rule not found in activate() function.' );
+        }
+
+        if ( $flush_pos === false ) {
+            return new WP_Error( 'no_flush', 'flush_rewrite_rules not found in activate() function.' );
+        }
+
+        // Verify add_rewrite_rule appears before flush_rewrite_rules.
+        if ( $add_rule_pos > $flush_pos ) {
+            return new WP_Error( 'wrong_order', 'add_rewrite_rule should be called before flush_rewrite_rules.' );
+        }
+
+        // Check that the /id rule is registered.
+        if ( strpos( $source, "'^id/?$'" ) === false ) {
+            return new WP_Error( 'no_id_rule', '/id rewrite rule not found in activation hook.' );
+        }
+
+        return true;
+    },
+    'Activation hook should register rewrite rules before flushing to avoid 404 on /id.'
+);
+
 // ============================================
 // Summary
 // ============================================

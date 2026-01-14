@@ -75,6 +75,7 @@ class MicroID_Landing_Handler {
 	 * Handle Micro-ID lookup requests.
 	 *
 	 * When /id URL is accessed, display the decoder landing page.
+	 * If the decoder is disabled in settings, shows a disabled message instead.
 	 *
 	 * @return void
 	 */
@@ -85,9 +86,124 @@ class MicroID_Landing_Handler {
 			return;
 		}
 
+		// Check if the decoder is enabled in settings.
+		if ( ! $this->is_decoder_enabled() ) {
+			$this->render_disabled_page();
+			exit;
+		}
+
 		// Render the landing page.
 		$this->render_landing_page();
 		exit;
+	}
+
+	/**
+	 * Check if the Micro-ID decoder is enabled in settings.
+	 *
+	 * @return bool True if decoder is enabled.
+	 */
+	private function is_decoder_enabled(): bool {
+		$settings = get_option( 'qsa_engraving_settings', array() );
+		return ! empty( $settings['microid_decoder_enabled'] );
+	}
+
+	/**
+	 * Render a page indicating the decoder is disabled.
+	 *
+	 * @return void
+	 */
+	private function render_disabled_page(): void {
+		$site_name = get_bloginfo( 'name' );
+		$site_url  = home_url( '/' );
+		?>
+<!DOCTYPE html>
+<html <?php language_attributes(); ?>>
+<head>
+	<meta charset="<?php bloginfo( 'charset' ); ?>">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title><?php esc_html_e( 'Micro-ID Decoder', 'qsa-engraving' ); ?> - <?php echo esc_html( $site_name ); ?></title>
+	<meta name="robots" content="noindex, nofollow">
+	<style>
+		* { box-sizing: border-box; margin: 0; padding: 0; }
+		body {
+			font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+			background: #f0f0f1;
+			color: #1d2327;
+			line-height: 1.6;
+			min-height: 100vh;
+			display: flex;
+			flex-direction: column;
+		}
+		.header {
+			background: #fff;
+			border-bottom: 1px solid #c3c4c7;
+			padding: 16px 20px;
+			text-align: center;
+		}
+		.header a { color: #0073aa; text-decoration: none; font-size: 20px; font-weight: 600; }
+		.main {
+			flex: 1;
+			display: flex;
+			align-items: flex-start;
+			justify-content: center;
+			padding: 40px 20px;
+		}
+		.card {
+			background: #fff;
+			border: 1px solid #c3c4c7;
+			border-radius: 8px;
+			padding: 32px;
+			max-width: 480px;
+			width: 100%;
+			text-align: center;
+			box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+		}
+		.icon { font-size: 48px; margin-bottom: 16px; }
+		h1 { font-size: 24px; font-weight: 600; margin-bottom: 12px; }
+		.message { color: #646970; margin-bottom: 20px; }
+		.btn {
+			display: inline-block;
+			padding: 10px 20px;
+			background: #0073aa;
+			color: #fff;
+			text-decoration: none;
+			border-radius: 4px;
+			font-weight: 500;
+		}
+		.btn:hover { background: #005a87; }
+		.footer {
+			background: #fff;
+			border-top: 1px solid #c3c4c7;
+			padding: 16px 20px;
+			text-align: center;
+			font-size: 13px;
+			color: #646970;
+		}
+		.footer a { color: #0073aa; text-decoration: none; }
+	</style>
+</head>
+<body>
+	<header class="header">
+		<a href="<?php echo esc_url( $site_url ); ?>"><?php echo esc_html( $site_name ); ?></a>
+	</header>
+	<main class="main">
+		<div class="card">
+			<div class="icon">🔒</div>
+			<h1><?php esc_html_e( 'Decoder Unavailable', 'qsa-engraving' ); ?></h1>
+			<p class="message">
+				<?php esc_html_e( 'The Micro-ID decoder is currently not available. Please contact us if you need assistance identifying your LED module.', 'qsa-engraving' ); ?>
+			</p>
+			<a href="<?php echo esc_url( home_url( '/contact/' ) ); ?>" class="btn">
+				<?php esc_html_e( 'Contact Us', 'qsa-engraving' ); ?>
+			</a>
+		</div>
+	</main>
+	<footer class="footer">
+		<p>&copy; <?php echo esc_html( gmdate( 'Y' ) ); ?> <a href="<?php echo esc_url( $site_url ); ?>"><?php echo esc_html( $site_name ); ?></a></p>
+	</footer>
+</body>
+</html>
+		<?php
 	}
 
 	/**

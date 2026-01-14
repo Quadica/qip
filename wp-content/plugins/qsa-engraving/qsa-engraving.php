@@ -846,6 +846,23 @@ function activate(): void {
         );
     }
 
+    // Register rewrite rules BEFORE flushing.
+    // Without this, /id and /qsa URLs return 404 until permalinks are manually saved.
+
+    // QSA Landing Handler rewrite rule (^qsa/...).
+    add_rewrite_rule(
+        '^qsa/([a-zA-Z0-9]{8})/?$',
+        'index.php?qsa_identifier=$matches[1]',
+        'top'
+    );
+
+    // MicroID Landing Handler rewrite rule (^id/?$).
+    add_rewrite_rule(
+        '^id/?$',
+        'index.php?' . Frontend\MicroID_Landing_Handler::QUERY_VAR . '=1',
+        'top'
+    );
+
     // Flush rewrite rules on activation.
     flush_rewrite_rules();
 
