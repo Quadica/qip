@@ -118,18 +118,79 @@ def grid_to_serial(grid_str: str) -> tuple:
         'parity_valid': parity_valid,
         'anchors_valid': anchors_valid,
         'grid': grid_str,
+        'data_ones': ones,
+        'parity_bit': parity_bit,
     }
 
 
-def test_decode_api(api_key: str, model: str, image_path: str) -> dict:
+def multi_shot_decode(api_key: str, model: str, image_base64: str, mime_type: str,
+                      shots: int = 3) -> dict:
+    """
+    Perform multiple decode attempts and return best result.
+
+    Uses voting + parity validation to select most likely correct answer.
+    """
+    results = []
+
+    for i in range(shots):
+        result = test_decode_api(api_key, model, None, image_base64=image_base64, mime_type=mime_type)
+        if 'error' not in result and result.get('serial') is not None:
+            results.append({
+                'serial': result['serial'],
+                'grid': result['model_response'].get('grid', ''),
+                'parity_valid': result['details'].get('parity_valid', False),
+                'anchors_valid': result['details'].get('anchors_valid', False),
+            })
+
+    if not results:
+        return {'error': 'All decode attempts failed'}
+
+    # Count votes for each serial, prioritizing parity-valid results
+    votes = {}
+    for r in results:
+        serial = r['serial']
+        if serial not in votes:
+            votes[serial] = {'count': 0, 'parity_valid': False, 'grid': r['grid']}
+        votes[serial]['count'] += 1
+        if r['parity_valid']:
+            votes[serial]['parity_valid'] = True
+
+    # Sort by: parity_valid (True first), then count (descending)
+    sorted_votes = sorted(
+        votes.items(),
+        key=lambda x: (x[1]['parity_valid'], x[1]['count']),
+        reverse=True
+    )
+
+    best_serial = sorted_votes[0][0]
+    best_info = sorted_votes[0][1]
+
+    return {
+        'serial': best_serial,
+        'serial_formatted': f'{best_serial:08d}',
+        'vote_count': best_info['count'],
+        'total_shots': shots,
+        'parity_valid': best_info['parity_valid'],
+        'grid': best_info['grid'],
+        'all_results': results,
+    }
+
+
+def test_decode_api(api_key: str, model: str, image_path: str = None,
+                    image_base64: str = None, mime_type: str = None) -> dict:
     """Test the visual grid reading approach via API."""
 
-    # Load image
-    with open(image_path, 'rb') as f:
-        image_base64 = base64.b64encode(f.read()).decode('utf-8')
+    # Load image from path or use provided base64
+    if image_base64 is None:
+        if image_path is None:
+            return {'error': 'Either image_path or image_base64 required'}
+        with open(image_path, 'rb') as f:
+            image_base64 = base64.b64encode(f.read()).decode('utf-8')
+        ext = image_path.lower().split('.')[-1]
+        mime_type = {'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png'}.get(ext, 'image/jpeg')
 
-    ext = image_path.lower().split('.')[-1]
-    mime_type = {'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png'}.get(ext, 'image/jpeg')
+    if mime_type is None:
+        mime_type = 'image/png'
 
     # Call API
     headers = {
