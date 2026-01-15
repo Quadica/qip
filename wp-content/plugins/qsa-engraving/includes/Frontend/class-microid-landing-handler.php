@@ -369,47 +369,98 @@ class MicroID_Landing_Handler {
 			font-size: 14px;
 		}
 
-		/* Drop Zone Styles */
-		.drop-zone {
-			border: 2px dashed var(--drop-zone-border);
-			border-radius: 8px;
-			padding: 40px 20px;
+		/* Serial Input Styles */
+		.serial-input-container {
+			padding: 30px 20px;
 			text-align: center;
-			cursor: pointer;
-			transition: all 0.2s ease;
-			background: var(--bg-color);
 		}
 
-		.drop-zone:hover,
-		.drop-zone.dragover {
+		.serial-input-label {
+			display: block;
+			font-size: 16px;
+			font-weight: 600;
+			margin-bottom: 16px;
+			color: var(--text-color);
+		}
+
+		.serial-input-wrapper {
+			display: flex;
+			gap: 10px;
+			max-width: 320px;
+			margin: 0 auto 12px;
+		}
+
+		.serial-input {
+			flex: 1;
+			padding: 12px 16px;
+			font-size: 18px;
+			font-family: 'SF Mono', 'Consolas', 'Monaco', monospace;
+			text-transform: uppercase;
+			letter-spacing: 2px;
+			border: 2px solid var(--border-color);
+			border-radius: 6px;
+			text-align: center;
+			transition: border-color 0.2s ease;
+		}
+
+		.serial-input:focus {
+			outline: none;
 			border-color: var(--primary-color);
-			background: #f0f6fc;
 		}
 
-		.drop-zone.disabled {
+		.serial-input::placeholder {
+			color: var(--text-muted);
+			opacity: 0.5;
+		}
+
+		.lookup-btn {
+			padding: 12px 20px;
+			font-size: 15px;
+			font-weight: 600;
+			background: var(--primary-color);
+			color: #fff;
+			border: none;
+			border-radius: 6px;
+			cursor: pointer;
+			transition: background 0.2s ease;
+			white-space: nowrap;
+		}
+
+		.lookup-btn:hover {
+			background: var(--primary-hover);
+		}
+
+		.lookup-btn:disabled {
 			opacity: 0.6;
 			cursor: not-allowed;
 		}
 
-		.drop-zone-icon {
-			font-size: 48px;
-			margin-bottom: 16px;
-			color: var(--text-muted);
-		}
-
-		.drop-zone-text {
-			font-size: 16px;
-			font-weight: 500;
-			margin-bottom: 8px;
-		}
-
-		.drop-zone-hint {
+		.serial-input-hint {
 			font-size: 13px;
 			color: var(--text-muted);
 		}
 
-		.file-input {
-			display: none;
+		.decode-link-container {
+			padding: 20px;
+			border-top: 1px solid var(--border-color);
+			text-align: center;
+		}
+
+		.decode-link-text {
+			font-size: 14px;
+			color: var(--text-muted);
+			margin-bottom: 8px;
+		}
+
+		.decode-link {
+			font-size: 14px;
+			font-weight: 500;
+			color: var(--primary-color);
+			text-decoration: none;
+		}
+
+		.decode-link:hover {
+			text-decoration: underline;
 		}
 
 		/* Loading State */
@@ -726,15 +777,15 @@ class MicroID_Landing_Handler {
 	<main class="microid-main">
 		<div class="microid-card">
 			<h1><?php esc_html_e( 'Micro-ID Decoder', 'qsa-engraving' ); ?></h1>
-			<p class="subtitle"><?php esc_html_e( 'Upload a photo of your LED module to retrieve product information', 'qsa-engraving' ); ?></p>
+			<p class="subtitle"><?php esc_html_e( 'Enter your serial number to retrieve product information', 'qsa-engraving' ); ?></p>
 
 			<!-- Noscript Fallback for JavaScript-disabled browsers -->
 			<noscript>
 				<div class="noscript-notice">
 					<div class="noscript-icon">⚠️</div>
 					<h2><?php esc_html_e( 'JavaScript Required', 'qsa-engraving' ); ?></h2>
-					<p><?php esc_html_e( 'This Micro-ID decoder requires JavaScript to process images.', 'qsa-engraving' ); ?></p>
-					<p><?php esc_html_e( 'Please enable JavaScript in your browser settings, or contact our support team for assistance with decoding your LED module serial number.', 'qsa-engraving' ); ?></p>
+					<p><?php esc_html_e( 'This Micro-ID decoder requires JavaScript to look up serial numbers.', 'qsa-engraving' ); ?></p>
+					<p><?php esc_html_e( 'Please enable JavaScript in your browser settings, or contact our support team for assistance identifying your LED module.', 'qsa-engraving' ); ?></p>
 					<p style="margin-top: 16px;">
 						<a href="<?php echo esc_url( home_url( '/contact/' ) ); ?>" class="btn btn-primary">
 							<?php esc_html_e( 'Contact Support', 'qsa-engraving' ); ?>
@@ -757,27 +808,35 @@ class MicroID_Landing_Handler {
 				</style>
 			</noscript>
 
-			<!-- Upload Section -->
+			<!-- Serial Input Section -->
 			<div id="upload-section">
-				<div class="drop-zone" id="drop-zone">
-					<div class="drop-zone-icon">📷</div>
-					<div class="drop-zone-text"><?php esc_html_e( 'Drop image here or tap to upload', 'qsa-engraving' ); ?></div>
-					<div class="drop-zone-hint">
-						<?php
-						printf(
-							/* translators: 1: Allowed file types, 2: Maximum file size in MB */
-							esc_html__( '%1$s • Max %2$sMB', 'qsa-engraving' ),
-							esc_html( $allowed_types ),
-							esc_html( (string) $max_size_mb )
-						);
-						?>
+				<div class="serial-input-container">
+					<label for="serial-input" class="serial-input-label">
+						<?php esc_html_e( 'Enter Serial Number', 'qsa-engraving' ); ?>
+					</label>
+					<div class="serial-input-wrapper">
+						<input type="text"
+						       id="serial-input"
+						       class="serial-input"
+						       placeholder="XXXXXXXX"
+						       maxlength="8"
+						       pattern="[A-Za-z0-9]{8}"
+						       autocomplete="off"
+						       spellcheck="false">
+						<button type="button" id="lookup-btn" class="lookup-btn">
+							<?php esc_html_e( 'Lookup', 'qsa-engraving' ); ?>
+						</button>
+					</div>
+					<div class="serial-input-hint">
+						<?php esc_html_e( 'Enter the 8-character serial number from your LED module', 'qsa-engraving' ); ?>
 					</div>
 				</div>
-				<input type="file"
-				       id="file-input"
-				       class="file-input"
-				       accept="image/jpeg,image/png,image/webp"
-				       capture="environment">
+				<div class="decode-link-container">
+					<p class="decode-link-text"><?php esc_html_e( "Can't find the serial number?", 'qsa-engraving' ); ?></p>
+					<a href="<?php echo esc_url( home_url( '/decode/' ) ); ?>" class="decode-link">
+						<?php esc_html_e( 'Use Photo Decoder', 'qsa-engraving' ); ?> →
+					</a>
+				</div>
 			</div>
 
 			<!-- Loading State -->
@@ -912,8 +971,8 @@ class MicroID_Landing_Handler {
 		};
 
 		// DOM Elements
-		const dropZone = document.getElementById('drop-zone');
-		const fileInput = document.getElementById('file-input');
+		const serialInput = document.getElementById('serial-input');
+		const lookupBtn = document.getElementById('lookup-btn');
 		const uploadSection = document.getElementById('upload-section');
 		const loadingSection = document.getElementById('loading-section');
 		const resultSection = document.getElementById('result-section');
@@ -934,109 +993,30 @@ class MicroID_Landing_Handler {
 		}
 
 		/**
-		 * Validate file before upload.
+		 * Validate serial number format.
 		 */
-		function validateFile(file) {
-			// Check file type
-			const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
-			if (!allowedTypes.includes(file.type)) {
-				return { valid: false, error: config.strings.invalidType };
+		function validateSerial(serial) {
+			if (!serial || serial.length !== 8) {
+				return { valid: false, error: config.strings.invalidSerial };
 			}
-
-			// Check file size
-			if (file.size > config.maxSize) {
-				return { valid: false, error: config.strings.fileTooLarge };
+			// Check for valid alphanumeric characters.
+			if (!/^[A-Za-z0-9]{8}$/.test(serial)) {
+				return { valid: false, error: config.strings.invalidSerial };
 			}
-
 			return { valid: true };
 		}
 
 		/**
-		 * Handle file selection.
+		 * Handle serial lookup from input.
 		 */
-		function handleFile(file) {
-			const validation = validateFile(file);
+		function handleSerialInput() {
+			const serial = serialInput.value.trim().toUpperCase();
+			const validation = validateSerial(serial);
 			if (!validation.valid) {
 				showError(validation.error, '');
 				return;
 			}
-
-			// Check image dimensions before upload to save bandwidth.
-			checkImageDimensions(file).then(dimensionResult => {
-				if (!dimensionResult.valid) {
-					showError(dimensionResult.error, '');
-					return;
-				}
-				uploadFile(file);
-			}).catch(() => {
-				// If dimension check fails, proceed with upload and let server validate.
-				uploadFile(file);
-			});
-		}
-
-		/**
-		 * Check image dimensions using the Image API.
-		 * Returns a promise that resolves with validation result.
-		 */
-		function checkImageDimensions(file) {
-			return new Promise((resolve, reject) => {
-				const img = new Image();
-				const objectUrl = URL.createObjectURL(file);
-
-				img.onload = function() {
-					URL.revokeObjectURL(objectUrl);
-					const minDim = Math.min(img.width, img.height);
-					if (minDim < config.minDimension) {
-						resolve({ valid: false, error: config.strings.imageTooSmall });
-					} else {
-						resolve({ valid: true });
-					}
-				};
-
-				img.onerror = function() {
-					URL.revokeObjectURL(objectUrl);
-					reject(new Error('Failed to load image'));
-				};
-
-				img.src = objectUrl;
-			});
-		}
-
-		/**
-		 * Upload file and decode.
-		 */
-		async function uploadFile(file) {
-			showSection('loading');
-			loadingText.textContent = config.strings.decoding;
-
-			const formData = new FormData();
-			formData.append('action', 'qsa_microid_decode');
-			formData.append('nonce', config.nonce);
-			formData.append('image', file);
-
-			try {
-				const response = await fetch(config.ajaxUrl, {
-					method: 'POST',
-					body: formData
-				});
-
-				const data = await response.json();
-
-				if (data.success) {
-					currentSerial = data.data.serial;
-					showResult(data.data);
-
-					// If staff, automatically fetch full details
-					if (config.isStaff && currentSerial) {
-						fetchFullDetails(currentSerial);
-					}
-				} else {
-					showError(data.message || config.strings.uploadError, data.code || '');
-				}
-			} catch (error) {
-				console.error('Decode error:', error);
-				showError(config.strings.networkError, '');
-			}
+			lookupSerial(serial);
 		}
 
 		/**
@@ -1185,11 +1165,11 @@ class MicroID_Landing_Handler {
 		}
 
 		/**
-		 * Reset to upload state.
+		 * Reset to input state.
 		 */
 		function reset() {
 			currentSerial = null;
-			fileInput.value = '';
+			serialInput.value = '';
 			showSection('upload');
 
 			// Reset staff details visibility
@@ -1216,36 +1196,22 @@ class MicroID_Landing_Handler {
 
 		// Event Listeners
 
-		// Click on drop zone opens file picker
-		dropZone.addEventListener('click', function() {
-			fileInput.click();
+		// Lookup button click
+		lookupBtn.addEventListener('click', function() {
+			handleSerialInput();
 		});
 
-		// File input change
-		fileInput.addEventListener('change', function(e) {
-			if (e.target.files && e.target.files[0]) {
-				handleFile(e.target.files[0]);
+		// Serial input Enter key
+		serialInput.addEventListener('keypress', function(e) {
+			if (e.key === 'Enter') {
+				e.preventDefault();
+				handleSerialInput();
 			}
 		});
 
-		// Drag and drop
-		dropZone.addEventListener('dragover', function(e) {
-			e.preventDefault();
-			dropZone.classList.add('dragover');
-		});
-
-		dropZone.addEventListener('dragleave', function(e) {
-			e.preventDefault();
-			dropZone.classList.remove('dragover');
-		});
-
-		dropZone.addEventListener('drop', function(e) {
-			e.preventDefault();
-			dropZone.classList.remove('dragover');
-
-			if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-				handleFile(e.dataTransfer.files[0]);
-			}
+		// Auto-uppercase serial input
+		serialInput.addEventListener('input', function() {
+			this.value = this.value.toUpperCase();
 		});
 
 		// Decode Another button
@@ -1257,6 +1223,8 @@ class MicroID_Landing_Handler {
 				url.searchParams.delete('serial');
 				window.history.replaceState({}, '', url.toString());
 			}
+			// Focus the input field
+			serialInput.focus();
 		});
 
 		// Try Again button
@@ -1268,6 +1236,8 @@ class MicroID_Landing_Handler {
 				url.searchParams.delete('serial');
 				window.history.replaceState({}, '', url.toString());
 			}
+			// Focus the input field
+			serialInput.focus();
 		});
 
 		// Initialize
@@ -1276,6 +1246,8 @@ class MicroID_Landing_Handler {
 			lookupSerial(config.initialSerial);
 		} else {
 			showSection('upload');
+			// Focus the input field
+			serialInput.focus();
 		}
 	})();
 	</script>
