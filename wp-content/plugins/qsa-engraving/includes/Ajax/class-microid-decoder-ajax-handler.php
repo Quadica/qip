@@ -130,6 +130,10 @@ class MicroID_Decoder_Ajax_Handler {
 		add_action( 'wp_ajax_nopriv_qsa_microid_decode', array( $this, 'handle_decode' ) );
 		add_action( 'wp_ajax_qsa_microid_decode', array( $this, 'handle_decode' ) );
 
+		// Public serial lookup endpoint (for manual decoder redirect).
+		add_action( 'wp_ajax_nopriv_qsa_microid_serial_lookup', array( $this, 'handle_serial_lookup' ) );
+		add_action( 'wp_ajax_qsa_microid_serial_lookup', array( $this, 'handle_serial_lookup' ) );
+
 		// Staff-only full details endpoint.
 		add_action( 'wp_ajax_qsa_microid_full_details', array( $this, 'handle_full_details' ) );
 	}
@@ -308,6 +312,54 @@ class MicroID_Decoder_Ajax_Handler {
 		}
 
 		$this->send_success( $full_info, __( 'Full details retrieved.', 'qsa-engraving' ) );
+	}
+
+	/**
+	 * Handle serial lookup request (for manual decoder redirect).
+	 *
+	 * Public endpoint that looks up a serial number and returns basic info.
+	 * Used by the /id page when accessed with ?serial=XXXXXXXX parameter.
+	 *
+	 * @return void
+	 */
+	public function handle_serial_lookup(): void {
+		// Verify nonce.
+		$nonce = $this->get_request_param( 'nonce' );
+		if ( ! wp_verify_nonce( $nonce, self::NONCE_ACTION ) ) {
+			$this->send_error( __( 'Security check failed. Please refresh the page and try again.', 'qsa-engraving' ), 'invalid_nonce', 403 );
+			return;
+		}
+
+		// Get serial from request.
+		$serial = $this->get_request_param( 'serial' );
+
+		// Validate serial format.
+		if ( empty( $serial ) || ! Serial_Repository::is_valid_format( $serial ) ) {
+			$this->send_error( __( 'Invalid serial number format.', 'qsa-engraving' ), 'invalid_serial' );
+			return;
+		}
+
+		// Check if decoder is enabled (required for public access).
+		if ( ! $this->vision_client->is_enabled() ) {
+			$this->send_error( __( 'Micro-ID decoder is currently disabled.', 'qsa-engraving' ), 'decoder_disabled', 503 );
+			return;
+		}
+
+		// Get basic serial info.
+		$serial_info = $this->get_basic_serial_info( $serial );
+
+		// Get current user staff status for determining if we should auto-fetch full details.
+		$is_staff = current_user_can( self::STAFF_CAPABILITY );
+
+		$this->send_success(
+			array(
+				'serial'   => $serial,
+				'source'   => 'manual',
+				'product'  => $serial_info,
+				'is_staff' => $is_staff,
+			),
+			__( 'Serial lookup completed.', 'qsa-engraving' )
+		);
 	}
 
 	/**

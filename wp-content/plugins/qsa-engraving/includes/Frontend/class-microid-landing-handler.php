@@ -61,6 +61,13 @@ class MicroID_Landing_Handler {
 	}
 
 	/**
+	 * Query variable name for serial lookup.
+	 *
+	 * @var string
+	 */
+	public const SERIAL_QUERY_VAR = 'serial';
+
+	/**
 	 * Register the Micro-ID lookup query variable.
 	 *
 	 * @param array<string> $vars Existing query variables.
@@ -225,6 +232,31 @@ class MicroID_Landing_Handler {
 	}
 
 	/**
+	 * Validate a serial number parameter.
+	 *
+	 * Serial must be 8 numeric digits in valid range (1 to 1048575).
+	 *
+	 * @param string $serial The serial to validate.
+	 * @return string|null Valid serial or null if invalid.
+	 */
+	private function validate_serial_param( string $serial ): ?string {
+		// Must be exactly 8 digits.
+		if ( ! preg_match( '/^[0-9]{8}$/', $serial ) ) {
+			return null;
+		}
+
+		// Convert to integer and validate range.
+		$serial_int = (int) $serial;
+
+		// Must be in range 1-1048575 (20-bit Micro-ID capacity).
+		if ( $serial_int < 1 || $serial_int > 1048575 ) {
+			return null;
+		}
+
+		return $serial;
+	}
+
+	/**
 	 * Render the Micro-ID decoder landing page.
 	 *
 	 * @return void
@@ -236,6 +268,12 @@ class MicroID_Landing_Handler {
 		$ajax_url  = admin_url( 'admin-ajax.php' );
 		$nonce     = MicroID_Decoder_Ajax_Handler::create_nonce();
 		$is_staff  = $this->is_staff_user();
+
+		// Check for serial parameter (from manual decoder redirect).
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$initial_serial = isset( $_GET[ self::SERIAL_QUERY_VAR ] )
+			? $this->validate_serial_param( sanitize_text_field( wp_unslash( $_GET[ self::SERIAL_QUERY_VAR ] ) ) )
+			: null;
 
 		// Get constraints for display.
 		$max_size_mb    = MicroID_Decoder_Ajax_Handler::MAX_IMAGE_SIZE / ( 1024 * 1024 );
@@ -854,9 +892,11 @@ class MicroID_Landing_Handler {
 			isStaff: <?php echo $is_staff ? 'true' : 'false'; ?>,
 			maxSize: <?php echo (int) MicroID_Decoder_Ajax_Handler::MAX_IMAGE_SIZE; ?>,
 			minDimension: <?php echo (int) $min_dimension; ?>,
+			initialSerial: <?php echo wp_json_encode( $initial_serial ); ?>,
 			strings: {
 				decoding: <?php echo wp_json_encode( __( 'Analyzing image...', 'qsa-engraving' ) ); ?>,
 				loadingDetails: <?php echo wp_json_encode( __( 'Loading details...', 'qsa-engraving' ) ); ?>,
+				lookingUp: <?php echo wp_json_encode( __( 'Looking up serial...', 'qsa-engraving' ) ); ?>,
 				fileTooLarge: <?php echo wp_json_encode( __( 'File is too large. Maximum size is 10MB.', 'qsa-engraving' ) ); ?>,
 				invalidType: <?php echo wp_json_encode( __( 'Invalid file type. Please upload a JPEG, PNG, or WebP image.', 'qsa-engraving' ) ); ?>,
 				imageTooSmall: <?php echo wp_json_encode( sprintf( __( 'Image is too small. Minimum dimension is %dpx.', 'qsa-engraving' ), $min_dimension ) ); ?>,
@@ -864,7 +904,10 @@ class MicroID_Landing_Handler {
 				networkError: <?php echo wp_json_encode( __( 'Network error. Please check your connection and try again.', 'qsa-engraving' ) ); ?>,
 				cached: <?php echo wp_json_encode( __( 'Cached result', 'qsa-engraving' ) ); ?>,
 				fresh: <?php echo wp_json_encode( __( 'Fresh decode', 'qsa-engraving' ) ); ?>,
-				notInSystem: <?php echo wp_json_encode( __( 'Not in system', 'qsa-engraving' ) ); ?>
+				manualDecode: <?php echo wp_json_encode( __( 'Manual decode', 'qsa-engraving' ) ); ?>,
+				notInSystem: <?php echo wp_json_encode( __( 'Not in system', 'qsa-engraving' ) ); ?>,
+				serialNotFound: <?php echo wp_json_encode( __( 'Serial number not found in system.', 'qsa-engraving' ) ); ?>,
+				invalidSerial: <?php echo wp_json_encode( __( 'Invalid serial number format.', 'qsa-engraving' ) ); ?>
 			}
 		};
 
@@ -1023,6 +1066,44 @@ class MicroID_Landing_Handler {
 		}
 
 		/**
+		 * Look up a serial number directly (without image upload).
+		 * Used when visiting /id?serial=XXXXXXXX from the manual decoder.
+		 */
+		async function lookupSerial(serial) {
+			showSection('loading');
+			loadingText.textContent = config.strings.lookingUp;
+
+			const formData = new FormData();
+			formData.append('action', 'qsa_microid_serial_lookup');
+			formData.append('nonce', config.nonce);
+			formData.append('serial', serial);
+
+			try {
+				const response = await fetch(config.ajaxUrl, {
+					method: 'POST',
+					body: formData
+				});
+
+				const data = await response.json();
+
+				if (data.success) {
+					currentSerial = data.data.serial;
+					showResult(data.data);
+
+					// If staff, automatically fetch full details
+					if (config.isStaff && currentSerial) {
+						fetchFullDetails(currentSerial);
+					}
+				} else {
+					showError(data.message || config.strings.serialNotFound, data.code || '');
+				}
+			} catch (error) {
+				console.error('Serial lookup error:', error);
+				showError(config.strings.networkError, '');
+			}
+		}
+
+		/**
 		 * Display decode result.
 		 */
 		function showResult(data) {
@@ -1031,8 +1112,15 @@ class MicroID_Landing_Handler {
 			// Update serial badge
 			document.getElementById('serial-badge').textContent = data.serial;
 
-			// Update subtitle
-			const subtitle = data.cached ? config.strings.cached : config.strings.fresh;
+			// Update subtitle - handle manual decode source
+			let subtitle;
+			if (data.source === 'manual') {
+				subtitle = config.strings.manualDecode;
+			} else if (data.cached) {
+				subtitle = config.strings.cached;
+			} else {
+				subtitle = config.strings.fresh;
+			}
 			document.getElementById('result-subtitle').textContent = subtitle;
 
 			// Update basic info
@@ -1161,13 +1249,34 @@ class MicroID_Landing_Handler {
 		});
 
 		// Decode Another button
-		document.getElementById('decode-another').addEventListener('click', reset);
+		document.getElementById('decode-another').addEventListener('click', function() {
+			reset();
+			// Clear the serial param from URL without page reload
+			if (window.history.replaceState) {
+				const url = new URL(window.location.href);
+				url.searchParams.delete('serial');
+				window.history.replaceState({}, '', url.toString());
+			}
+		});
 
 		// Try Again button
-		document.getElementById('try-again').addEventListener('click', reset);
+		document.getElementById('try-again').addEventListener('click', function() {
+			reset();
+			// Clear the serial param from URL without page reload
+			if (window.history.replaceState) {
+				const url = new URL(window.location.href);
+				url.searchParams.delete('serial');
+				window.history.replaceState({}, '', url.toString());
+			}
+		});
 
 		// Initialize
-		showSection('upload');
+		if (config.initialSerial) {
+			// Auto-lookup serial from URL parameter (from manual decoder redirect)
+			lookupSerial(config.initialSerial);
+		} else {
+			showSection('upload');
+		}
 	})();
 	</script>
 </body>
