@@ -7329,290 +7329,9 @@ echo "========================================\n";
 echo "Micro-ID Decoder Tests (Phase 1)\n";
 echo "========================================\n\n";
 
-// TC-MID-DEC-001: Claude_Vision_Client class exists
+// TC-MID-DEC-001: MicroID_Decoder_Ajax_Handler class exists
 run_test(
-    'TC-MID-DEC-001: Claude_Vision_Client class exists',
-    function (): bool {
-        if ( ! class_exists( 'Quadica\\QSA_Engraving\\Services\\Claude_Vision_Client' ) ) {
-            return new WP_Error( 'missing_class', 'Claude_Vision_Client class not found.' );
-        }
-
-        // Verify required constants.
-        $class = 'Quadica\\QSA_Engraving\\Services\\Claude_Vision_Client';
-
-        if ( ! defined( "{$class}::API_ENDPOINT" ) ) {
-            return new WP_Error( 'missing_constant', 'API_ENDPOINT constant not found.' );
-        }
-
-        if ( ! defined( "{$class}::DEFAULT_MODEL" ) ) {
-            return new WP_Error( 'missing_constant', 'DEFAULT_MODEL constant not found.' );
-        }
-
-        return true;
-    },
-    'Claude Vision Client service class should exist with constants.'
-);
-
-// TC-MID-DEC-002: Claude_Vision_Client has required methods
-run_test(
-    'TC-MID-DEC-002: Claude_Vision_Client has required methods',
-    function (): bool {
-        $required_methods = array(
-            'decode_micro_id',
-            'test_connection',
-            'has_api_key',
-            'is_enabled',
-            'get_last_error',
-            'get_last_response_time_ms',
-            'get_last_tokens_used',
-            'encrypt',
-            'mask_api_key',
-        );
-
-        $class = 'Quadica\\QSA_Engraving\\Services\\Claude_Vision_Client';
-
-        foreach ( $required_methods as $method ) {
-            if ( ! method_exists( $class, $method ) ) {
-                return new WP_Error( 'missing_method', "Method {$method}() not found in Claude_Vision_Client." );
-            }
-        }
-
-        return true;
-    },
-    'Claude_Vision_Client should have all required public methods.'
-);
-
-// TC-MID-DEC-003: Claude_Vision_Client instantiation
-run_test(
-    'TC-MID-DEC-003: Claude_Vision_Client instantiation',
-    function (): bool {
-        $client = new \Quadica\QSA_Engraving\Services\Claude_Vision_Client();
-
-        if ( ! ( $client instanceof \Quadica\QSA_Engraving\Services\Claude_Vision_Client ) ) {
-            return new WP_Error( 'instantiation_failed', 'Failed to instantiate Claude_Vision_Client.' );
-        }
-
-        // Without API key, has_api_key() should return false.
-        // Note: This may return true if API key is configured in settings.
-        $has_key = $client->has_api_key();
-        if ( ! is_bool( $has_key ) ) {
-            return new WP_Error( 'wrong_type', 'has_api_key() should return boolean.' );
-        }
-
-        return true;
-    },
-    'Claude_Vision_Client should instantiate without errors.'
-);
-
-// TC-MID-DEC-004: Claude_Vision_Client encryption
-run_test(
-    'TC-MID-DEC-004: Claude_Vision_Client encryption',
-    function (): bool {
-        $test_value = 'sk-ant-test-api-key-12345';
-        $encrypted  = \Quadica\QSA_Engraving\Services\Claude_Vision_Client::encrypt( $test_value );
-
-        if ( empty( $encrypted ) ) {
-            return new WP_Error( 'encryption_failed', 'encrypt() returned empty string.' );
-        }
-
-        // Encrypted value should be different from original.
-        if ( $encrypted === $test_value ) {
-            return new WP_Error( 'encryption_failed', 'Encrypted value same as original.' );
-        }
-
-        // Encrypted value should be base64-encoded.
-        if ( base64_decode( $encrypted, true ) === false ) {
-            return new WP_Error( 'not_base64', 'Encrypted value is not valid base64.' );
-        }
-
-        return true;
-    },
-    'Claude_Vision_Client::encrypt() should produce valid encrypted output.'
-);
-
-// TC-MID-DEC-005: Claude_Vision_Client API key masking
-run_test(
-    'TC-MID-DEC-005: Claude_Vision_Client API key masking',
-    function (): bool {
-        $test_key = 'sk-ant-api03-abcdefghijklmnopqrstuvwxyz1234567890';
-        $masked   = \Quadica\QSA_Engraving\Services\Claude_Vision_Client::mask_api_key( $test_key );
-
-        // Should show first 7 chars + ... + last 6 chars.
-        if ( strpos( $masked, 'sk-ant-' ) !== 0 ) {
-            return new WP_Error( 'wrong_prefix', 'Masked key should start with original prefix.' );
-        }
-
-        if ( strpos( $masked, '...' ) === false ) {
-            return new WP_Error( 'no_ellipsis', 'Masked key should contain ellipsis.' );
-        }
-
-        // Full key should not be visible.
-        if ( $masked === $test_key ) {
-            return new WP_Error( 'not_masked', 'Key was not masked.' );
-        }
-
-        // Empty key should return empty string.
-        $empty_masked = \Quadica\QSA_Engraving\Services\Claude_Vision_Client::mask_api_key( '' );
-        if ( $empty_masked !== '' ) {
-            return new WP_Error( 'empty_not_handled', 'Empty key should return empty string.' );
-        }
-
-        return true;
-    },
-    'Claude_Vision_Client::mask_api_key() should properly mask API keys.'
-);
-
-// TC-MID-DEC-006: Decode_Log_Repository class exists
-run_test(
-    'TC-MID-DEC-006: Decode_Log_Repository class exists',
-    function (): bool {
-        if ( ! class_exists( 'Quadica\\QSA_Engraving\\Database\\Decode_Log_Repository' ) ) {
-            return new WP_Error( 'missing_class', 'Decode_Log_Repository class not found.' );
-        }
-
-        // Verify required constants.
-        $class = 'Quadica\\QSA_Engraving\\Database\\Decode_Log_Repository';
-
-        if ( ! defined( "{$class}::VALID_STATUSES" ) ) {
-            return new WP_Error( 'missing_constant', 'VALID_STATUSES constant not found.' );
-        }
-
-        $statuses = \Quadica\QSA_Engraving\Database\Decode_Log_Repository::VALID_STATUSES;
-        $expected = array( 'success', 'failed', 'error', 'invalid_image' );
-
-        if ( $statuses !== $expected ) {
-            return new WP_Error( 'wrong_statuses', 'VALID_STATUSES does not match expected values.' );
-        }
-
-        return true;
-    },
-    'Decode_Log_Repository class should exist with constants.'
-);
-
-// TC-MID-DEC-007: Decode_Log_Repository has required methods
-run_test(
-    'TC-MID-DEC-007: Decode_Log_Repository has required methods',
-    function (): bool {
-        $required_methods = array(
-            'log_decode_attempt',
-            'get_by_id',
-            'get_by_session',
-            'get_recent_logs',
-            'count_logs',
-            'get_statistics',
-            'cleanup_old_logs',
-            'has_recent_duplicate',
-            'generate_session_id',
-            'hash_image',
-            'table_exists',
-        );
-
-        $class = 'Quadica\\QSA_Engraving\\Database\\Decode_Log_Repository';
-
-        foreach ( $required_methods as $method ) {
-            if ( ! method_exists( $class, $method ) ) {
-                return new WP_Error( 'missing_method', "Method {$method}() not found in Decode_Log_Repository." );
-            }
-        }
-
-        return true;
-    },
-    'Decode_Log_Repository should have all required public methods.'
-);
-
-// TC-MID-DEC-008: Decode_Log_Repository instantiation
-run_test(
-    'TC-MID-DEC-008: Decode_Log_Repository instantiation',
-    function (): bool {
-        $repo = new \Quadica\QSA_Engraving\Database\Decode_Log_Repository();
-
-        if ( ! ( $repo instanceof \Quadica\QSA_Engraving\Database\Decode_Log_Repository ) ) {
-            return new WP_Error( 'instantiation_failed', 'Failed to instantiate Decode_Log_Repository.' );
-        }
-
-        // Table name should include prefix.
-        global $wpdb;
-        $expected_table = $wpdb->prefix . 'quad_microid_decode_logs';
-
-        if ( $repo->get_table_name() !== $expected_table ) {
-            return new WP_Error(
-                'wrong_table_name',
-                "Expected {$expected_table}, got " . $repo->get_table_name()
-            );
-        }
-
-        return true;
-    },
-    'Decode_Log_Repository should instantiate with correct table name.'
-);
-
-// TC-MID-DEC-009: Decode_Log_Repository static helpers
-run_test(
-    'TC-MID-DEC-009: Decode_Log_Repository static helpers',
-    function (): bool {
-        // Test session ID generation.
-        $session_id = \Quadica\QSA_Engraving\Database\Decode_Log_Repository::generate_session_id();
-
-        if ( empty( $session_id ) ) {
-            return new WP_Error( 'empty_session_id', 'generate_session_id() returned empty string.' );
-        }
-
-        // Should be UUID format (36 chars with hyphens).
-        if ( strlen( $session_id ) !== 36 ) {
-            return new WP_Error( 'wrong_length', "Session ID length should be 36, got " . strlen( $session_id ) );
-        }
-
-        // Test image hashing.
-        $test_data  = 'test image binary data';
-        $hash       = \Quadica\QSA_Engraving\Database\Decode_Log_Repository::hash_image( $test_data );
-
-        if ( empty( $hash ) ) {
-            return new WP_Error( 'empty_hash', 'hash_image() returned empty string.' );
-        }
-
-        // SHA-256 produces 64 character hex string.
-        if ( strlen( $hash ) !== 64 ) {
-            return new WP_Error( 'wrong_hash_length', "Hash length should be 64, got " . strlen( $hash ) );
-        }
-
-        // Hash should be deterministic.
-        $hash2 = \Quadica\QSA_Engraving\Database\Decode_Log_Repository::hash_image( $test_data );
-        if ( $hash !== $hash2 ) {
-            return new WP_Error( 'non_deterministic', 'hash_image() should be deterministic.' );
-        }
-
-        return true;
-    },
-    'Decode_Log_Repository static helper methods should work correctly.'
-);
-
-// TC-MID-DEC-010: Micro-ID decode logs table existence check
-run_test(
-    'TC-MID-DEC-010: Micro-ID decode logs table check',
-    function (): bool {
-        $repo = new \Quadica\QSA_Engraving\Database\Decode_Log_Repository();
-
-        // table_exists() should work (may return false if table not created yet).
-        $exists = $repo->table_exists();
-
-        if ( ! is_bool( $exists ) ) {
-            return new WP_Error( 'wrong_type', 'table_exists() should return boolean.' );
-        }
-
-        if ( ! $exists ) {
-            // Table doesn't exist yet - this is expected for Phase 1.
-            // The SQL script needs to be run manually.
-            echo "  Note: Table does not exist yet. Run 05-microid-decode-logs.sql to create it.\n";
-        }
-
-        return true;
-    },
-    'Decode_Log_Repository::table_exists() should return boolean.'
-);
-
-// TC-MID-DEC-011: MicroID_Decoder_Ajax_Handler class exists
-run_test(
-    'TC-MID-DEC-011: MicroID_Decoder_Ajax_Handler class exists',
+    'TC-MID-DEC-001: MicroID_Decoder_Ajax_Handler class exists',
     function (): bool {
         $class = 'Quadica\\QSA_Engraving\\Ajax\\MicroID_Decoder_Ajax_Handler';
 
@@ -7620,8 +7339,8 @@ run_test(
             return new WP_Error( 'class_missing', "Class {$class} not found." );
         }
 
-        // Check constants.
-        $constants = array( 'NONCE_ACTION', 'RATE_LIMIT_MAX', 'RATE_LIMIT_WINDOW', 'MAX_IMAGE_SIZE', 'MIN_IMAGE_DIMENSION', 'ALLOWED_MIME_TYPES', 'STAFF_CAPABILITY' );
+        // Check required constants (simplified handler).
+        $constants = array( 'NONCE_ACTION', 'STAFF_CAPABILITY' );
         foreach ( $constants as $const ) {
             if ( ! defined( "{$class}::{$const}" ) ) {
                 return new WP_Error( 'constant_missing', "Constant {$const} not defined." );
@@ -7633,15 +7352,15 @@ run_test(
     'MicroID_Decoder_Ajax_Handler class should exist with required constants.'
 );
 
-// TC-MID-DEC-012: MicroID_Decoder_Ajax_Handler has required methods
+// TC-MID-DEC-002: MicroID_Decoder_Ajax_Handler has required methods
 run_test(
-    'TC-MID-DEC-012: MicroID_Decoder_Ajax_Handler has required methods',
+    'TC-MID-DEC-002: MicroID_Decoder_Ajax_Handler has required methods',
     function (): bool {
         $class = 'Quadica\\QSA_Engraving\\Ajax\\MicroID_Decoder_Ajax_Handler';
 
         $required_methods = array(
             'register',
-            'handle_decode',
+            'handle_serial_lookup',
             'handle_full_details',
             'create_nonce',
         );
@@ -7657,37 +7376,20 @@ run_test(
     'MicroID_Decoder_Ajax_Handler should have all required public methods.'
 );
 
-// TC-MID-DEC-013: MicroID_Decoder_Ajax_Handler constants values
+// TC-MID-DEC-003: MicroID_Decoder_Ajax_Handler constants values
 run_test(
-    'TC-MID-DEC-013: MicroID_Decoder_Ajax_Handler constants values',
+    'TC-MID-DEC-003: MicroID_Decoder_Ajax_Handler constants values',
     function (): bool {
         $handler = \Quadica\QSA_Engraving\Ajax\MicroID_Decoder_Ajax_Handler::class;
-
-        // Verify rate limit values.
-        if ( $handler::RATE_LIMIT_MAX !== 10 ) {
-            return new WP_Error( 'wrong_value', 'RATE_LIMIT_MAX should be 10.' );
-        }
-        if ( $handler::RATE_LIMIT_WINDOW !== 60 ) {
-            return new WP_Error( 'wrong_value', 'RATE_LIMIT_WINDOW should be 60 seconds.' );
-        }
-
-        // Verify image constraints.
-        if ( $handler::MAX_IMAGE_SIZE !== 10 * 1024 * 1024 ) {
-            return new WP_Error( 'wrong_value', 'MAX_IMAGE_SIZE should be 10 MB.' );
-        }
-        if ( $handler::MIN_IMAGE_DIMENSION !== 120 ) {
-            return new WP_Error( 'wrong_value', 'MIN_IMAGE_DIMENSION should be 120 px.' );
-        }
-
-        // Verify allowed MIME types.
-        $expected_types = array( 'image/jpeg', 'image/png', 'image/webp' );
-        if ( $handler::ALLOWED_MIME_TYPES !== $expected_types ) {
-            return new WP_Error( 'wrong_value', 'ALLOWED_MIME_TYPES should be JPEG, PNG, WebP.' );
-        }
 
         // Verify staff capability.
         if ( $handler::STAFF_CAPABILITY !== 'manage_woocommerce' ) {
             return new WP_Error( 'wrong_value', 'STAFF_CAPABILITY should be manage_woocommerce.' );
+        }
+
+        // Verify nonce action.
+        if ( $handler::NONCE_ACTION !== 'qsa_microid_decode' ) {
+            return new WP_Error( 'wrong_value', 'NONCE_ACTION should be qsa_microid_decode.' );
         }
 
         return true;
@@ -7695,9 +7397,9 @@ run_test(
     'MicroID_Decoder_Ajax_Handler constants should have correct values.'
 );
 
-// TC-MID-DEC-014: MicroID_Decoder_Ajax_Handler nonce creation
+// TC-MID-DEC-004: MicroID_Decoder_Ajax_Handler nonce creation
 run_test(
-    'TC-MID-DEC-014: MicroID_Decoder_Ajax_Handler nonce creation',
+    'TC-MID-DEC-004: MicroID_Decoder_Ajax_Handler nonce creation',
     function (): bool {
         $handler = \Quadica\QSA_Engraving\Ajax\MicroID_Decoder_Ajax_Handler::class;
 
@@ -7721,17 +7423,13 @@ run_test(
     'MicroID_Decoder_Ajax_Handler::create_nonce() should create valid nonces.'
 );
 
-// TC-MID-DEC-015: MicroID_Decoder_Ajax_Handler instantiation
+// TC-MID-DEC-005: MicroID_Decoder_Ajax_Handler instantiation
 run_test(
-    'TC-MID-DEC-015: MicroID_Decoder_Ajax_Handler instantiation',
+    'TC-MID-DEC-005: MicroID_Decoder_Ajax_Handler instantiation',
     function (): bool {
-        $vision_client = new \Quadica\QSA_Engraving\Services\Claude_Vision_Client();
-        $decode_log_repo = new \Quadica\QSA_Engraving\Database\Decode_Log_Repository();
         $serial_repo = new \Quadica\QSA_Engraving\Database\Serial_Repository();
 
         $handler = new \Quadica\QSA_Engraving\Ajax\MicroID_Decoder_Ajax_Handler(
-            $vision_client,
-            $decode_log_repo,
             $serial_repo
         );
 
@@ -7741,12 +7439,12 @@ run_test(
 
         return true;
     },
-    'MicroID_Decoder_Ajax_Handler should instantiate with dependencies.'
+    'MicroID_Decoder_Ajax_Handler should instantiate with Serial_Repository dependency.'
 );
 
-// TC-MID-DEC-016: MicroID_Decoder_Ajax_Handler get_request_param POST-only
+// TC-MID-DEC-006: MicroID_Decoder_Ajax_Handler get_request_param POST-only
 run_test(
-    'TC-MID-DEC-016: MicroID_Decoder_Ajax_Handler get_request_param POST-only',
+    'TC-MID-DEC-006: MicroID_Decoder_Ajax_Handler get_request_param POST-only',
     function (): bool {
         // Use reflection to verify get_request_param only reads from $_POST (security fix).
         $reflection = new ReflectionClass( \Quadica\QSA_Engraving\Ajax\MicroID_Decoder_Ajax_Handler::class );
@@ -7775,172 +7473,6 @@ run_test(
         return true;
     },
     'get_request_param() should only read from POST to prevent nonce exposure in URLs.'
-);
-
-// TC-MID-DEC-017: MicroID_Decoder_Ajax_Handler secure IP detection
-run_test(
-    'TC-MID-DEC-017: MicroID_Decoder_Ajax_Handler secure IP detection',
-    function (): bool {
-        // Use reflection to verify get_client_ip only trusts secure headers.
-        $reflection = new ReflectionClass( \Quadica\QSA_Engraving\Ajax\MicroID_Decoder_Ajax_Handler::class );
-        $method = $reflection->getMethod( 'get_client_ip' );
-
-        $filename = $method->getFileName();
-        $start_line = $method->getStartLine();
-        $end_line = $method->getEndLine();
-
-        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
-        $source = file_get_contents( $filename );
-        $lines = explode( "\n", $source );
-        $method_source = implode( "\n", array_slice( $lines, $start_line - 1, $end_line - $start_line + 1 ) );
-
-        // Should NOT contain X-Forwarded-For (easily spoofed).
-        if ( str_contains( $method_source, 'X_FORWARDED_FOR' ) || str_contains( $method_source, 'X-Forwarded-For' ) ) {
-            return new WP_Error( 'security_issue', 'get_client_ip should not trust X-Forwarded-For header (spoofable).' );
-        }
-
-        // Should NOT contain X-Real-IP (easily spoofed).
-        if ( str_contains( $method_source, 'X_REAL_IP' ) || str_contains( $method_source, 'X-Real-IP' ) ) {
-            return new WP_Error( 'security_issue', 'get_client_ip should not trust X-Real-IP header (spoofable).' );
-        }
-
-        // Should contain CF_CONNECTING_IP (trusted from Cloudflare).
-        if ( ! str_contains( $method_source, 'CF_CONNECTING_IP' ) ) {
-            return new WP_Error( 'missing_cloudflare', 'get_client_ip should check CF-Connecting-IP for Cloudflare.' );
-        }
-
-        // Should contain REMOTE_ADDR (direct connection, cannot be spoofed).
-        if ( ! str_contains( $method_source, 'REMOTE_ADDR' ) ) {
-            return new WP_Error( 'missing_remote_addr', 'get_client_ip should check REMOTE_ADDR.' );
-        }
-
-        return true;
-    },
-    'get_client_ip() should only trust CF-Connecting-IP and REMOTE_ADDR (not spoofable headers).'
-);
-
-// TC-MID-DEC-018: MicroID_Decoder_Ajax_Handler cached lookup guards table existence
-run_test(
-    'TC-MID-DEC-018: MicroID_Decoder_Ajax_Handler cached lookup guards table existence',
-    function (): bool {
-        // Use reflection to verify handle_decode checks table_exists before cached lookup.
-        $reflection = new ReflectionClass( \Quadica\QSA_Engraving\Ajax\MicroID_Decoder_Ajax_Handler::class );
-        $method = $reflection->getMethod( 'handle_decode' );
-
-        $filename = $method->getFileName();
-        $start_line = $method->getStartLine();
-        $end_line = $method->getEndLine();
-
-        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
-        $source = file_get_contents( $filename );
-        $lines = explode( "\n", $source );
-        $method_source = implode( "\n", array_slice( $lines, $start_line - 1, $end_line - $start_line + 1 ) );
-
-        // Should have table_exists() check before get_by_image_hash.
-        // Looking for pattern: table_exists() check wrapping get_by_image_hash.
-        if ( ! str_contains( $method_source, 'table_exists()' ) ) {
-            return new WP_Error( 'missing_guard', 'handle_decode should check table_exists() before cached lookup.' );
-        }
-
-        return true;
-    },
-    'handle_decode() should guard cached lookup with table_exists() to prevent DB errors.'
-);
-
-// TC-MID-DEC-019: MicroID_Decoder_Ajax_Handler validate_upload uses is_uploaded_file
-run_test(
-    'TC-MID-DEC-019: MicroID_Decoder_Ajax_Handler validate_upload uses is_uploaded_file',
-    function (): bool {
-        // Use reflection to verify validate_upload uses is_uploaded_file security check.
-        $reflection = new ReflectionClass( \Quadica\QSA_Engraving\Ajax\MicroID_Decoder_Ajax_Handler::class );
-        $method = $reflection->getMethod( 'validate_upload' );
-
-        $filename = $method->getFileName();
-        $start_line = $method->getStartLine();
-        $end_line = $method->getEndLine();
-
-        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
-        $source = file_get_contents( $filename );
-        $lines = explode( "\n", $source );
-        $method_source = implode( "\n", array_slice( $lines, $start_line - 1, $end_line - $start_line + 1 ) );
-
-        // Should contain is_uploaded_file check.
-        if ( ! str_contains( $method_source, 'is_uploaded_file' ) ) {
-            return new WP_Error( 'missing_check', 'validate_upload should use is_uploaded_file() to verify upload authenticity.' );
-        }
-
-        // Should contain file_exists check.
-        if ( ! str_contains( $method_source, 'file_exists' ) ) {
-            return new WP_Error( 'missing_check', 'validate_upload should use file_exists() to verify file presence.' );
-        }
-
-        return true;
-    },
-    'validate_upload() should use is_uploaded_file() and file_exists() security checks.'
-);
-
-// TC-MID-DEC-020: MicroID_Decoder_Ajax_Handler validate_upload rejects on getimagesize failure
-run_test(
-    'TC-MID-DEC-020: MicroID_Decoder_Ajax_Handler validate_upload rejects on getimagesize failure',
-    function (): bool {
-        // Use reflection to verify validate_upload rejects when getimagesize fails.
-        $reflection = new ReflectionClass( \Quadica\QSA_Engraving\Ajax\MicroID_Decoder_Ajax_Handler::class );
-        $method = $reflection->getMethod( 'validate_upload' );
-
-        $filename = $method->getFileName();
-        $start_line = $method->getStartLine();
-        $end_line = $method->getEndLine();
-
-        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
-        $source = file_get_contents( $filename );
-        $lines = explode( "\n", $source );
-        $method_source = implode( "\n", array_slice( $lines, $start_line - 1, $end_line - $start_line + 1 ) );
-
-        // Should call getimagesize.
-        if ( ! str_contains( $method_source, 'getimagesize' ) ) {
-            return new WP_Error( 'missing_check', 'validate_upload should call getimagesize().' );
-        }
-
-        // Should return WP_Error when getimagesize fails (check for 'invalid_image' error).
-        if ( ! str_contains( $method_source, 'invalid_image' ) ) {
-            return new WP_Error( 'missing_error', 'validate_upload should return WP_Error(invalid_image) when getimagesize fails.' );
-        }
-
-        return true;
-    },
-    'validate_upload() should return WP_Error when getimagesize() fails (not a valid image).'
-);
-
-// TC-MID-DEC-021: MicroID_Decoder_Ajax_Handler validate_upload uses min() for dimension check
-run_test(
-    'TC-MID-DEC-021: MicroID_Decoder_Ajax_Handler validate_upload uses min() for dimension check',
-    function (): bool {
-        // Use reflection to verify validate_upload uses min() for dimension validation.
-        $reflection = new ReflectionClass( \Quadica\QSA_Engraving\Ajax\MicroID_Decoder_Ajax_Handler::class );
-        $method = $reflection->getMethod( 'validate_upload' );
-
-        $filename = $method->getFileName();
-        $start_line = $method->getStartLine();
-        $end_line = $method->getEndLine();
-
-        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
-        $source = file_get_contents( $filename );
-        $lines = explode( "\n", $source );
-        $method_source = implode( "\n", array_slice( $lines, $start_line - 1, $end_line - $start_line + 1 ) );
-
-        // Should use min() to check both dimensions.
-        if ( ! str_contains( $method_source, 'min(' ) ) {
-            return new WP_Error( 'missing_min', 'validate_upload should use min() to check both width and height.' );
-        }
-
-        // Should have MIN_IMAGE_DIMENSION constant check.
-        if ( ! str_contains( $method_source, 'MIN_IMAGE_DIMENSION' ) ) {
-            return new WP_Error( 'missing_constant', 'validate_upload should check against MIN_IMAGE_DIMENSION.' );
-        }
-
-        return true;
-    },
-    'validate_upload() should use min(width, height) to ensure both dimensions meet minimum.'
 );
 
 // TC-MID-DEC-022: MicroID_Landing_Handler class exists
@@ -8107,9 +7639,9 @@ run_test(
         $lines = explode( "\n", $source );
         $method_source = implode( "\n", array_slice( $lines, $start_line - 1, $end_line - $start_line + 1 ) );
 
-        // Should have JavaScript for decode action.
-        if ( ! str_contains( $method_source, 'qsa_microid_decode' ) ) {
-            return new WP_Error( 'missing_decode_action', 'JavaScript should call qsa_microid_decode action.' );
+        // Should have JavaScript for serial lookup action.
+        if ( ! str_contains( $method_source, 'qsa_microid_serial_lookup' ) ) {
+            return new WP_Error( 'missing_lookup_action', 'JavaScript should call qsa_microid_serial_lookup action.' );
         }
 
         // Should have JavaScript for full details action.
@@ -8124,12 +7656,12 @@ run_test(
 
         // Should handle FormData.
         if ( ! str_contains( $method_source, 'FormData' ) ) {
-            return new WP_Error( 'missing_formdata', 'JavaScript should use FormData for file uploads.' );
+            return new WP_Error( 'missing_formdata', 'JavaScript should use FormData for requests.' );
         }
 
         return true;
     },
-    'JavaScript should include AJAX calls to decode and full_details endpoints.'
+    'JavaScript should include AJAX calls to serial_lookup and full_details endpoints.'
 );
 
 // ============================================
@@ -8172,39 +7704,9 @@ run_test(
     'Admin_Menu::render_settings_content() should include Micro-ID Decoder section.'
 );
 
-// TC-MID-P4-002: Settings include Claude API key field
+// TC-MID-P4-002: Settings include decoder enable toggle
 run_test(
-    'TC-MID-P4-002: Settings include Claude API key field',
-    function (): bool {
-        $class = new ReflectionClass( \Quadica\QSA_Engraving\Admin\Admin_Menu::class );
-        $method = $class->getMethod( 'render_settings_content' );
-        $filename = $method->getFileName();
-        $start_line = $method->getStartLine();
-        $end_line = $method->getEndLine();
-
-        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
-        $source = file_get_contents( $filename );
-        $lines = explode( "\n", $source );
-        $method_source = implode( "\n", array_slice( $lines, $start_line - 1, $end_line - $start_line + 1 ) );
-
-        // Should have API key input field.
-        if ( ! str_contains( $method_source, 'claude_api_key' ) ) {
-            return new WP_Error( 'no_api_key_field', 'Settings should include claude_api_key field.' );
-        }
-
-        // Should be a password type for security.
-        if ( ! str_contains( $method_source, 'type="password"' ) ) {
-            return new WP_Error( 'not_password_type', 'API key field should be type="password".' );
-        }
-
-        return true;
-    },
-    'Settings page should include password-type Claude API key field.'
-);
-
-// TC-MID-P4-003: Settings include decoder enable toggle
-run_test(
-    'TC-MID-P4-003: Settings include decoder enable toggle',
+    'TC-MID-P4-002: Settings include decoder enable toggle',
     function (): bool {
         $class = new ReflectionClass( \Quadica\QSA_Engraving\Admin\Admin_Menu::class );
         $method = $class->getMethod( 'render_settings_content' );
@@ -8227,303 +7729,6 @@ run_test(
     'Settings page should include decoder enable/disable toggle.'
 );
 
-// TC-MID-P4-004: Settings include model selection
-run_test(
-    'TC-MID-P4-004: Settings include model selection',
-    function (): bool {
-        $class = new ReflectionClass( \Quadica\QSA_Engraving\Admin\Admin_Menu::class );
-        $method = $class->getMethod( 'render_settings_content' );
-        $filename = $method->getFileName();
-        $start_line = $method->getStartLine();
-        $end_line = $method->getEndLine();
-
-        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
-        $source = file_get_contents( $filename );
-        $lines = explode( "\n", $source );
-        $method_source = implode( "\n", array_slice( $lines, $start_line - 1, $end_line - $start_line + 1 ) );
-
-        // Should have model selection.
-        if ( ! str_contains( $method_source, 'claude_model' ) ) {
-            return new WP_Error( 'no_model_select', 'Settings should include claude_model select.' );
-        }
-
-        // Should include at least one model option.
-        if ( ! str_contains( $method_source, 'claude-sonnet-4' ) ) {
-            return new WP_Error( 'no_model_options', 'Settings should include Claude model options.' );
-        }
-
-        return true;
-    },
-    'Settings page should include Claude model selection dropdown.'
-);
-
-// TC-MID-P4-005: Settings include log retention setting
-run_test(
-    'TC-MID-P4-005: Settings include log retention setting',
-    function (): bool {
-        $class = new ReflectionClass( \Quadica\QSA_Engraving\Admin\Admin_Menu::class );
-        $method = $class->getMethod( 'render_settings_content' );
-        $filename = $method->getFileName();
-        $start_line = $method->getStartLine();
-        $end_line = $method->getEndLine();
-
-        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
-        $source = file_get_contents( $filename );
-        $lines = explode( "\n", $source );
-        $method_source = implode( "\n", array_slice( $lines, $start_line - 1, $end_line - $start_line + 1 ) );
-
-        // Should have log retention setting.
-        if ( ! str_contains( $method_source, 'microid_log_retention_days' ) ) {
-            return new WP_Error( 'no_retention_setting', 'Settings should include microid_log_retention_days field.' );
-        }
-
-        return true;
-    },
-    'Settings page should include log retention days setting.'
-);
-
-// TC-MID-P4-006: Settings include test connection button
-run_test(
-    'TC-MID-P4-006: Settings include test connection button',
-    function (): bool {
-        $class = new ReflectionClass( \Quadica\QSA_Engraving\Admin\Admin_Menu::class );
-        $method = $class->getMethod( 'render_settings_content' );
-        $filename = $method->getFileName();
-        $start_line = $method->getStartLine();
-        $end_line = $method->getEndLine();
-
-        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
-        $source = file_get_contents( $filename );
-        $lines = explode( "\n", $source );
-        $method_source = implode( "\n", array_slice( $lines, $start_line - 1, $end_line - $start_line + 1 ) );
-
-        // Should have test connection button.
-        if ( ! str_contains( $method_source, 'qsa-test-claude-api' ) ) {
-            return new WP_Error( 'no_test_button', 'Settings should include test connection button.' );
-        }
-
-        return true;
-    },
-    'Settings page should include Claude API test connection button.'
-);
-
-// TC-MID-P4-007: AJAX handler has test claude connection action
-run_test(
-    'TC-MID-P4-007: AJAX handler has test claude connection action',
-    function (): bool {
-        $class = new ReflectionClass( \Quadica\QSA_Engraving\Ajax\LightBurn_Ajax_Handler::class );
-
-        // Verify handle_test_claude_connection method exists.
-        if ( ! $class->hasMethod( 'handle_test_claude_connection' ) ) {
-            return new WP_Error( 'no_test_method', 'LightBurn_Ajax_Handler should have handle_test_claude_connection method.' );
-        }
-
-        // Verify register method includes the action.
-        $method = $class->getMethod( 'register' );
-        $filename = $method->getFileName();
-        $start_line = $method->getStartLine();
-        $end_line = $method->getEndLine();
-
-        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
-        $source = file_get_contents( $filename );
-        $lines = explode( "\n", $source );
-        $method_source = implode( "\n", array_slice( $lines, $start_line - 1, $end_line - $start_line + 1 ) );
-
-        if ( ! str_contains( $method_source, 'qsa_test_claude_connection' ) ) {
-            return new WP_Error( 'action_not_registered', 'AJAX action qsa_test_claude_connection should be registered.' );
-        }
-
-        return true;
-    },
-    'LightBurn_Ajax_Handler should register qsa_test_claude_connection action.'
-);
-
-// TC-MID-P4-008: AJAX handler saves Micro-ID decoder settings
-run_test(
-    'TC-MID-P4-008: AJAX handler saves Micro-ID decoder settings',
-    function (): bool {
-        $class = new ReflectionClass( \Quadica\QSA_Engraving\Ajax\LightBurn_Ajax_Handler::class );
-
-        $method = $class->getMethod( 'handle_save_settings' );
-        $filename = $method->getFileName();
-        $start_line = $method->getStartLine();
-        $end_line = $method->getEndLine();
-
-        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
-        $source = file_get_contents( $filename );
-        $lines = explode( "\n", $source );
-        $method_source = implode( "\n", array_slice( $lines, $start_line - 1, $end_line - $start_line + 1 ) );
-
-        // Should handle microid_decoder_enabled.
-        if ( ! str_contains( $method_source, 'microid_decoder_enabled' ) ) {
-            return new WP_Error( 'no_enabled_handling', 'handle_save_settings should process microid_decoder_enabled.' );
-        }
-
-        // Should handle claude_api_key.
-        if ( ! str_contains( $method_source, 'claude_api_key' ) ) {
-            return new WP_Error( 'no_api_key_handling', 'handle_save_settings should process claude_api_key.' );
-        }
-
-        // Should handle claude_model.
-        if ( ! str_contains( $method_source, 'claude_model' ) ) {
-            return new WP_Error( 'no_model_handling', 'handle_save_settings should process claude_model.' );
-        }
-
-        // Should handle microid_log_retention_days.
-        if ( ! str_contains( $method_source, 'microid_log_retention_days' ) ) {
-            return new WP_Error( 'no_retention_handling', 'handle_save_settings should process microid_log_retention_days.' );
-        }
-
-        return true;
-    },
-    'handle_save_settings should process all Micro-ID decoder settings.'
-);
-
-// TC-MID-P4-009: API key is encrypted before storage
-run_test(
-    'TC-MID-P4-009: API key is encrypted before storage',
-    function (): bool {
-        $class = new ReflectionClass( \Quadica\QSA_Engraving\Ajax\LightBurn_Ajax_Handler::class );
-
-        $method = $class->getMethod( 'handle_save_settings' );
-        $filename = $method->getFileName();
-        $start_line = $method->getStartLine();
-        $end_line = $method->getEndLine();
-
-        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
-        $source = file_get_contents( $filename );
-        $lines = explode( "\n", $source );
-        $method_source = implode( "\n", array_slice( $lines, $start_line - 1, $end_line - $start_line + 1 ) );
-
-        // Should use Claude_Vision_Client::encrypt() for API key.
-        if ( ! str_contains( $method_source, 'Claude_Vision_Client::encrypt' ) ) {
-            return new WP_Error( 'no_encryption', 'API key should be encrypted using Claude_Vision_Client::encrypt().' );
-        }
-
-        return true;
-    },
-    'API key should be encrypted before storage per SECURITY.md.'
-);
-
-// TC-MID-P4-010: API key format validation
-run_test(
-    'TC-MID-P4-010: API key format validation',
-    function (): bool {
-        $class = new ReflectionClass( \Quadica\QSA_Engraving\Ajax\LightBurn_Ajax_Handler::class );
-
-        $method = $class->getMethod( 'handle_save_settings' );
-        $filename = $method->getFileName();
-        $start_line = $method->getStartLine();
-        $end_line = $method->getEndLine();
-
-        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
-        $source = file_get_contents( $filename );
-        $lines = explode( "\n", $source );
-        $method_source = implode( "\n", array_slice( $lines, $start_line - 1, $end_line - $start_line + 1 ) );
-
-        // Should validate sk-ant- prefix.
-        if ( ! str_contains( $method_source, 'sk-ant-' ) ) {
-            return new WP_Error( 'no_format_validation', 'API key format should be validated (sk-ant- prefix).' );
-        }
-
-        return true;
-    },
-    'API key format should be validated before saving.'
-);
-
-// TC-MID-P4-011: AJAX response excludes secret values (per SECURITY.md)
-run_test(
-    'TC-MID-P4-011: AJAX response excludes secret values',
-    function (): bool {
-        $class = new ReflectionClass( \Quadica\QSA_Engraving\Ajax\LightBurn_Ajax_Handler::class );
-
-        $method = $class->getMethod( 'handle_save_settings' );
-        $filename = $method->getFileName();
-        $start_line = $method->getStartLine();
-        $end_line = $method->getEndLine();
-
-        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
-        $source = file_get_contents( $filename );
-        $lines = explode( "\n", $source );
-        $method_source = implode( "\n", array_slice( $lines, $start_line - 1, $end_line - $start_line + 1 ) );
-
-        // Should build a sanitized response_data array.
-        if ( ! str_contains( $method_source, 'response_data' ) ) {
-            return new WP_Error( 'no_sanitized_response', 'handle_save_settings should build sanitized response_data.' );
-        }
-
-        // Should return boolean for API key status, not the actual value.
-        if ( ! str_contains( $method_source, "'claude_api_key' => ! empty(" ) ) {
-            return new WP_Error( 'key_not_boolean', 'API key in response should be boolean, not actual value.' );
-        }
-
-        return true;
-    },
-    'AJAX response should exclude secret values per SECURITY.md.'
-);
-
-// TC-MID-P4-012: Invalid model returns validation error
-run_test(
-    'TC-MID-P4-012: Invalid model returns validation error',
-    function (): bool {
-        $class = new ReflectionClass( \Quadica\QSA_Engraving\Ajax\LightBurn_Ajax_Handler::class );
-
-        $method = $class->getMethod( 'handle_save_settings' );
-        $filename = $method->getFileName();
-        $start_line = $method->getStartLine();
-        $end_line = $method->getEndLine();
-
-        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
-        $source = file_get_contents( $filename );
-        $lines = explode( "\n", $source );
-        $method_source = implode( "\n", array_slice( $lines, $start_line - 1, $end_line - $start_line + 1 ) );
-
-        // Should return error for invalid models instead of silently ignoring.
-        if ( ! str_contains( $method_source, 'invalid_claude_model' ) ) {
-            return new WP_Error( 'no_model_validation_error', 'Invalid model should return validation error, not be silently ignored.' );
-        }
-
-        return true;
-    },
-    'Invalid Claude model should return validation error.'
-);
-
-// TC-MID-P4-013: Model allowlist uses current Anthropic model IDs
-run_test(
-    'TC-MID-P4-013: Model allowlist uses current Anthropic model IDs',
-    function (): bool {
-        $class = new ReflectionClass( \Quadica\QSA_Engraving\Ajax\LightBurn_Ajax_Handler::class );
-
-        $method = $class->getMethod( 'handle_save_settings' );
-        $filename = $method->getFileName();
-        $start_line = $method->getStartLine();
-        $end_line = $method->getEndLine();
-
-        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
-        $source = file_get_contents( $filename );
-        $lines = explode( "\n", $source );
-        $method_source = implode( "\n", array_slice( $lines, $start_line - 1, $end_line - $start_line + 1 ) );
-
-        // Should include Claude Opus 4.5 (recommended for Micro-ID).
-        if ( ! str_contains( $method_source, 'claude-opus-4-5-20251101' ) ) {
-            return new WP_Error( 'no_opus_45', 'Allowlist should include claude-opus-4-5-20251101.' );
-        }
-
-        // Should include Claude Sonnet 4.5.
-        if ( ! str_contains( $method_source, 'claude-sonnet-4-5-20250929' ) ) {
-            return new WP_Error( 'no_sonnet_45', 'Allowlist should include claude-sonnet-4-5-20250929.' );
-        }
-
-        // Should include Claude Haiku 4.5.
-        if ( ! str_contains( $method_source, 'claude-haiku-4-5-20251001' ) ) {
-            return new WP_Error( 'no_haiku_45', 'Allowlist should include claude-haiku-4-5-20251001.' );
-        }
-
-        return true;
-    },
-    'Model allowlist should use current Anthropic model IDs (2025).'
-);
-
 // ============================================
 // Micro-ID Decoder Phase 5: Plugin Wiring Tests
 // ============================================
@@ -8532,49 +7737,9 @@ echo "\n-------------------------------------------\n";
 echo "Phase 5: Micro-ID Decoder Plugin Wiring\n";
 echo "-------------------------------------------\n";
 
-// TC-MID-P5-001: Decode_Log_Repository registered in plugin
+// TC-MID-P5-001: MicroID_Decoder_Ajax_Handler registered in plugin
 run_test(
-    'TC-MID-P5-001: Decode_Log_Repository registered in plugin',
-    function () {
-        $plugin = \Quadica\QSA_Engraving\qsa_engraving();
-        $repo   = $plugin->get_decode_log_repository();
-
-        if ( null === $repo ) {
-            return new WP_Error( 'null_repo', 'Decode_Log_Repository getter returns null.' );
-        }
-
-        if ( ! ( $repo instanceof \Quadica\QSA_Engraving\Database\Decode_Log_Repository ) ) {
-            return new WP_Error( 'wrong_type', 'Decode_Log_Repository getter returns wrong type.' );
-        }
-
-        return true;
-    },
-    'Plugin should provide access to Decode_Log_Repository via getter.'
-);
-
-// TC-MID-P5-002: Claude_Vision_Client registered in plugin
-run_test(
-    'TC-MID-P5-002: Claude_Vision_Client registered in plugin',
-    function () {
-        $plugin = \Quadica\QSA_Engraving\qsa_engraving();
-        $client = $plugin->get_claude_vision_client();
-
-        if ( null === $client ) {
-            return new WP_Error( 'null_client', 'Claude_Vision_Client getter returns null.' );
-        }
-
-        if ( ! ( $client instanceof \Quadica\QSA_Engraving\Services\Claude_Vision_Client ) ) {
-            return new WP_Error( 'wrong_type', 'Claude_Vision_Client getter returns wrong type.' );
-        }
-
-        return true;
-    },
-    'Plugin should provide access to Claude_Vision_Client via getter.'
-);
-
-// TC-MID-P5-003: MicroID_Decoder_Ajax_Handler registered in plugin
-run_test(
-    'TC-MID-P5-003: MicroID_Decoder_Ajax_Handler registered in plugin',
+    'TC-MID-P5-001: MicroID_Decoder_Ajax_Handler registered in plugin',
     function () {
         $plugin  = \Quadica\QSA_Engraving\qsa_engraving();
         $handler = $plugin->get_microid_decoder_ajax_handler();
@@ -8592,9 +7757,9 @@ run_test(
     'Plugin should provide access to MicroID_Decoder_Ajax_Handler via getter.'
 );
 
-// TC-MID-P5-004: MicroID_Landing_Handler registered in plugin
+// TC-MID-P5-002: MicroID_Landing_Handler registered in plugin
 run_test(
-    'TC-MID-P5-004: MicroID_Landing_Handler registered in plugin',
+    'TC-MID-P5-002: MicroID_Landing_Handler registered in plugin',
     function () {
         $plugin  = \Quadica\QSA_Engraving\qsa_engraving();
         $handler = $plugin->get_microid_landing_handler();
@@ -8612,18 +7777,18 @@ run_test(
     'Plugin should provide access to MicroID_Landing_Handler via getter.'
 );
 
-// TC-MID-P5-005: Decoder AJAX actions registered
+// TC-MID-P5-003: Decoder AJAX actions registered
 run_test(
-    'TC-MID-P5-005: Decoder AJAX actions registered',
+    'TC-MID-P5-003: Decoder AJAX actions registered',
     function () {
-        // Check public decode action (nopriv).
-        if ( ! has_action( 'wp_ajax_nopriv_qsa_microid_decode' ) ) {
-            return new WP_Error( 'no_nopriv_decode', 'wp_ajax_nopriv_qsa_microid_decode action not registered.' );
+        // Check public serial lookup action (nopriv).
+        if ( ! has_action( 'wp_ajax_nopriv_qsa_microid_serial_lookup' ) ) {
+            return new WP_Error( 'no_nopriv_lookup', 'wp_ajax_nopriv_qsa_microid_serial_lookup action not registered.' );
         }
 
-        // Check logged-in decode action.
-        if ( ! has_action( 'wp_ajax_qsa_microid_decode' ) ) {
-            return new WP_Error( 'no_decode', 'wp_ajax_qsa_microid_decode action not registered.' );
+        // Check logged-in serial lookup action.
+        if ( ! has_action( 'wp_ajax_qsa_microid_serial_lookup' ) ) {
+            return new WP_Error( 'no_lookup', 'wp_ajax_qsa_microid_serial_lookup action not registered.' );
         }
 
         // Check staff full details action.
@@ -8636,9 +7801,9 @@ run_test(
     'All MicroID decoder AJAX actions should be registered.'
 );
 
-// TC-MID-P5-006: /id rewrite rule registered
+// TC-MID-P5-004: /id rewrite rule registered
 run_test(
-    'TC-MID-P5-006: /id rewrite rule registered',
+    'TC-MID-P5-004: /id rewrite rule registered',
     function () {
         global $wp_rewrite;
 
@@ -8680,9 +7845,9 @@ run_test(
     'The /id rewrite rule should be registered for Micro-ID lookup.'
 );
 
-// TC-MID-P5-007: microid_lookup query var registered
+// TC-MID-P5-005: microid_lookup query var registered
 run_test(
-    'TC-MID-P5-007: microid_lookup query var registered',
+    'TC-MID-P5-005: microid_lookup query var registered',
     function () {
         global $wp;
 
@@ -8709,9 +7874,9 @@ run_test(
     'The microid_lookup query var should be registered.'
 );
 
-// TC-MID-P5-008: template_redirect hook registered for /id
+// TC-MID-P5-006: template_redirect hook registered for /id
 run_test(
-    'TC-MID-P5-008: template_redirect hook registered for /id',
+    'TC-MID-P5-006: template_redirect hook registered for /id',
     function () {
         if ( ! has_action( 'template_redirect' ) ) {
             return new WP_Error( 'no_hook', 'template_redirect hook not registered.' );
@@ -8728,63 +7893,9 @@ run_test(
     'The template_redirect hook should be registered for Micro-ID landing page.'
 );
 
-// TC-MID-P5-009: Claude Vision Client has required methods
+// TC-MID-P5-007: Landing handler has is_decoder_enabled check
 run_test(
-    'TC-MID-P5-009: Claude Vision Client has required methods',
-    function () {
-        $client = \Quadica\QSA_Engraving\qsa_engraving()->get_claude_vision_client();
-
-        $required_methods = array(
-            'decode_micro_id',
-            'test_connection',
-            'has_api_key',
-            'is_enabled',
-            'get_last_error',
-            'get_last_response_time_ms',
-            'get_last_tokens_used',
-        );
-
-        foreach ( $required_methods as $method ) {
-            if ( ! method_exists( $client, $method ) ) {
-                return new WP_Error( 'missing_method', "Claude_Vision_Client missing method: {$method}" );
-            }
-        }
-
-        return true;
-    },
-    'Claude_Vision_Client should have all required methods.'
-);
-
-// TC-MID-P5-010: Decode Log Repository has required methods
-run_test(
-    'TC-MID-P5-010: Decode Log Repository has required methods',
-    function () {
-        $repo = \Quadica\QSA_Engraving\qsa_engraving()->get_decode_log_repository();
-
-        $required_methods = array(
-            'log_decode_attempt',
-            'get_recent_logs',
-            'cleanup_old_logs',
-            'get_statistics',
-            'table_exists',
-            'get_by_image_hash',
-            'has_recent_duplicate',
-        );
-
-        foreach ( $required_methods as $method ) {
-            if ( ! method_exists( $repo, $method ) ) {
-                return new WP_Error( 'missing_method', "Decode_Log_Repository missing method: {$method}" );
-            }
-        }
-
-        return true;
-    },
-    'Decode_Log_Repository should have all required methods.'
-);
-
-// TC-MID-P5-011: Landing handler has is_decoder_enabled check
-run_test(
-    'TC-MID-P5-011: Landing handler respects enable/disable setting',
+    'TC-MID-P5-007: Landing handler respects enable/disable setting',
     function () {
         // Use reflection to check the private method exists.
         $handler = \Quadica\QSA_Engraving\qsa_engraving()->get_microid_landing_handler();
@@ -8824,9 +7935,9 @@ run_test(
     'Landing handler should check if decoder is enabled and show disabled page when off.'
 );
 
-// TC-MID-P5-012: Activation hook registers rewrite rules before flush
+// TC-MID-P5-008: Activation hook registers rewrite rules before flush
 run_test(
-    'TC-MID-P5-012: Activation hook registers rewrite rules before flush',
+    'TC-MID-P5-008: Activation hook registers rewrite rules before flush',
     function () {
         // Read the main plugin file to verify activation hook.
         $plugin_file = QSA_ENGRAVING_PLUGIN_DIR . 'qsa-engraving.php';

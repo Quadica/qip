@@ -176,20 +176,6 @@ final class Plugin {
     private ?Frontend\QSA_Landing_Handler $qsa_landing_handler = null;
 
     /**
-     * Decode Log Repository instance.
-     *
-     * @var Database\Decode_Log_Repository|null
-     */
-    private ?Database\Decode_Log_Repository $decode_log_repository = null;
-
-    /**
-     * Claude Vision Client instance.
-     *
-     * @var Services\Claude_Vision_Client|null
-     */
-    private ?Services\Claude_Vision_Client $claude_vision_client = null;
-
-    /**
      * MicroID Decoder AJAX Handler instance.
      *
      * @var Ajax\MicroID_Decoder_Ajax_Handler|null
@@ -463,7 +449,6 @@ final class Plugin {
         $this->config_repository         = new Database\Config_Repository();
         $this->qsa_identifier_repository = new Database\QSA_Identifier_Repository();
         $this->sku_mapping_repository    = new Database\SKU_Mapping_Repository();
-        $this->decode_log_repository     = new Database\Decode_Log_Repository();
     }
 
     /**
@@ -547,18 +532,13 @@ final class Plugin {
         );
         $this->qsa_landing_handler->register();
 
-        // Initialize Claude Vision Client for Micro-ID decoding.
-        $this->claude_vision_client = new Services\Claude_Vision_Client();
-
-        // Initialize MicroID Decoder AJAX Handler (Phase 5 - Micro-ID decoding via Claude Vision).
+        // Initialize MicroID Decoder AJAX Handler (serial lookups for decoder pages).
         $this->microid_decoder_ajax_handler = new Ajax\MicroID_Decoder_Ajax_Handler(
-            $this->claude_vision_client,
-            $this->decode_log_repository,
             $this->serial_repository
         );
         $this->microid_decoder_ajax_handler->register();
 
-        // Initialize MicroID Landing Handler (Frontend - handles /id URL for Micro-ID decoder).
+        // Initialize MicroID Landing Handler (Frontend - handles /id URL for module info).
         $this->microid_landing_handler = new Frontend\MicroID_Landing_Handler();
         $this->microid_landing_handler->register();
 
@@ -800,24 +780,6 @@ final class Plugin {
      */
     public function get_queue_ajax_handler(): ?Ajax\Queue_Ajax_Handler {
         return $this->queue_ajax_handler;
-    }
-
-    /**
-     * Get the Decode Log Repository instance.
-     *
-     * @return Database\Decode_Log_Repository|null
-     */
-    public function get_decode_log_repository(): ?Database\Decode_Log_Repository {
-        return $this->decode_log_repository;
-    }
-
-    /**
-     * Get the Claude Vision Client instance.
-     *
-     * @return Services\Claude_Vision_Client|null
-     */
-    public function get_claude_vision_client(): ?Services\Claude_Vision_Client {
-        return $this->claude_vision_client;
     }
 
     /**
