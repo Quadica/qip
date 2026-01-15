@@ -30,14 +30,16 @@ This session focused on testing and improving the Micro-ID decoder's accuracy us
 ### New Functionality Added
 - **Multi-Image Reference System**: New `decode_with_references()` method in Claude Vision Client allows including reference images in API requests. Helper method `build_request_with_references()` handles multi-image payload construction.
 - **Reference-Aware Prompt**: New `get_decode_prompt_with_references()` prompt explains reference images to the AI model.
+- **Extended Thinking Mode**: New `decode_micro_id_with_thinking()` method enables Claude's extended thinking feature with configurable token budget (default 10000). Extended timeout (120s) and thinking content extraction from response.
 - **Methodical Decode Prompt**: Completely rewrote main `get_decode_prompt()` to require explicit row-by-row grid mapping, emphasize finding 4 corner anchors first, make parity verification mandatory, and add hint about typical serial number ranges.
-- **POC Test Script**: `test-microid-decode-poc.php` supports environment variables (TEST_IMAGE, WITH_REFS, REFS_ONLY) for flexible testing scenarios.
+- **POC Test Script**: `test-microid-decode-poc.php` supports environment variables (TEST_IMAGE, WITH_REFS, REFS_ONLY, WITH_THINKING, THINKING_BUDGET) for flexible testing scenarios.
 
 ### Problems & Bugs Fixed
 - **POC Script Compatibility**: Fixed test script to work with `wp eval-file` command format
 
 ### Git Commits
 Key commits from this session (newest first):
+- `7dfb8ef` - Add extended thinking mode for Micro-ID decode
 - `60edc7b` - Rework decode prompt for methodical step-by-step analysis
 - `763fc6f` - Add zoomed Micro-ID sample images for decode testing
 - `1576109` - Add original test image for decode comparison
@@ -52,22 +54,27 @@ Key commits from this session (newest first):
 - **Zoomed Image Testing**: Created zoomed versions of sample images to test if closer crops improve accuracy (marginal improvement observed).
 
 ## Current State
-The Micro-ID decoder has enhanced multi-image reference support implemented as a POC. However, extensive testing revealed that:
+The Micro-ID decoder has enhanced multi-image reference support and extended thinking mode implemented as a POC. However, extensive testing revealed that:
 - Neither WITH refs nor WITHOUT refs consistently produces correct results via API
 - The methodical prompt improves process visibility but not final accuracy
 - Zoomed images perform only marginally better than full images
 - Closest result achieved: 00000218 (off by 10 from actual 00000208)
 - Manual decode by Claude in extended reasoning achieves correct results, suggesting the issue is API interaction pattern rather than model capability
+- Extended thinking mode improves honesty (returns failure on ambiguous images) but does not improve accuracy on zoomed images
 
 Test results with known serial numbers:
-- sample-1: actual 00000208, API results inconsistent
+- sample-1: actual 00000208, API results inconsistent (best: 00000218 without refs)
 - sample-2: actual 00000208, API results inconsistent
 - sample-3: actual 00000204, API results inconsistent
 
+Extended thinking results:
+- Original sample-1: FAILED (honest uncertainty - couldn't distinguish Micro-ID from LED pads)
+- Zoomed sample-1: 00000544 (still incorrect, but shows more deliberate reasoning)
+
 ## Next Steps
 ### Immediate Tasks
-- [ ] Research why web-based chat gives better results than API
-- [ ] Investigate extended thinking mode (API feature not currently used)
+- [ ] Research why web-based chat gives better results than API (user priority)
+- [x] Investigate extended thinking mode - implemented but did not solve accuracy issue
 - [ ] Test with different temperature settings
 - [ ] Consider different model versions for decode task
 
