@@ -483,40 +483,52 @@ class MicroID_Manual_Decoder_Handler {
 		}
 
 		.camera-modal.active {
-			display: flex;
-			flex-direction: column;
+			display: block;
 		}
 
 		.camera-container {
-			flex: 1;
-			display: flex;
-			flex-direction: column;
-			max-height: 100vh;
+			position: relative;
+			width: 100%;
+			height: 100%;
 		}
 
 		#camera-video {
-			flex: 1;
+			position: absolute;
+			top: 0;
+			left: 0;
 			width: 100%;
+			height: 100%;
 			object-fit: cover;
 			background: #000;
 		}
 
 		.camera-controls {
+			position: absolute;
+			bottom: 0;
+			left: 0;
+			right: 0;
 			display: flex;
 			justify-content: space-around;
 			align-items: center;
 			padding: 20px;
-			background: rgba(0, 0, 0, 0.8);
+			padding-bottom: max(20px, env(safe-area-inset-bottom));
+			background: rgba(0, 0, 0, 0.7);
+			z-index: 10001;
 		}
 
 		.camera-control-btn {
 			padding: 12px 24px;
 			font-size: 16px;
 			color: #fff;
-			background: transparent;
+			background: rgba(255, 255, 255, 0.2);
 			border: 1px solid #fff;
 			border-radius: 8px;
 			cursor: pointer;
+			min-width: 80px;
+		}
+
+		.camera-control-btn:active {
+			background: rgba(255, 255, 255, 0.4);
 		}
 
 		.camera-shutter-btn {
