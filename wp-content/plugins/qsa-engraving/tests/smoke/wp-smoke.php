@@ -7322,6 +7322,97 @@ run_test(
 );
 
 // ============================================
+// TC-MID-001: Manual Decoder Handler Loads
+// ============================================
+run_test(
+    'TC-MID-001: Manual Decoder Handler class loads',
+    function (): bool {
+        $class = 'Quadica\\QSA_Engraving\\Frontend\\MicroID_Manual_Decoder_Handler';
+        if ( ! class_exists( $class ) ) {
+            return new WP_Error( 'class_not_found', "Class {$class} not found." );
+        }
+
+        $handler = new $class();
+        if ( ! method_exists( $handler, 'register' ) ) {
+            return new WP_Error( 'method_missing', 'MicroID_Manual_Decoder_Handler missing register() method.' );
+        }
+
+        echo "  MicroID_Manual_Decoder_Handler class exists and is instantiable.\n";
+        return true;
+    },
+    'Manual decoder handler class should be autoloadable and instantiable.'
+);
+
+// ============================================
+// TC-MID-002: Serial Lookup Handler Loads
+// ============================================
+run_test(
+    'TC-MID-002: Serial Lookup Handler class loads',
+    function (): bool {
+        $class = 'Quadica\\QSA_Engraving\\Frontend\\MicroID_Serial_Lookup_Handler';
+        if ( ! class_exists( $class ) ) {
+            return new WP_Error( 'class_not_found', "Class {$class} not found." );
+        }
+
+        // Create with Serial Repository dependency.
+        $serial_repo = new \Quadica\QSA_Engraving\Database\Serial_Repository();
+        $handler = new $class( $serial_repo );
+        if ( ! method_exists( $handler, 'register' ) ) {
+            return new WP_Error( 'method_missing', 'MicroID_Serial_Lookup_Handler missing register() method.' );
+        }
+
+        echo "  MicroID_Serial_Lookup_Handler class exists and is instantiable.\n";
+        return true;
+    },
+    'Serial lookup handler class should be autoloadable and instantiable.'
+);
+
+// ============================================
+// TC-MID-003: Decoder Rewrite Rules Registered
+// ============================================
+run_test(
+    'TC-MID-003: Decoder rewrite rules registered',
+    function (): bool {
+        global $wp_rewrite;
+
+        // Flush rewrite rules to ensure they're current.
+        flush_rewrite_rules();
+
+        $rules = $wp_rewrite->wp_rewrite_rules();
+
+        // Check for /decode rule.
+        $decode_found = false;
+        foreach ( $rules as $pattern => $query ) {
+            if ( strpos( $pattern, 'decode' ) !== false ) {
+                $decode_found = true;
+                break;
+            }
+        }
+
+        // Check for /id rule.
+        $id_found = false;
+        foreach ( $rules as $pattern => $query ) {
+            if ( preg_match( '/^\^id/', $pattern ) ) {
+                $id_found = true;
+                break;
+            }
+        }
+
+        if ( ! $decode_found ) {
+            return new WP_Error( 'decode_rule_missing', '/decode rewrite rule not found.' );
+        }
+
+        if ( ! $id_found ) {
+            return new WP_Error( 'id_rule_missing', '/id rewrite rule not found.' );
+        }
+
+        echo "  Both /decode and /id rewrite rules are registered.\n";
+        return true;
+    },
+    'Both /decode and /id URL rewrite rules should be registered.'
+);
+
+// ============================================
 // Summary
 // ============================================
 // Re-declare global to ensure PHP 8.1 recognizes the variables in eval-file context.

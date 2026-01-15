@@ -176,6 +176,20 @@ final class Plugin {
     private ?Frontend\QSA_Landing_Handler $qsa_landing_handler = null;
 
     /**
+     * Manual Decoder Handler instance.
+     *
+     * @var Frontend\MicroID_Manual_Decoder_Handler|null
+     */
+    private ?Frontend\MicroID_Manual_Decoder_Handler $manual_decoder_handler = null;
+
+    /**
+     * Serial Lookup Handler instance.
+     *
+     * @var Frontend\MicroID_Serial_Lookup_Handler|null
+     */
+    private ?Frontend\MicroID_Serial_Lookup_Handler $serial_lookup_handler = null;
+
+    /**
      * Private constructor to prevent direct instantiation.
      */
     private function __construct() {
@@ -510,6 +524,16 @@ final class Plugin {
             $this->qsa_identifier_repository
         );
         $this->qsa_landing_handler->register();
+
+        // Initialize Manual Decoder Handler (Frontend - handles /decode URL).
+        $this->manual_decoder_handler = new Frontend\MicroID_Manual_Decoder_Handler();
+        $this->manual_decoder_handler->register();
+
+        // Initialize Serial Lookup Handler (Frontend - handles /id URL).
+        $this->serial_lookup_handler = new Frontend\MicroID_Serial_Lookup_Handler(
+            $this->serial_repository
+        );
+        $this->serial_lookup_handler->register();
     }
 
     /**

@@ -845,6 +845,11 @@ class LightBurn_Ajax_Handler {
 			$settings['led_code_tracking'] = $tracking;
 		}
 
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce already verified.
+		if ( isset( $_POST['microid_decoder_enabled'] ) ) {
+			$settings['microid_decoder_enabled'] = filter_var( $_POST['microid_decoder_enabled'], FILTER_VALIDATE_BOOLEAN );
+		}
+
 		// Save settings.
 		update_option( 'qsa_engraving_settings', $settings );
 

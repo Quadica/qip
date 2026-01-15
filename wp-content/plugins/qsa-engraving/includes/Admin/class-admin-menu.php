@@ -1776,12 +1776,13 @@ class Admin_Menu {
 
         // Default values.
         $defaults = array(
-            'lightburn_enabled'  => false,
-            'keep_svg_files'     => true,
-            'svg_output_dir'     => '',
-            'svg_rotation'       => 0,
-            'svg_top_offset'     => 0.0,
-            'led_code_tracking'  => 1.0,
+            'lightburn_enabled'      => false,
+            'keep_svg_files'         => true,
+            'svg_output_dir'         => '',
+            'svg_rotation'           => 0,
+            'svg_top_offset'         => 0.0,
+            'led_code_tracking'      => 1.0,
+            'microid_decoder_enabled' => false,
         );
 
         $settings = wp_parse_args( $settings, $defaults );
@@ -1885,6 +1886,31 @@ class Admin_Menu {
                             <th scope="row"><?php esc_html_e( 'Directory Status', 'qsa-engraving' ); ?></th>
                             <td>
                                 <?php $this->render_directory_status(); ?>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+
+                <!-- Micro-ID Decoder Settings -->
+                <div class="qsa-settings-section">
+                    <h2><?php esc_html_e( 'Micro-ID Decoder', 'qsa-engraving' ); ?></h2>
+                    <p class="description">
+                        <?php esc_html_e( 'Configure the public Micro-ID decoder tool for customers.', 'qsa-engraving' ); ?>
+                    </p>
+
+                    <table class="form-table">
+                        <tr>
+                            <th scope="row">
+                                <label for="microid_decoder_enabled"><?php esc_html_e( 'Enable Decoder', 'qsa-engraving' ); ?></label>
+                            </th>
+                            <td>
+                                <label>
+                                    <input type="checkbox" name="microid_decoder_enabled" id="microid_decoder_enabled" value="1" <?php checked( $settings['microid_decoder_enabled'] ); ?>>
+                                    <?php esc_html_e( 'Enable the public Micro-ID decoder pages', 'qsa-engraving' ); ?>
+                                </label>
+                                <p class="description">
+                                    <?php esc_html_e( 'When enabled, customers can access /decode to manually decode Micro-ID serial numbers and /id to look up product information.', 'qsa-engraving' ); ?>
+                                </p>
                             </td>
                         </tr>
                     </table>
@@ -2106,7 +2132,8 @@ class Admin_Menu {
                     svg_output_dir: $('#svg_output_dir').val(),
                     svg_rotation: $('#svg_rotation').val(),
                     svg_top_offset: $('#svg_top_offset').val(),
-                    led_code_tracking: $('#led_code_tracking').val()
+                    led_code_tracking: $('#led_code_tracking').val(),
+                    microid_decoder_enabled: $('#microid_decoder_enabled').is(':checked') ? 1 : 0
                 };
 
                 $.post(ajaxUrl, data, function(response) {
