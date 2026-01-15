@@ -470,6 +470,73 @@ class MicroID_Manual_Decoder_Handler {
 			color: var(--text-color);
 		}
 
+		/* Camera Modal */
+		.camera-modal {
+			display: none;
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background: #000;
+			z-index: 10000;
+		}
+
+		.camera-modal.active {
+			display: flex;
+			flex-direction: column;
+		}
+
+		.camera-container {
+			flex: 1;
+			display: flex;
+			flex-direction: column;
+			max-height: 100vh;
+		}
+
+		#camera-video {
+			flex: 1;
+			width: 100%;
+			object-fit: cover;
+			background: #000;
+		}
+
+		.camera-controls {
+			display: flex;
+			justify-content: space-around;
+			align-items: center;
+			padding: 20px;
+			background: rgba(0, 0, 0, 0.8);
+		}
+
+		.camera-control-btn {
+			padding: 12px 24px;
+			font-size: 16px;
+			color: #fff;
+			background: transparent;
+			border: 1px solid #fff;
+			border-radius: 8px;
+			cursor: pointer;
+		}
+
+		.camera-shutter-btn {
+			width: 70px;
+			height: 70px;
+			font-size: 28px;
+			background: #fff;
+			border: 4px solid #ccc;
+			border-radius: 50%;
+			cursor: pointer;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+		}
+
+		.camera-shutter-btn:active {
+			transform: scale(0.95);
+			background: #eee;
+		}
+
 		/* Image Preview with Cropper */
 		.image-preview-container {
 			display: none;
@@ -973,16 +1040,24 @@ class MicroID_Manual_Decoder_Handler {
 				<div class="upload-hint"><?php esc_html_e( 'Or drag and drop an image here', 'qsa-engraving' ); ?></div>
 			</div>
 
-			<!-- Hidden file inputs - one for camera, one for library -->
-			<input type="file"
-			       id="file-input-camera"
-			       class="file-input"
-			       accept="image/*"
-			       capture>
+			<!-- Hidden file input for library/gallery -->
 			<input type="file"
 			       id="file-input-library"
 			       class="file-input"
 			       accept="image/*">
+
+			<!-- Camera modal for getUserMedia -->
+			<div class="camera-modal" id="camera-modal">
+				<div class="camera-container">
+					<video id="camera-video" autoplay playsinline></video>
+					<canvas id="camera-canvas" style="display: none;"></canvas>
+					<div class="camera-controls">
+						<button type="button" class="camera-control-btn" id="camera-cancel"><?php esc_html_e( 'Cancel', 'qsa-engraving' ); ?></button>
+						<button type="button" class="camera-shutter-btn" id="camera-shutter">📷</button>
+						<button type="button" class="camera-control-btn" id="camera-switch"><?php esc_html_e( 'Flip', 'qsa-engraving' ); ?></button>
+					</div>
+				</div>
+			</div>
 
 			<!-- Image Preview with Cropper -->
 			<div class="image-preview-container" id="image-preview-container">
@@ -1119,9 +1194,20 @@ class MicroID_Manual_Decoder_Handler {
 		const uploadArea = document.getElementById('upload-area');
 		const cameraBtn = document.getElementById('camera-btn');
 		const libraryBtn = document.getElementById('library-btn');
-		const fileInputCamera = document.getElementById('file-input-camera');
 		const fileInputLibrary = document.getElementById('file-input-library');
 		const imagePreviewContainer = document.getElementById('image-preview-container');
+
+		// Camera modal elements
+		const cameraModal = document.getElementById('camera-modal');
+		const cameraVideo = document.getElementById('camera-video');
+		const cameraCanvas = document.getElementById('camera-canvas');
+		const cameraCancel = document.getElementById('camera-cancel');
+		const cameraShutter = document.getElementById('camera-shutter');
+		const cameraSwitch = document.getElementById('camera-switch');
+
+		// Camera state
+		let cameraStream = null;
+		let facingMode = 'environment'; // 'environment' = back camera, 'user' = front camera
 		const previewImage = document.getElementById('preview-image');
 		const gridSection = document.getElementById('grid-section');
 		const croppedImage = document.getElementById('cropped-image');
@@ -1385,8 +1471,7 @@ class MicroID_Manual_Decoder_Handler {
 				cropper = null;
 			}
 
-			// Clear file inputs
-			fileInputCamera.value = '';
+			// Clear file input
 			fileInputLibrary.value = '';
 
 			// Clear images
@@ -1403,12 +1488,98 @@ class MicroID_Manual_Decoder_Handler {
 			return div.innerHTML;
 		}
 
-		// Event Listeners
+		// ==========================================
+		// Camera Functions (getUserMedia API)
+		// ==========================================
 
-		// Camera button click - opens camera directly
+		/**
+		 * Open camera modal and start video stream.
+		 */
+		async function openCamera() {
+			try {
+				// Request camera access
+				const constraints = {
+					video: {
+						facingMode: facingMode,
+						width: { ideal: 1920 },
+						height: { ideal: 1080 }
+					},
+					audio: false
+				};
+
+				cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+				cameraVideo.srcObject = cameraStream;
+				cameraModal.classList.add('active');
+
+			} catch (error) {
+				console.error('Camera access error:', error);
+				if (error.name === 'NotAllowedError') {
+					alert('Camera access was denied. Please allow camera access in your browser settings.');
+				} else if (error.name === 'NotFoundError') {
+					alert('No camera found on this device.');
+				} else {
+					alert('Could not access camera: ' + error.message);
+				}
+			}
+		}
+
+		/**
+		 * Close camera modal and stop video stream.
+		 */
+		function closeCamera() {
+			if (cameraStream) {
+				cameraStream.getTracks().forEach(track => track.stop());
+				cameraStream = null;
+			}
+			cameraVideo.srcObject = null;
+			cameraModal.classList.remove('active');
+		}
+
+		/**
+		 * Capture photo from video stream.
+		 */
+		function capturePhoto() {
+			// Set canvas size to video size
+			cameraCanvas.width = cameraVideo.videoWidth;
+			cameraCanvas.height = cameraVideo.videoHeight;
+
+			// Draw video frame to canvas
+			const ctx = cameraCanvas.getContext('2d');
+			ctx.drawImage(cameraVideo, 0, 0);
+
+			// Convert to blob and create file-like object
+			cameraCanvas.toBlob(function(blob) {
+				if (blob) {
+					// Create a File object from the blob
+					const file = new File([blob], 'camera-photo.jpg', { type: 'image/jpeg' });
+					closeCamera();
+					handleFileSelect(file);
+				}
+			}, 'image/jpeg', 0.92);
+		}
+
+		/**
+		 * Switch between front and back camera.
+		 */
+		async function switchCamera() {
+			facingMode = facingMode === 'environment' ? 'user' : 'environment';
+			closeCamera();
+			await openCamera();
+		}
+
+		// ==========================================
+		// Event Listeners
+		// ==========================================
+
+		// Camera button click - opens getUserMedia camera
 		cameraBtn.addEventListener('click', function() {
-			fileInputCamera.click();
+			openCamera();
 		});
+
+		// Camera modal controls
+		cameraCancel.addEventListener('click', closeCamera);
+		cameraShutter.addEventListener('click', capturePhoto);
+		cameraSwitch.addEventListener('click', switchCamera);
 
 		// Library button click - opens photo library
 		libraryBtn.addEventListener('click', function() {
@@ -1420,13 +1591,7 @@ class MicroID_Manual_Decoder_Handler {
 			fileInputLibrary.click();
 		});
 
-		// File input change handlers
-		fileInputCamera.addEventListener('change', function(e) {
-			if (e.target.files && e.target.files[0]) {
-				handleFileSelect(e.target.files[0]);
-			}
-		});
-
+		// File input change handler
 		fileInputLibrary.addEventListener('change', function(e) {
 			if (e.target.files && e.target.files[0]) {
 				handleFileSelect(e.target.files[0]);
