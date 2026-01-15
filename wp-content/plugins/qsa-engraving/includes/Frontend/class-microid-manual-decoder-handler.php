@@ -431,6 +431,45 @@ class MicroID_Manual_Decoder_Handler {
 			display: none;
 		}
 
+		/* Upload buttons for mobile */
+		.upload-buttons {
+			display: flex;
+			gap: 12px;
+			margin-bottom: 12px;
+		}
+
+		.upload-btn {
+			flex: 1;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			padding: 20px 16px;
+			border: 2px solid var(--border-color);
+			border-radius: 8px;
+			background: var(--bg-color);
+			cursor: pointer;
+			transition: all 0.2s ease;
+			min-height: 100px;
+		}
+
+		.upload-btn:hover,
+		.upload-btn:active {
+			border-color: var(--primary-color);
+			background: #f0f6fc;
+		}
+
+		.upload-btn-icon {
+			font-size: 32px;
+			margin-bottom: 8px;
+		}
+
+		.upload-btn-text {
+			font-size: 14px;
+			font-weight: 500;
+			color: var(--text-color);
+		}
+
 		/* Image Preview with Cropper */
 		.image-preview-container {
 			display: none;
@@ -917,13 +956,31 @@ class MicroID_Manual_Decoder_Handler {
 		<div class="section-card" id="upload-section">
 			<div class="section-title"><?php esc_html_e( 'Step 1: Upload Photo', 'qsa-engraving' ); ?></div>
 
-			<div class="upload-area" id="upload-area">
-				<div class="upload-icon">📷</div>
-				<div class="upload-text"><?php esc_html_e( 'Tap to upload or take a photo', 'qsa-engraving' ); ?></div>
-				<div class="upload-hint"><?php esc_html_e( 'JPEG, PNG, or WebP • Crop to the Micro-ID area', 'qsa-engraving' ); ?></div>
+			<!-- Two-button layout for mobile compatibility -->
+			<div class="upload-buttons">
+				<div class="upload-btn" id="camera-btn">
+					<div class="upload-btn-icon">📷</div>
+					<div class="upload-btn-text"><?php esc_html_e( 'Take Photo', 'qsa-engraving' ); ?></div>
+				</div>
+				<div class="upload-btn" id="library-btn">
+					<div class="upload-btn-icon">🖼️</div>
+					<div class="upload-btn-text"><?php esc_html_e( 'Choose Photo', 'qsa-engraving' ); ?></div>
+				</div>
 			</div>
+
+			<!-- Drag and drop area for desktop -->
+			<div class="upload-area" id="upload-area">
+				<div class="upload-hint"><?php esc_html_e( 'Or drag and drop an image here', 'qsa-engraving' ); ?></div>
+			</div>
+
+			<!-- Hidden file inputs - one for camera, one for library -->
 			<input type="file"
-			       id="file-input"
+			       id="file-input-camera"
+			       class="file-input"
+			       accept="image/*"
+			       capture="environment">
+			<input type="file"
+			       id="file-input-library"
 			       class="file-input"
 			       accept="image/*">
 
@@ -1060,7 +1117,10 @@ class MicroID_Manual_Decoder_Handler {
 
 		// DOM Elements
 		const uploadArea = document.getElementById('upload-area');
-		const fileInput = document.getElementById('file-input');
+		const cameraBtn = document.getElementById('camera-btn');
+		const libraryBtn = document.getElementById('library-btn');
+		const fileInputCamera = document.getElementById('file-input-camera');
+		const fileInputLibrary = document.getElementById('file-input-library');
 		const imagePreviewContainer = document.getElementById('image-preview-container');
 		const previewImage = document.getElementById('preview-image');
 		const gridSection = document.getElementById('grid-section');
@@ -1325,8 +1385,9 @@ class MicroID_Manual_Decoder_Handler {
 				cropper = null;
 			}
 
-			// Clear file input
-			fileInput.value = '';
+			// Clear file inputs
+			fileInputCamera.value = '';
+			fileInputLibrary.value = '';
 
 			// Clear images
 			previewImage.src = '';
@@ -1344,13 +1405,29 @@ class MicroID_Manual_Decoder_Handler {
 
 		// Event Listeners
 
-		// Upload area click
-		uploadArea.addEventListener('click', function() {
-			fileInput.click();
+		// Camera button click - opens camera directly
+		cameraBtn.addEventListener('click', function() {
+			fileInputCamera.click();
 		});
 
-		// File input change
-		fileInput.addEventListener('change', function(e) {
+		// Library button click - opens photo library
+		libraryBtn.addEventListener('click', function() {
+			fileInputLibrary.click();
+		});
+
+		// Upload area click (desktop drag-drop fallback) - opens library
+		uploadArea.addEventListener('click', function() {
+			fileInputLibrary.click();
+		});
+
+		// File input change handlers
+		fileInputCamera.addEventListener('change', function(e) {
+			if (e.target.files && e.target.files[0]) {
+				handleFileSelect(e.target.files[0]);
+			}
+		});
+
+		fileInputLibrary.addEventListener('change', function(e) {
 			if (e.target.files && e.target.files[0]) {
 				handleFileSelect(e.target.files[0]);
 			}
