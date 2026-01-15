@@ -7339,8 +7339,8 @@ run_test(
             return new WP_Error( 'class_missing', "Class {$class} not found." );
         }
 
-        // Check required constants (simplified handler).
-        $constants = array( 'NONCE_ACTION', 'STAFF_CAPABILITY' );
+        // Check required constants.
+        $constants = array( 'NONCE_ACTION', 'STAFF_CAPABILITY', 'MAX_IMAGE_SIZE', 'MIN_IMAGE_DIMENSION', 'ALLOWED_MIME_TYPES' );
         foreach ( $constants as $const ) {
             if ( ! defined( "{$class}::{$const}" ) ) {
                 return new WP_Error( 'constant_missing', "Constant {$const} not defined." );

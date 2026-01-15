@@ -45,6 +45,30 @@ class MicroID_Decoder_Ajax_Handler {
 	public const STAFF_CAPABILITY = 'manage_woocommerce';
 
 	/**
+	 * Maximum image size for uploads (10 MB).
+	 * Used by landing page for client-side validation.
+	 *
+	 * @var int
+	 */
+	public const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
+
+	/**
+	 * Minimum image dimension (120px).
+	 * Used by landing page for client-side validation.
+	 *
+	 * @var int
+	 */
+	public const MIN_IMAGE_DIMENSION = 120;
+
+	/**
+	 * Allowed MIME types for image uploads.
+	 * Used by landing page for client-side validation.
+	 *
+	 * @var array<string>
+	 */
+	public const ALLOWED_MIME_TYPES = array( 'image/jpeg', 'image/png', 'image/webp' );
+
+	/**
 	 * Serial Repository instance.
 	 *
 	 * @var Serial_Repository
