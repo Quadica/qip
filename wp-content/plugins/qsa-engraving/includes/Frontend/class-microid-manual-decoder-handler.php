@@ -925,8 +925,7 @@ class MicroID_Manual_Decoder_Handler {
 			<input type="file"
 			       id="file-input"
 			       class="file-input"
-			       accept="image/jpeg,image/png,image/webp"
-			       capture="environment">
+			       accept="image/*">
 
 			<!-- Image Preview with Cropper -->
 			<div class="image-preview-container" id="image-preview-container">
