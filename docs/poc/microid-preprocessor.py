@@ -72,11 +72,13 @@ MODULE_SPECS = {
 class MicroIDPreprocessor:
     """Preprocesses smartphone photos to extract Micro-ID region."""
 
-    def __init__(self, module_type: str = 'SZ-04', debug: bool = False):
+    def __init__(self, module_type: str = 'SZ-04', debug: bool = False, tight_crop: bool = False, raw_color: bool = False):
         self.module_spec = MODULE_SPECS.get(module_type)
         if not self.module_spec:
             raise ValueError(f"Unknown module type: {module_type}")
         self.debug = debug
+        self.tight_crop = tight_crop  # Use smaller crop focused on dot grid
+        self.raw_color = raw_color  # Keep original colors without enhancement
         self.debug_images = {}
 
     def process(self, image_path: str, output_dir: str = None) -> dict:
@@ -475,7 +477,14 @@ class MicroIDPreprocessor:
             )
 
             # Extract region
-            crop_size = int(spec.microid_size_mm * rot_scale * 2.0)
+            # Tight crop: use actual dot grid size (bounding box minus padding)
+            # Normal crop: use 2x bounding box for margin
+            if self.tight_crop:
+                # Actual dot grid is bounding box minus 2x padding
+                dot_grid_mm = spec.microid_size_mm - (2 * spec.microid_padding_mm)
+                crop_size = int(dot_grid_mm * rot_scale * 1.8)  # Moderate margin
+            else:
+                crop_size = int(spec.microid_size_mm * rot_scale * 2.0)
             x1 = max(0, int(microid_center[0] - crop_size / 2))
             y1 = max(0, int(microid_center[1] - crop_size / 2))
             x2 = min(rw, int(microid_center[0] + crop_size / 2))
@@ -484,8 +493,16 @@ class MicroIDPreprocessor:
             crop = rotated_img[y1:y2, x1:x2]
 
             if crop.size > 0:
-                enhanced = self._enhance(crop)
-                crops.append(enhanced)
+                if self.raw_color:
+                    # Just resize without enhancement
+                    target = 500
+                    h, w = crop.shape[:2]
+                    scale = target / max(h, w)
+                    nw, nh = max(1, int(w * scale)), max(1, int(h * scale))
+                    processed = cv2.resize(crop, (nw, nh), interpolation=cv2.INTER_CUBIC)
+                else:
+                    processed = self._enhance(crop)
+                crops.append(processed)
                 print(f'    {rotation_deg}°: extracted crop {crop.shape[1]}x{crop.shape[0]}')
 
             # Add to debug visualization (transform coordinates back to original image)
@@ -605,11 +622,13 @@ def main():
     parser.add_argument('--output', '-o', default='./output', help='Output directory')
     parser.add_argument('--module', '-m', default='SZ-04', help='Module type')
     parser.add_argument('--debug', '-d', action='store_true', help='Save debug images')
+    parser.add_argument('--tight', '-t', action='store_true', help='Use tight crop (dot grid only)')
+    parser.add_argument('--raw', '-r', action='store_true', help='Keep raw colors (no grayscale enhancement)')
 
     args = parser.parse_args()
 
     try:
-        preprocessor = MicroIDPreprocessor(module_type=args.module, debug=args.debug)
+        preprocessor = MicroIDPreprocessor(module_type=args.module, debug=args.debug, tight_crop=args.tight, raw_color=args.raw)
     except ValueError as e:
         print(f'Error: {e}')
         print(f'Available modules: {", ".join(MODULE_SPECS.keys())}')
