@@ -978,7 +978,7 @@ class MicroID_Manual_Decoder_Handler {
 			       id="file-input-camera"
 			       class="file-input"
 			       accept="image/*"
-			       capture="environment">
+			       capture>
 			<input type="file"
 			       id="file-input-library"
 			       class="file-input"
