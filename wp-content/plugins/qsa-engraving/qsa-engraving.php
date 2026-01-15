@@ -204,6 +204,13 @@ final class Plugin {
     private ?Frontend\MicroID_Landing_Handler $microid_landing_handler = null;
 
     /**
+     * MicroID Manual Decoder Handler instance.
+     *
+     * @var Frontend\MicroID_Manual_Decoder_Handler|null
+     */
+    private ?Frontend\MicroID_Manual_Decoder_Handler $microid_manual_decoder_handler = null;
+
+    /**
      * Private constructor to prevent direct instantiation.
      */
     private function __construct() {
@@ -554,6 +561,10 @@ final class Plugin {
         // Initialize MicroID Landing Handler (Frontend - handles /id URL for Micro-ID decoder).
         $this->microid_landing_handler = new Frontend\MicroID_Landing_Handler();
         $this->microid_landing_handler->register();
+
+        // Initialize MicroID Manual Decoder Handler (Frontend - handles /decode URL for human-assisted decoding).
+        $this->microid_manual_decoder_handler = new Frontend\MicroID_Manual_Decoder_Handler();
+        $this->microid_manual_decoder_handler->register();
     }
 
     /**
@@ -826,6 +837,15 @@ final class Plugin {
     public function get_microid_landing_handler(): ?Frontend\MicroID_Landing_Handler {
         return $this->microid_landing_handler;
     }
+
+    /**
+     * Get the MicroID Manual Decoder Handler instance.
+     *
+     * @return Frontend\MicroID_Manual_Decoder_Handler|null
+     */
+    public function get_microid_manual_decoder_handler(): ?Frontend\MicroID_Manual_Decoder_Handler {
+        return $this->microid_manual_decoder_handler;
+    }
 }
 
 /**
@@ -860,6 +880,13 @@ function activate(): void {
     add_rewrite_rule(
         '^id/?$',
         'index.php?' . Frontend\MicroID_Landing_Handler::QUERY_VAR . '=1',
+        'top'
+    );
+
+    // MicroID Manual Decoder Handler rewrite rule (^decode/?$).
+    add_rewrite_rule(
+        '^decode/?$',
+        'index.php?' . Frontend\MicroID_Manual_Decoder_Handler::QUERY_VAR . '=1',
         'top'
     );
 
