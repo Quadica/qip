@@ -22,6 +22,8 @@ if ( ! defined( 'WP_CLI' ) || ! WP_CLI ) {
 	exit( 1 );
 }
 
+use Quadica\QSA_Engraving\Services\Claude_Vision_Client;
+
 echo "=== Preprocessed Micro-ID Decode Test ===\n\n";
 
 // Get settings.
@@ -58,26 +60,21 @@ echo "Model: {$model_choice}\n\n";
 $image_data = file_get_contents( $image_path );
 $image_base64 = base64_encode( $image_data );
 
-// Get API key from settings.
-$settings = get_option( 'qsa_engraving_settings', array() );
-$encrypted_key = $settings['claude_api_key'] ?? '';
-
-if ( empty( $encrypted_key ) ) {
+// Use the Claude Vision Client to get the API key.
+$client = new Claude_Vision_Client();
+if ( ! $client->has_api_key() ) {
 	echo "ERROR: Claude API key not configured.\n";
 	exit( 1 );
 }
 
-// Decrypt API key (simplified - in production use the client class).
-$encryption_key = defined( 'LOGGED_IN_KEY' ) ? LOGGED_IN_KEY : wp_salt( 'logged_in' );
-$encryption_key = hash( 'sha256', $encryption_key, true );
-$data = base64_decode( $encrypted_key );
-$iv_length = openssl_cipher_iv_length( 'aes-256-cbc' );
-$iv = substr( $data, 0, $iv_length );
-$encrypted = substr( $data, $iv_length );
-$api_key = openssl_decrypt( $encrypted, 'aes-256-cbc', $encryption_key, OPENSSL_RAW_DATA, $iv );
+// Get API key via reflection (for testing purposes only).
+$reflection = new ReflectionClass( $client );
+$method = $reflection->getMethod( 'get_decrypted_api_key' );
+$method->setAccessible( true );
+$api_key = $method->invoke( $client );
 
 if ( empty( $api_key ) ) {
-	echo "ERROR: Could not decrypt API key.\n";
+	echo "ERROR: Could not get API key.\n";
 	exit( 1 );
 }
 
