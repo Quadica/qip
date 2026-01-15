@@ -1173,7 +1173,7 @@ class MicroID_Manual_Decoder_Handler {
 			const result = decodeGridState();
 
 			if (result.valid) {
-				showValidState(result.serial);
+				showValidState(result);
 			} else if (result.hasInput) {
 				showInvalidState(result.error);
 			} else {
