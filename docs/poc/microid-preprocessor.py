@@ -1,17 +1,25 @@
 #!/usr/bin/env python3
 """
-Micro-ID Preprocessor POC
+Micro-ID Preprocessor POC v6 - Coordinate-Based Extraction
 
-Demonstrates OpenCV-based preprocessing to:
-1. Detect LED module in smartphone photo
-2. Correct rotation/orientation
-3. Extract and enhance the Micro-ID region
+Uses known Micro-ID coordinates relative to module outline.
+Much more reliable than feature detection since position is fixed per module type.
+
+Approach:
+1. Detect module outline (corners) using contour detection
+2. Calculate scale (pixels per mm) and orientation
+3. Apply known Micro-ID coordinates for the module type
+4. Extract and enhance the region
+
+SZ-04 Module Specifications:
+- Module size: 20mm x 20mm (assumed, configurable)
+- Micro-ID bounding box (from bottom-left origin):
+  - Bottom-left corner: (4.1281mm, 6.2953mm)
+  - Size: 1.825mm x 1.825mm
+  - Internal padding: 0.3mm
 
 Usage:
     python microid-preprocessor.py <input_image> [--output <output_dir>] [--debug]
-
-Requirements:
-    pip install opencv-python numpy
 """
 
 import cv2
@@ -21,102 +29,120 @@ import os
 from pathlib import Path
 
 
+class ModuleSpec:
+    """Specifications for a module type."""
+
+    def __init__(self, name: str, width_mm: float, height_mm: float,
+                 microid_x_mm: float, microid_y_mm: float,
+                 microid_size_mm: float, microid_padding_mm: float = 0.3):
+        self.name = name
+        self.width_mm = width_mm
+        self.height_mm = height_mm
+        # Micro-ID position from bottom-left corner (AutoCAD UCS)
+        self.microid_x_mm = microid_x_mm
+        self.microid_y_mm = microid_y_mm
+        self.microid_size_mm = microid_size_mm
+        self.microid_padding_mm = microid_padding_mm
+
+    def get_microid_rect_mm(self):
+        """Get Micro-ID rectangle in mm (x, y, w, h) from bottom-left origin."""
+        return (
+            self.microid_x_mm,
+            self.microid_y_mm,
+            self.microid_size_mm,
+            self.microid_size_mm
+        )
+
+
+# Pre-defined module specifications
+MODULE_SPECS = {
+    'SZ-04': ModuleSpec(
+        name='SZ-04',
+        width_mm=20.0,
+        height_mm=20.0,
+        microid_x_mm=4.1281,
+        microid_y_mm=6.2953,
+        microid_size_mm=1.825,
+        microid_padding_mm=0.3
+    ),
+    # Add other module types here as needed
+}
+
+
 class MicroIDPreprocessor:
     """Preprocesses smartphone photos to extract Micro-ID region."""
 
-    # SZ-04 module specifications (relative to module bounds)
-    # These are approximate - would need calibration with real images
-    SZ04_SPECS = {
-        'module_aspect_ratio': 1.0,  # Square module
-        'microid_relative_x': 0.15,  # Micro-ID position from left edge (%)
-        'microid_relative_y': 0.75,  # Micro-ID position from top edge (%)
-        'microid_relative_size': 0.12,  # Micro-ID size relative to module (%)
-    }
-
-    def __init__(self, debug=False):
+    def __init__(self, module_type: str = 'SZ-04', debug: bool = False):
+        self.module_spec = MODULE_SPECS.get(module_type)
+        if not self.module_spec:
+            raise ValueError(f"Unknown module type: {module_type}")
         self.debug = debug
         self.debug_images = {}
 
     def process(self, image_path: str, output_dir: str = None) -> dict:
-        """
-        Process an image to extract the Micro-ID region.
-
-        Returns dict with:
-            - success: bool
-            - cropped_image: numpy array of extracted region (if successful)
-            - rotation_angle: detected rotation
-            - debug_images: dict of intermediate images (if debug=True)
-            - error: error message (if failed)
-        """
-        # Load image
+        """Process an image to extract the Micro-ID region."""
         img = cv2.imread(image_path)
         if img is None:
             return {'success': False, 'error': f'Could not load image: {image_path}'}
 
-        original = img.copy()
-        self.debug_images['01_original'] = original
+        h, w = img.shape[:2]
+        self.debug_images['01_original'] = img.copy()
+        print(f'  Image size: {w}x{h}')
+        print(f'  Module type: {self.module_spec.name}')
 
-        # Step 1: Detect module outline
-        module_contour, rotation_angle = self._detect_module(img)
+        # Step 1: Try to detect module outline
+        module_corners, rotation_angle = self._detect_module_outline(img)
 
-        if module_contour is None:
-            return {
-                'success': False,
-                'error': 'Could not detect module outline',
-                'debug_images': self.debug_images if self.debug else {}
-            }
+        if module_corners is not None:
+            print(f'  Module detected, rotation: {rotation_angle:.1f}°')
+            # Step 2: Calculate transformation
+            transform, scale_px_per_mm = self._calculate_transform(module_corners, img.shape)
+            print(f'  Scale: {scale_px_per_mm:.1f} px/mm')
+            # Step 3: Extract Micro-ID region using known coordinates
+            crops = self._extract_microid_region(img, module_corners, scale_px_per_mm, rotation_angle)
+            detection_method = 'coordinate_based'
+        else:
+            # Fallback: Assume module fills most of the frame
+            print(f'  Module outline not detected, using frame-based fallback')
+            crops, scale_px_per_mm, rotation_angle = self._extract_assuming_full_frame(img)
+            detection_method = 'frame_fallback'
 
-        # Draw detected contour for debug
-        if self.debug:
-            contour_img = original.copy()
-            cv2.drawContours(contour_img, [module_contour], -1, (0, 255, 0), 3)
-            self.debug_images['03_detected_contour'] = contour_img
+        if not crops:
+            return {'success': False, 'error': 'Could not extract Micro-ID region'}
 
-        # Step 2: Get rotated bounding box and normalize orientation
-        normalized, transform_matrix = self._normalize_orientation(img, module_contour)
-        self.debug_images['04_normalized'] = normalized
-
-        # Step 3: Extract Micro-ID region (try all 4 orientations)
-        microid_crops = self._extract_microid_regions(normalized)
-
-        # Step 4: Enhance the crops
-        enhanced_crops = []
-        for i, crop in enumerate(microid_crops):
-            enhanced = self._enhance_microid(crop)
-            enhanced_crops.append(enhanced)
-            self.debug_images[f'05_enhanced_rotation_{i*90}'] = enhanced
-
-        # Save outputs if output_dir specified
-        if output_dir:
-            self._save_outputs(output_dir, image_path, enhanced_crops)
-
-        return {
+        result = {
             'success': True,
-            'cropped_images': enhanced_crops,  # All 4 rotations
-            'rotation_angle': rotation_angle,
-            'debug_images': self.debug_images if self.debug else {}
+            'cropped_images': crops,
+            'detection_method': detection_method,
+            'scale_px_per_mm': scale_px_per_mm,
+            'rotation_angle': rotation_angle
         }
 
-    def _detect_module(self, img: np.ndarray) -> tuple:
+        result['debug_images'] = self.debug_images if self.debug else {}
+
+        if output_dir:
+            self._save_outputs(output_dir, image_path, result)
+
+        return result
+
+    def _detect_module_outline(self, img: np.ndarray):
         """
-        Detect the LED module outline in the image.
-        Returns (contour, rotation_angle) or (None, None) if not found.
+        Detect the module's rectangular outline.
+        Returns (corners, rotation_angle) or (None, None).
         """
-        # Convert to grayscale
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        h, w = gray.shape
 
-        # Apply Gaussian blur to reduce noise
+        # Blur and edge detection
         blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-        self.debug_images['02a_blurred'] = blurred
-
-        # Edge detection
         edges = cv2.Canny(blurred, 50, 150)
-        self.debug_images['02b_edges'] = edges
 
-        # Dilate edges to connect broken lines
+        if self.debug:
+            self.debug_images['02_edges'] = edges
+
+        # Dilate to connect edges
         kernel = np.ones((3, 3), np.uint8)
         dilated = cv2.dilate(edges, kernel, iterations=2)
-        self.debug_images['02c_dilated'] = dilated
 
         # Find contours
         contours, _ = cv2.findContours(dilated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -124,245 +150,496 @@ class MicroIDPreprocessor:
         if not contours:
             return None, None
 
-        # Find the largest roughly-square contour (the module)
+        # Find the largest roughly-square contour
+        img_area = w * h
         best_contour = None
         best_score = 0
-
-        img_area = img.shape[0] * img.shape[1]
 
         for contour in contours:
             area = cv2.contourArea(contour)
 
-            # Filter by size (module should be significant portion of image)
-            if area < img_area * 0.05 or area > img_area * 0.95:
+            # Module should be significant portion of image (10-90%)
+            if area < img_area * 0.10 or area > img_area * 0.95:
                 continue
+
+            # Approximate to polygon
+            epsilon = 0.02 * cv2.arcLength(contour, True)
+            approx = cv2.approxPolyDP(contour, epsilon, True)
 
             # Get rotated bounding box
             rect = cv2.minAreaRect(contour)
-            width, height = rect[1]
+            box_w, box_h = rect[1]
 
-            if width == 0 or height == 0:
+            if box_w == 0 or box_h == 0:
                 continue
 
-            # Check aspect ratio (looking for square-ish module)
-            aspect_ratio = min(width, height) / max(width, height)
+            # Check aspect ratio (should be square-ish)
+            aspect = min(box_w, box_h) / max(box_w, box_h)
 
-            # Score based on area and squareness
-            score = area * aspect_ratio
-
-            if score > best_score and aspect_ratio > 0.7:  # At least 70% square
-                best_score = score
-                best_contour = contour
+            if aspect > 0.8:  # Close to square
+                score = area * aspect
+                if score > best_score:
+                    best_score = score
+                    best_contour = contour
 
         if best_contour is None:
             return None, None
 
-        # Get rotation angle from minAreaRect
-        rect = cv2.minAreaRect(best_contour)
-        angle = rect[2]
-
-        # Normalize angle to -45 to 45 range
-        if angle < -45:
-            angle += 90
-
-        return best_contour, angle
-
-    def _normalize_orientation(self, img: np.ndarray, contour: np.ndarray) -> tuple:
-        """
-        Rotate and crop the image to normalize the module orientation.
-        Returns (normalized_image, transformation_matrix).
-        """
         # Get the rotated bounding box
-        rect = cv2.minAreaRect(contour)
-        center, (width, height), angle = rect
+        rect = cv2.minAreaRect(best_contour)
+        box = cv2.boxPoints(rect)
+        box = np.int32(box)
 
-        # Ensure width >= height for consistent orientation
-        if width < height:
-            width, height = height, width
-            angle += 90
+        # Get rotation angle
+        angle = rect[2]
+        if rect[1][0] < rect[1][1]:
+            angle = angle - 90
 
-        # Get rotation matrix
-        rotation_matrix = cv2.getRotationMatrix2D(center, angle, 1.0)
+        if self.debug:
+            debug_img = img.copy()
+            cv2.drawContours(debug_img, [box], 0, (0, 255, 0), 3)
+            self.debug_images['03_module_detected'] = debug_img
 
-        # Calculate new image bounds after rotation
-        cos = np.abs(rotation_matrix[0, 0])
-        sin = np.abs(rotation_matrix[0, 1])
-        new_width = int(img.shape[1] * cos + img.shape[0] * sin)
-        new_height = int(img.shape[1] * sin + img.shape[0] * cos)
+        return box, angle
 
-        # Adjust rotation matrix for new bounds
-        rotation_matrix[0, 2] += (new_width - img.shape[1]) / 2
-        rotation_matrix[1, 2] += (new_height - img.shape[0]) / 2
-
-        # Rotate the image
-        rotated = cv2.warpAffine(img, rotation_matrix, (new_width, new_height))
-
-        # Recalculate contour position after rotation
-        new_center = (
-            rotation_matrix[0, 0] * center[0] + rotation_matrix[0, 1] * center[1] + rotation_matrix[0, 2],
-            rotation_matrix[1, 0] * center[0] + rotation_matrix[1, 1] * center[1] + rotation_matrix[1, 2]
-        )
-
-        # Crop to module bounds with some padding
-        padding = 20
-        x1 = max(0, int(new_center[0] - width/2 - padding))
-        y1 = max(0, int(new_center[1] - height/2 - padding))
-        x2 = min(rotated.shape[1], int(new_center[0] + width/2 + padding))
-        y2 = min(rotated.shape[0], int(new_center[1] + height/2 + padding))
-
-        cropped = rotated[y1:y2, x1:x2]
-
-        return cropped, rotation_matrix
-
-    def _extract_microid_regions(self, normalized: np.ndarray) -> list:
+    def _calculate_transform(self, corners: np.ndarray, img_shape: tuple):
         """
-        Extract potential Micro-ID regions for all 4 possible orientations.
-        Returns list of 4 cropped images.
+        Calculate the transformation matrix and scale.
         """
-        h, w = normalized.shape[:2]
-        crops = []
+        # Get bounding box dimensions
+        rect = cv2.minAreaRect(corners)
+        box_w, box_h = rect[1]
 
-        # For each of 4 possible orientations
-        for rotation in range(4):
-            # Rotate the normalized image
-            if rotation > 0:
-                rotated = cv2.rotate(normalized, [
-                    cv2.ROTATE_90_CLOCKWISE,
-                    cv2.ROTATE_180,
-                    cv2.ROTATE_90_COUNTERCLOCKWISE
-                ][rotation - 1])
-            else:
-                rotated = normalized.copy()
+        # The module should be square, so average the dimensions
+        module_px = max(box_w, box_h)
 
-            rh, rw = rotated.shape[:2]
+        # Calculate scale
+        module_mm = max(self.module_spec.width_mm, self.module_spec.height_mm)
+        scale_px_per_mm = module_px / module_mm
 
-            # Extract Micro-ID region based on SZ-04 specs
-            # These coordinates are estimates - would need calibration
-            specs = self.SZ04_SPECS
+        return rect, scale_px_per_mm
 
-            # Calculate crop coordinates
-            x = int(rw * specs['microid_relative_x'])
-            y = int(rh * specs['microid_relative_y'])
-            size = int(min(rw, rh) * specs['microid_relative_size'])
+    def _extract_microid_region(self, img: np.ndarray, corners: np.ndarray,
+                                 scale: float, rotation: float) -> list:
+        """
+        Extract the Micro-ID region using known coordinates.
+        """
+        h, w = img.shape[:2]
+        spec = self.module_spec
 
-            # Expand crop area to be safe
-            margin = size // 2
-            x1 = max(0, x - margin)
-            y1 = max(0, y - margin)
-            x2 = min(rw, x + size + margin)
-            y2 = min(rh, y + size + margin)
+        # Get the rotated bounding box center and dimensions
+        rect = cv2.minAreaRect(corners)
+        center = rect[0]
+        box_w, box_h = rect[1]
 
-            crop = rotated[y1:y2, x1:x2]
+        # Sort corners to find bottom-left
+        # corners from boxPoints are in order: bottom-left, top-left, top-right, bottom-right
+        # but may be rotated
+        corners_sorted = self._sort_corners(corners, rotation)
 
-            # If crop is too small, just take center region
-            if crop.shape[0] < 50 or crop.shape[1] < 50:
-                center_size = min(rw, rh) // 4
-                cx, cy = rw // 2, rh // 2
-                crop = rotated[cy-center_size:cy+center_size, cx-center_size:cx+center_size]
+        if corners_sorted is None:
+            # Fallback: use center-based extraction
+            return self._extract_from_center(img, center, scale, rotation)
 
-            crops.append(crop)
+        bottom_left = corners_sorted[0]
+
+        # Calculate Micro-ID position in pixels
+        # From bottom-left origin, going up and right
+        microid_x_px = spec.microid_x_mm * scale
+        microid_y_px = spec.microid_y_mm * scale
+        microid_size_px = spec.microid_size_mm * scale
+
+        # Add some padding for safety
+        padding_px = microid_size_px * 0.3
+
+        # Convert from bottom-left origin to image coordinates
+        # Need to account for rotation
+        angle_rad = np.radians(rotation)
+        cos_a = np.cos(angle_rad)
+        sin_a = np.sin(angle_rad)
+
+        # Offset from bottom-left corner
+        offset_x = microid_x_px * cos_a - microid_y_px * sin_a
+        offset_y = microid_x_px * sin_a + microid_y_px * cos_a
+
+        # In image coordinates (Y is inverted from AutoCAD)
+        microid_center_x = bottom_left[0] + offset_x + microid_size_px / 2
+        microid_center_y = bottom_left[1] - offset_y - microid_size_px / 2
+
+        # Extract region with padding
+        crop_size = int(microid_size_px + padding_px * 2)
+        x1 = max(0, int(microid_center_x - crop_size / 2))
+        y1 = max(0, int(microid_center_y - crop_size / 2))
+        x2 = min(w, int(microid_center_x + crop_size / 2))
+        y2 = min(h, int(microid_center_y + crop_size / 2))
+
+        if self.debug:
+            debug_img = img.copy()
+            cv2.rectangle(debug_img, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            cv2.circle(debug_img, (int(microid_center_x), int(microid_center_y)), 5, (0, 0, 255), -1)
+            cv2.circle(debug_img, (int(bottom_left[0]), int(bottom_left[1])), 8, (255, 0, 0), -1)
+            self.debug_images['04_extraction_region'] = debug_img
+
+        crop = img[y1:y2, x1:x2]
+
+        if crop.size == 0:
+            return self._extract_from_center(img, center, scale, rotation)
+
+        # Rotate crop to normalize orientation if needed
+        if abs(rotation) > 5:
+            crop = self._rotate_crop(crop, -rotation)
+
+        enhanced = self._enhance(crop)
+
+        # Return all 4 orientations
+        crops = [enhanced]
+        for rot in [cv2.ROTATE_90_CLOCKWISE, cv2.ROTATE_180, cv2.ROTATE_90_COUNTERCLOCKWISE]:
+            crops.append(cv2.rotate(enhanced, rot))
 
         return crops
 
-    def _enhance_microid(self, crop: np.ndarray) -> np.ndarray:
+    def _sort_corners(self, corners: np.ndarray, rotation: float) -> np.ndarray:
         """
-        Enhance the Micro-ID crop for better visibility.
+        Sort corners to identify bottom-left, top-left, top-right, bottom-right.
+        Returns corners in order: [BL, TL, TR, BR] or None if failed.
         """
+        try:
+            # Find centroid
+            cx = np.mean(corners[:, 0])
+            cy = np.mean(corners[:, 1])
+
+            # Calculate angles from centroid
+            angles = []
+            for corner in corners:
+                angle = np.arctan2(corner[1] - cy, corner[0] - cx)
+                angles.append(angle)
+
+            # Sort by angle
+            sorted_indices = np.argsort(angles)
+            sorted_corners = corners[sorted_indices]
+
+            # In image coordinates (Y down), bottom-left has positive Y and negative X relative to center
+            # Rearrange based on position relative to centroid
+            result = np.zeros_like(sorted_corners)
+
+            for i, corner in enumerate(corners):
+                dx = corner[0] - cx
+                dy = corner[1] - cy
+
+                if dx < 0 and dy > 0:  # Bottom-left (image coords)
+                    result[0] = corner
+                elif dx < 0 and dy < 0:  # Top-left
+                    result[1] = corner
+                elif dx > 0 and dy < 0:  # Top-right
+                    result[2] = corner
+                else:  # Bottom-right
+                    result[3] = corner
+
+            return result
+        except:
+            return None
+
+    def _extract_from_center(self, img: np.ndarray, center: tuple,
+                             scale: float, rotation: float) -> list:
+        """
+        Fallback extraction using module center.
+        """
+        h, w = img.shape[:2]
+        spec = self.module_spec
+
+        # Calculate Micro-ID position relative to center
+        # Module center is at (width/2, height/2) in mm
+        module_center_mm = (spec.width_mm / 2, spec.height_mm / 2)
+
+        # Micro-ID center in mm from module origin
+        microid_center_mm = (
+            spec.microid_x_mm + spec.microid_size_mm / 2,
+            spec.microid_y_mm + spec.microid_size_mm / 2
+        )
+
+        # Offset from module center
+        offset_mm = (
+            microid_center_mm[0] - module_center_mm[0],
+            microid_center_mm[1] - module_center_mm[1]
+        )
+
+        # Convert to pixels
+        offset_px = (offset_mm[0] * scale, offset_mm[1] * scale)
+
+        # Apply rotation
+        angle_rad = np.radians(rotation)
+        cos_a = np.cos(angle_rad)
+        sin_a = np.sin(angle_rad)
+
+        rotated_offset = (
+            offset_px[0] * cos_a - offset_px[1] * sin_a,
+            offset_px[0] * sin_a + offset_px[1] * cos_a
+        )
+
+        # Micro-ID center in image coordinates (Y inverted)
+        microid_center = (
+            center[0] + rotated_offset[0],
+            center[1] - rotated_offset[1]
+        )
+
+        # Extract region
+        crop_size = int(spec.microid_size_mm * scale * 1.6)  # Add padding
+        x1 = max(0, int(microid_center[0] - crop_size / 2))
+        y1 = max(0, int(microid_center[1] - crop_size / 2))
+        x2 = min(w, int(microid_center[0] + crop_size / 2))
+        y2 = min(h, int(microid_center[1] + crop_size / 2))
+
+        if self.debug:
+            debug_img = img.copy()
+            cv2.rectangle(debug_img, (x1, y1), (x2, y2), (255, 255, 0), 2)
+            cv2.circle(debug_img, (int(microid_center[0]), int(microid_center[1])), 5, (0, 0, 255), -1)
+            self.debug_images['04b_fallback_region'] = debug_img
+
+        crop = img[y1:y2, x1:x2]
+
+        if crop.size == 0:
+            return []
+
+        enhanced = self._enhance(crop)
+
+        crops = [enhanced]
+        for rot in [cv2.ROTATE_90_CLOCKWISE, cv2.ROTATE_180, cv2.ROTATE_90_COUNTERCLOCKWISE]:
+            crops.append(cv2.rotate(enhanced, rot))
+
+        return crops
+
+    def _extract_assuming_full_frame(self, img: np.ndarray) -> tuple:
+        """
+        Fallback: Assume the module fills most of the frame.
+        Try all 4 possible orientations and extract Micro-ID from each.
+        """
+        h, w = img.shape[:2]
+        spec = self.module_spec
+
+        # Assume the module is roughly centered and fills most of the smaller dimension
+        module_px = min(w, h) * 0.9
+        module_mm = max(spec.width_mm, spec.height_mm)
+        scale = module_px / module_mm
+
+        print(f'  Fallback scale: {scale:.1f} px/mm')
+        print(f'  Trying all 4 orientations...')
+
+        crops = []
+        debug_img = img.copy() if self.debug else None
+
+        # Colors for debug visualization
+        colors = [
+            (0, 255, 255),   # Yellow - 0°
+            (255, 0, 255),   # Magenta - 90°
+            (255, 255, 0),   # Cyan - 180°
+            (0, 255, 0),     # Green - 270°
+        ]
+
+        # Try all 4 orientations
+        for rot_idx, rotation_deg in enumerate([0, 90, 180, 270]):
+            # Rotate the image to test this orientation
+            if rotation_deg == 0:
+                rotated_img = img
+            elif rotation_deg == 90:
+                rotated_img = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
+            elif rotation_deg == 180:
+                rotated_img = cv2.rotate(img, cv2.ROTATE_180)
+            else:  # 270
+                rotated_img = cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE)
+
+            rh, rw = rotated_img.shape[:2]
+
+            # Recalculate scale for rotated dimensions
+            rot_module_px = min(rw, rh) * 0.9
+            rot_scale = rot_module_px / module_mm
+
+            # Calculate Micro-ID position for this orientation
+            img_center = (rw / 2, rh / 2)
+            module_center_mm = (spec.width_mm / 2, spec.height_mm / 2)
+
+            microid_center_mm = (
+                spec.microid_x_mm + spec.microid_size_mm / 2,
+                spec.microid_y_mm + spec.microid_size_mm / 2
+            )
+
+            offset_mm = (
+                microid_center_mm[0] - module_center_mm[0],
+                -(microid_center_mm[1] - module_center_mm[1])
+            )
+
+            offset_px = (offset_mm[0] * rot_scale, offset_mm[1] * rot_scale)
+
+            microid_center = (
+                img_center[0] + offset_px[0],
+                img_center[1] + offset_px[1]
+            )
+
+            # Extract region
+            crop_size = int(spec.microid_size_mm * rot_scale * 2.0)
+            x1 = max(0, int(microid_center[0] - crop_size / 2))
+            y1 = max(0, int(microid_center[1] - crop_size / 2))
+            x2 = min(rw, int(microid_center[0] + crop_size / 2))
+            y2 = min(rh, int(microid_center[1] + crop_size / 2))
+
+            crop = rotated_img[y1:y2, x1:x2]
+
+            if crop.size > 0:
+                enhanced = self._enhance(crop)
+                crops.append(enhanced)
+                print(f'    {rotation_deg}°: extracted crop {crop.shape[1]}x{crop.shape[0]}')
+
+            # Add to debug visualization (transform coordinates back to original image)
+            if self.debug and debug_img is not None:
+                # Calculate where this crop region is in the original image
+                orig_points = self._transform_rect_to_original(
+                    x1, y1, x2, y2, rotation_deg, w, h
+                )
+                if orig_points is not None:
+                    pts = np.array(orig_points, np.int32).reshape((-1, 1, 2))
+                    cv2.polylines(debug_img, [pts], True, colors[rot_idx], 2)
+                    # Label
+                    cv2.putText(debug_img, f'{rotation_deg}',
+                               (orig_points[0][0] + 5, orig_points[0][1] + 15),
+                               cv2.FONT_HERSHEY_SIMPLEX, 0.5, colors[rot_idx], 2)
+
+        if self.debug and debug_img is not None:
+            self.debug_images['04_all_orientations'] = debug_img
+
+        return crops, scale, 0.0
+
+    def _transform_rect_to_original(self, x1, y1, x2, y2, rotation_deg, orig_w, orig_h):
+        """Transform rectangle coordinates from rotated image back to original."""
+        if rotation_deg == 0:
+            return [(x1, y1), (x2, y1), (x2, y2), (x1, y2)]
+        elif rotation_deg == 90:
+            # 90° CW: (x,y) in rotated -> (y, orig_w - x) in original
+            return [
+                (y1, orig_w - x2),
+                (y1, orig_w - x1),
+                (y2, orig_w - x1),
+                (y2, orig_w - x2)
+            ]
+        elif rotation_deg == 180:
+            # 180°: (x,y) -> (orig_w - x, orig_h - y)
+            return [
+                (orig_w - x2, orig_h - y2),
+                (orig_w - x1, orig_h - y2),
+                (orig_w - x1, orig_h - y1),
+                (orig_w - x2, orig_h - y1)
+            ]
+        else:  # 270
+            # 270° CW (90° CCW): (x,y) in rotated -> (orig_h - y, x) in original
+            return [
+                (orig_h - y2, x1),
+                (orig_h - y1, x1),
+                (orig_h - y1, x2),
+                (orig_h - y2, x2)
+            ]
+
+    def _rotate_crop(self, crop: np.ndarray, angle: float) -> np.ndarray:
+        """Rotate crop to normalize orientation."""
+        h, w = crop.shape[:2]
+        center = (w // 2, h // 2)
+        matrix = cv2.getRotationMatrix2D(center, angle, 1.0)
+        rotated = cv2.warpAffine(crop, matrix, (w, h), borderMode=cv2.BORDER_REPLICATE)
+        return rotated
+
+    def _enhance(self, crop: np.ndarray) -> np.ndarray:
+        """Enhance the Micro-ID crop."""
         if crop.size == 0:
             return crop
 
-        # Resize to standard size for consistent processing
-        target_size = 400
+        # Resize to standard size
+        target = 500
         h, w = crop.shape[:2]
-        scale = target_size / max(h, w)
-        new_w, new_h = int(w * scale), int(h * scale)
-        resized = cv2.resize(crop, (new_w, new_h), interpolation=cv2.INTER_CUBIC)
+        if h == 0 or w == 0:
+            return crop
 
-        # Convert to grayscale for processing
+        scale = target / max(h, w)
+        nw, nh = max(1, int(w * scale)), max(1, int(h * scale))
+        resized = cv2.resize(crop, (nw, nh), interpolation=cv2.INTER_CUBIC)
+
+        # Convert to grayscale
         if len(resized.shape) == 3:
             gray = cv2.cvtColor(resized, cv2.COLOR_BGR2GRAY)
         else:
             gray = resized
 
-        # Apply CLAHE (Contrast Limited Adaptive Histogram Equalization)
-        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+        # CLAHE for contrast
+        clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
         enhanced = clahe.apply(gray)
 
         # Sharpen
-        kernel = np.array([[-1, -1, -1],
-                          [-1,  9, -1],
-                          [-1, -1, -1]])
-        sharpened = cv2.filter2D(enhanced, -1, kernel)
+        kernel = np.array([[-1, -1, -1], [-1, 9, -1], [-1, -1, -1]])
+        sharp = cv2.filter2D(enhanced, -1, kernel)
 
-        # Convert back to BGR for consistency
-        result = cv2.cvtColor(sharpened, cv2.COLOR_GRAY2BGR)
+        # Contrast boost
+        result = cv2.convertScaleAbs(sharp, alpha=1.3, beta=10)
 
-        return result
+        return cv2.cvtColor(result, cv2.COLOR_GRAY2BGR)
 
-    def _save_outputs(self, output_dir: str, input_path: str, enhanced_crops: list):
-        """Save all output images to the specified directory."""
+    def _save_outputs(self, output_dir: str, input_path: str, result: dict):
+        """Save output images."""
         os.makedirs(output_dir, exist_ok=True)
+        base = Path(input_path).stem
 
-        base_name = Path(input_path).stem
+        for i, crop in enumerate(result.get('cropped_images', [])):
+            if crop is not None and crop.size > 0:
+                p = os.path.join(output_dir, f'{base}_crop_{i}.jpg')
+                cv2.imwrite(p, crop)
+                print(f'  Saved: {p}')
 
-        # Save enhanced crops (all 4 rotations)
-        for i, crop in enumerate(enhanced_crops):
-            if crop.size > 0:
-                output_path = os.path.join(output_dir, f'{base_name}_microid_rot{i*90}.jpg')
-                cv2.imwrite(output_path, crop)
-                print(f'  Saved: {output_path}')
-
-        # Save debug images if enabled
-        if self.debug:
-            debug_dir = os.path.join(output_dir, 'debug')
-            os.makedirs(debug_dir, exist_ok=True)
-
-            for name, img in self.debug_images.items():
-                if img is not None and img.size > 0:
-                    output_path = os.path.join(debug_dir, f'{base_name}_{name}.jpg')
-                    cv2.imwrite(output_path, img)
-                    print(f'  Debug: {output_path}')
+        if self.debug and result.get('debug_images'):
+            ddir = os.path.join(output_dir, 'debug')
+            os.makedirs(ddir, exist_ok=True)
+            for name, im in result['debug_images'].items():
+                if im is not None and hasattr(im, 'size') and im.size > 0:
+                    p = os.path.join(ddir, f'{base}_{name}.jpg')
+                    cv2.imwrite(p, im)
+                    print(f'  Debug: {p}')
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Micro-ID Preprocessor POC')
+    parser = argparse.ArgumentParser(description='Micro-ID Preprocessor POC v6')
     parser.add_argument('input', help='Input image path or directory')
     parser.add_argument('--output', '-o', default='./output', help='Output directory')
+    parser.add_argument('--module', '-m', default='SZ-04', help='Module type')
     parser.add_argument('--debug', '-d', action='store_true', help='Save debug images')
 
     args = parser.parse_args()
 
-    preprocessor = MicroIDPreprocessor(debug=args.debug)
+    try:
+        preprocessor = MicroIDPreprocessor(module_type=args.module, debug=args.debug)
+    except ValueError as e:
+        print(f'Error: {e}')
+        print(f'Available modules: {", ".join(MODULE_SPECS.keys())}')
+        return 1
 
-    # Handle single file or directory
     input_path = Path(args.input)
 
     if input_path.is_file():
         files = [input_path]
     elif input_path.is_dir():
-        files = list(input_path.glob('*.jpg')) + list(input_path.glob('*.jpeg')) + list(input_path.glob('*.png'))
+        files = list(input_path.glob('*.jpg')) + list(input_path.glob('*.jpeg'))
     else:
-        print(f'Error: {args.input} is not a valid file or directory')
+        print(f'Error: invalid input')
         return 1
 
-    print(f'\nMicro-ID Preprocessor POC')
-    print(f'=' * 50)
-    print(f'Processing {len(files)} image(s)...\n')
+    print(f'\nMicro-ID Preprocessor POC v6 (Coordinate-Based)')
+    print('=' * 50)
 
-    for file_path in files:
-        print(f'Processing: {file_path}')
-        result = preprocessor.process(str(file_path), args.output)
+    for f in files:
+        print(f'\nProcessing: {f}')
+        result = preprocessor.process(str(f), args.output)
 
         if result['success']:
-            print(f'  Status: SUCCESS')
-            print(f'  Rotation detected: {result["rotation_angle"]:.1f} degrees')
-            print(f'  Generated {len(result["cropped_images"])} orientation variants')
+            print(f'  SUCCESS: {result.get("detection_method")}')
+            print(f'  Scale: {result.get("scale_px_per_mm", 0):.1f} px/mm')
+            print(f'  Rotation: {result.get("rotation_angle", 0):.1f}°')
         else:
-            print(f'  Status: FAILED')
-            print(f'  Error: {result["error"]}')
-        print()
+            print(f'  FAILED: {result.get("error")}')
 
-    print(f'Output saved to: {args.output}')
+    print(f'\nOutput: {args.output}')
     return 0
 
 
