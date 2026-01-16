@@ -1,4 +1,4 @@
-# QIP - Quadica Integration Platform
+# QIP - Quadica Integrated Platform
 
 **Status:** Planning / Partial Implementation
 **Created:** January 2026
@@ -21,11 +21,11 @@ QIP modernizes this functionality with:
 
 | Code | Module | Status | Purpose |
 |------|--------|--------|---------|
-| **QIM** | Quadica Inventory Management | Planned | Warehouse bins, stock visibility, component reservations |
-| **QPM** | Quadica Purchasing Management | Planned | Purchase orders, vendor management, receiving |
-| **QAM** | Quadica Assembly Management | Planned | Production batches, BOMs, serial numbers |
+| **QIM** | Quadica Inventory Management | Discovery | Warehouse bins, stock visibility, component reservations |
+| **QPM** | Quadica Purchasing Management | In Development | Purchase orders, vendor management, receiving |
+| **QAM** | Quadica Assembly Management | Discovery | Production batches, BOMs, serial numbers |
 | **QSA** | Quadica Standard Array Engraving | In Development | Laser engraving SVG generation, serial tracking |
-| **QFM** | Quadica Fulfillment Management | Planned | Shipping batches, picklists, order completion |
+| **QFM** | Quadica Fulfillment Management | Discovery | Shipping batches, picklists, order completion |
 | **QMF** | Quadica Manufacturing | Discovery | Overarching production system planning |
 
 ---
@@ -202,7 +202,7 @@ QIP modernizes this functionality with:
 |--------|--------|-------|
 | QSA | In Development | Core functionality implemented, testing in progress |
 | QIM | Planned | Foundation module, high priority |
-| QPM | Planned | Depends on QIM |
+| QPM | In Development | Depends on QIM |
 | QAM | Planned | Currently uses legacy `oms_batch_items` |
 | QFM | Planned | Final module in workflow |
 
