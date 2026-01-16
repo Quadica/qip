@@ -1,4 +1,4 @@
-# Quadica Production Manager (QPM) - Discovery
+# Quadica Production Manager (QMF) - Discovery
 
 **Last Update:** Nov 30, 2025  
 **Author:** Claude Code + Ron Warris  
@@ -12,7 +12,7 @@
 - This is not a technical document. It is a document that managers and users can review and provide feedback on.
 
 **Overview**
-This document captures the exploration and discovery process for modernizing the LED module production system. It documents the thinking process, questions asked, decisions made, and the emerging architecture for the Quadica Production Manager (QPM) system that will provide full integration into WooCommerce, continuous visibility into the entire production pipeline, production batch generation, production documentation, etc.
+This document captures the exploration and discovery process for modernizing the LED module production system. It documents the thinking process, questions asked, decisions made, and the emerging architecture for the Quadica Production Manager (QMF) system that will provide full integration into WooCommerce, continuous visibility into the entire production pipeline, production batch generation, production documentation, etc.
 
 This system will include updated functionality for the following existing OM production related processes (Not an exhaustive list):
 - prod-batch-list.php - Batch List
@@ -314,7 +314,7 @@ Invalid Batch (would be rejected):
 Each base SKU requires a specific solder paste mask. Mixing base types would require equipment changeover (mask replacement) during production, creating significant time delays and inefficiency. Maintaining single-base-type batches enables continuous production flow without interruption.
 
 **System Impact:**
-- QPM filters eligible modules by base type when creating batches
+- QMF filters eligible modules by base type when creating batches
 - Batch creation UI groups modules by base type for PM selection
 - System prevents adding modules with different base types to existing batches
 
@@ -348,7 +348,7 @@ Valid Batch 48 (ATOMa base type):
 LED placement is a manual pick-and-place operation during reflow. The specific LED (color, manufacturer, bin) does not affect the solder mask or equipment setup. Production staff simply pick the correct LED for each module according to the batch production sheet. This flexibility maximizes batch size and manufacturing efficiency.
 
 **System Impact:**
-- QPM groups modules by base type only, not by LED SKU
+- QMF groups modules by base type only, not by LED SKU
 - Batch production sheets list LED SKU for each module position
 - Component reservation system tracks LED quantities by SKU within batch
 
@@ -490,11 +490,11 @@ Avoid:
 Batch size affects production scheduling and build time estimation. Array optimization reduces waste and simplifies production workflow by using complete panels. However, array optimization is secondary to order priority - high-priority orders are built even if requiring partial arrays. Production will use as many trays as needed to hold completed modules, so tray count is not a constraint on batch size.
 
 **System Impact:**
-- QPM displays array size for selected base type
-- QPM calculates complete vs. partial array usage for batch
+- QMF displays array size for selected base type
+- QMF calculates complete vs. partial array usage for batch
 - System shows array optimization suggestions (e.g., "Reduce by 3 modules for 10 complete arrays")
-- QPM displays: "Using 9 complete arrays + 1 partial array (10/15 modules)" or "Using 10 complete arrays"
-- QPM displays estimated build time based on module count
+- QMF displays: "Using 9 complete arrays + 1 partial array (10/15 modules)" or "Using 10 complete arrays"
+- QMF displays estimated build time based on module count
 
 **PM Actions:**
 - PM reviews batch size and array optimization during creation
@@ -579,7 +579,7 @@ Order 12348:
 - System weights PM expedite and paid expedite factors heavily
 - Past-due orders automatically elevated to prevent customer service issues
 - Multiple factors combine to create final priority score
-- PM can see calculated priority score for each order in QPM dashboard
+- PM can see calculated priority score for each order in QMF dashboard
 
 **Rationale:**
 Hierarchical priority ensures business-critical decisions (PM expedites, paid expedites) take precedence over automated factors, while automated factors (past due, almost due, age) prevent orders from becoming late or forgotten. System balances:
@@ -590,7 +590,7 @@ Hierarchical priority ensures business-critical decisions (PM expedites, paid ex
 
 **System Impact:**
 - Priority scores recalculated daily (or when order details change)
-- QPM dashboard displays orders sorted by priority score (highest first)
+- QMF dashboard displays orders sorted by priority score (highest first)
 - Component reservation follows priority sequence (see Rule 9)
 - PM can filter/sort orders by priority factors (e.g., "show all PM expedite > 5")
 
@@ -713,9 +713,9 @@ High-priority orders should progress as quickly as possible. When stock is avail
 
 **System Impact:**
 - Batch creation wizard sorts and groups orders by priority
-- QPM calculates array usage (complete vs. partial arrays)
+- QMF calculates array usage (complete vs. partial arrays)
 - System highlights array optimization opportunities for lower-priority modules
-- QPM shows "Order Completion Impact" and "Array Optimization" analysis before batch creation
+- QMF shows "Order Completion Impact" and "Array Optimization" analysis before batch creation
 - System displays: "Using X complete arrays" or "Using X complete + 1 partial array (Y/Z modules)"
 
 **PM Actions:**
@@ -847,10 +847,10 @@ Filling batch capacity with lower-priority complete-buildable orders maximizes m
 
 **System Impact:**
 - Batch creation algorithm automatically suggests array-optimized fill
-- QPM shows "Batch Efficiency" metric (actual size vs. optimal size)
-- QPM displays array analysis: "Using X complete arrays" or "Using X complete + 1 partial (Y/Z)"
+- QMF shows "Batch Efficiency" metric (actual size vs. optimal size)
+- QMF displays array analysis: "Using X complete arrays" or "Using X complete + 1 partial (Y/Z)"
 - System highlights when lower-priority modules excluded for array optimization
-- QPM displays estimated build time for batch size
+- QMF displays estimated build time for batch size
 
 **PM Actions:**
 - PM reviews suggested batch composition including array optimization
@@ -939,7 +939,7 @@ The single reflow cycle is a non-negotiable physical constraint in LED module ma
 - Component availability check runs before batch creation
 - System displays clear "Buildable" vs "Not Buildable" indicators for each module
 - System shows which specific components are missing for unbuildable modules
-- QPM displays reallocation options when PM adjusts priorities
+- QMF displays reallocation options when PM adjusts priorities
 - Batch creation ONLY includes modules with 100% component availability
 
 **PM Actions:**
@@ -1011,7 +1011,7 @@ Soft reservations provide visibility into component allocation without locking c
 
 **System Impact:**
 - Component inventory table includes "soft_reserved_qty" column
-- QPM dashboard shows soft-reserved quantities by order
+- QMF dashboard shows soft-reserved quantities by order
 - Reallocation triggers require PM confirmation
 
 **PM Actions:**
@@ -1080,7 +1080,7 @@ Hard locks protect active production work from disruption. Once production begin
 
 **System Impact:**
 - Component inventory includes "hard_locked_qty" and "batch_id" columns
-- QPM prevents component reallocation from active batches
+- QMF prevents component reallocation from active batches
 - Batch cancellation requires elevated PM permissions and confirmation
 
 **PM Actions:**
@@ -1151,7 +1151,7 @@ Dynamic reallocation ensures limited components always flow to highest-priority 
 
 **System Impact:**
 - Reallocation engine calculates impact across all soft-reserved orders
-- QPM displays clear before/after state for PM review
+- QMF displays clear before/after state for PM review
 - All reallocations logged for audit trail
 
 **PM Actions:**
@@ -1162,7 +1162,7 @@ Dynamic reallocation ensures limited components always flow to highest-priority 
 ---
 
 #### Rule 12: Stalled Batch Detection & Component Release
-**Statement:** QPM shall automatically detect batches that have been active for an abnormally long time and notify the PM to prevent components from being stranded indefinitely in hard locks.
+**Statement:** QMF shall automatically detect batches that have been active for an abnormally long time and notify the PM to prevent components from being stranded indefinitely in hard locks.
 
 **Details:**
 
@@ -1213,7 +1213,7 @@ PM Actions Required:
   3. If stalled: Cancel batch → releases hard locks
   4. If complete: Close batch → releases components, updates orders
 
-[View Batch in QPM] [Dismiss Alert for 2 Days]
+[View Batch in QMF] [Dismiss Alert for 2 Days]
 ```
 
 **PM Resolution Options:**
@@ -1228,7 +1228,7 @@ PM Action: Click "Update Batch Status" and add note
 
 **Option 2: Batch Abandoned/Cancelled**
 ```
-PM Action: Cancel batch in QPM
+PM Action: Cancel batch in QMF
   1. PM clicks "Cancel Batch 47"
   2. System confirms: "Cancel Batch 47? This will release all hard locks and return components to inventory."
   3. PM confirms
@@ -1242,7 +1242,7 @@ PM Action: Cancel batch in QPM
 
 **Option 3: Batch Complete (Forgot to Close)**
 ```
-PM Action: Mark batch complete in QPM
+PM Action: Mark batch complete in QMF
   1. PM verifies all modules built
   2. PM clicks "Complete Batch 47"
   3. System Response:
@@ -1258,14 +1258,14 @@ If stalled batch remains unresolved:
   - Day 5: Initial Slack alert
   - Day 7: Second Slack alert (escalated to production manager)
   - Day 10: Third Slack alert + email to PM and production manager
-  - Day 14: Batch flagged "CRITICAL - MANUAL REVIEW REQUIRED" in QPM dashboard
+  - Day 14: Batch flagged "CRITICAL - MANUAL REVIEW REQUIRED" in QMF dashboard
 ```
 
 **System Impact:**
 - Batch table includes "last_activity_timestamp" column
 - Daily automated job checks for stalled batches
 - Slack integration sends alerts to #production channel
-- QPM dashboard displays "Stalled Batch" warnings prominently
+- QMF dashboard displays "Stalled Batch" warnings prominently
 - Hard lock release only via PM action (no automatic unlock)
 
 **PM Actions:**
@@ -1310,7 +1310,7 @@ Completion Status by Day:
   Day 5: Order 12345 = 100% complete (200/200 modules built) ✅
 ```
 
-**QPM Display:**
+**QMF Display:**
 ```
 Order #12345 Status:
   ✅ ATOMa (100 modules) - Complete [Batch 47]
@@ -1342,11 +1342,11 @@ Module-focused batching means orders are fulfilled across multiple batches over 
 ---
 
 #### Rule 14: WooCommerce Order Status Integration
-**Statement:** QPM shall integrate with WooCommerce order statuses to reflect production state, with automatic status transitions and protection against unauthorized manual changes.
+**Statement:** QMF shall integrate with WooCommerce order statuses to reflect production state, with automatic status transitions and protection against unauthorized manual changes.
 
 **Details:**
 
-**QPM-Managed Order Statuses:**
+**QMF-Managed Order Statuses:**
 - `wc-process`: Order released for processing, components soft-reserved
 - `wc-in-production`: At least one batch created for this order, modules being built
 
@@ -1354,24 +1354,24 @@ Module-focused batching means orders are fulfilled across multiple batches over 
 ```
 Order Created → wc-on-hold
   ↓ (Admin releases order)
-Order Released → wc-process (QPM soft-reserves components)
+Order Released → wc-process (QMF soft-reserves components)
   ↓ (PM creates first batch for order)
-Batch Created → wc-in-production (QPM sets automatically)
+Batch Created → wc-in-production (QMF sets automatically)
   ↓ (All batches for order complete)
-Production Complete → wc-process (QPM returns order to processing)
+Production Complete → wc-process (QMF returns order to processing)
   ↓ (Shipping batch system processes order)
 Shipping Ready → wc-processing (Shipping batch system sets)
   ↓ (Shipping creates label)
 Order Shipped → wc-completed
 ```
 
-**QPM Sets These Statuses:**
+**QMF Sets These Statuses:**
 - `wc-process` → `wc-in-production`: When first batch created for order
 - `wc-in-production` → `wc-process`: When all batches for order complete
 
-**QPM Does NOT Set:**
+**QMF Does NOT Set:**
 - `wc-processing` ("Ready to Ship") - Shipping batch system owns this
-- Order may contain non-module items that QPM doesn't track
+- Order may contain non-module items that QMF doesn't track
 - Shipping batch system has visibility into complete order readiness
 
 **Status Protection Mechanisms:**
@@ -1399,7 +1399,7 @@ Example:
   Order 12346 manually set to In Production (no batches exist)
   System Response:
     → Auto-revert to Process
-    → Slack #production: "⚠️ Order 12346 manually set to 'In Production' but has no active batches. Auto-reverted to 'Process'. Use QPM to create batches."
+    → Slack #production: "⚠️ Order 12346 manually set to 'In Production' but has no active batches. Auto-reverted to 'Process'. Use QMF to create batches."
 ```
 
 **Edge Case C: "In Production" → "Hold" Transitions**
@@ -1428,7 +1428,7 @@ Action: Slack notification only - NO automation, manual PM intervention required
 PM Must:
   1. Complete or abandon in-progress batches
   2. Decide component disposition (return to inventory or complete for stock)
-  3. Manually close batches in QPM
+  3. Manually close batches in QMF
   4. Clean up order trays
 
 Example:
@@ -1492,7 +1492,7 @@ Even though all modules are ATOMa (same base type), PM splits into multiple batc
 
 **Batch Independence:**
 - Each batch has its own production sheet
-- Each batch tracked separately in QPM
+- Each batch tracked separately in QMF
 - Production staff builds one batch at a time
 - Batch completion updates order completion percentage
 
@@ -1502,7 +1502,7 @@ Large orders exceeding practical batch size limits need to be split for manageab
 **System Impact:**
 - Batch table includes `order_id` and `batch_sequence` fields (e.g., Order 12345 Batch 1, 2, 3)
 - Order completion logic: `SUM(modules_built across all batches) = order total modules`
-- QPM displays all batches for an order in order detail view
+- QMF displays all batches for an order in order detail view
 
 **PM Actions:**
 - PM decides how to split large orders into batches
@@ -1512,7 +1512,7 @@ Large orders exceeding practical batch size limits need to be split for manageab
 ---
 
 #### Rule 16: Completion Notification Strategy
-**Statement:** When an order's module production completes (all batches finished), QPM shall notify relevant stakeholders via Slack and update order status.
+**Statement:** When an order's module production completes (all batches finished), QMF shall notify relevant stakeholders via Slack and update order status.
 
 **Details:**
 
@@ -1543,7 +1543,7 @@ Priority: High | Promised Date: Nov 18
 ```
 
 **Order Status Update:**
-- QPM automatically transitions order: `wc-in-production` → `wc-process`
+- QMF automatically transitions order: `wc-in-production` → `wc-process`
 - Order now waits for shipping batch system to process
 - Shipping batch system will set `wc-process` → `wc-processing` (Ready to Ship) when all order items (modules + non-module items) are ready
 
@@ -1637,7 +1637,7 @@ Automated priority calculations handle most cases correctly, but business realit
 
 **System Impact:**
 - Reallocation engine shows PM which orders would lose components
-- QPM logs all manual priority adjustments and reallocations
+- QMF logs all manual priority adjustments and reallocations
 - System prevents reallocation of hard-locked components (active batches)
 - Batch can only include modules that have 100% component availability after reallocation
 
@@ -1698,7 +1698,7 @@ PM needs control over which orders are batched when due to customer requests, pr
 **System Impact:**
 - Order table includes "exclude_until_date" field for permanent exclusions
 - Batch creation UI respects exclusion flags
-- Excluded orders remain visible in QPM (not hidden)
+- Excluded orders remain visible in QMF (not hidden)
 
 **PM Actions:**
 - PM can exclude individual modules or entire orders
@@ -1829,7 +1829,7 @@ Label Contents:
 ```
 
 **Tray Label Printing Process:**
-- QPM provides "Print Order Tray Label" function
+- QMF provides "Print Order Tray Label" function
 - PM or production staff prints labels as needed
 - Label includes order-identifying Data Matrix code + order number
 - Staff affixes label to tray(s) for that order
@@ -1872,8 +1872,8 @@ Result: Order 12345 has 4 trays total (200 modules)
 Module QR codes enable automatic sorting during production - staff simply scan and place in correct order tray. Simple tray labeling with QR codes enables quick order identification without complex tracking systems. Using as many trays as needed provides flexibility for orders of any size.
 
 **System Impact:**
-- QPM generates order tray labels with Data Matrix codes and order numbers
-- QPM tracks order completion status (not physical tray count or locations)
+- QMF generates order tray labels with Data Matrix codes and order numbers
+- QMF tracks order completion status (not physical tray count or locations)
 - Module Data Matrix code system determines which tray modules go into
 - System transitions orders to "Process" (wc-process) when all modules complete
 
@@ -1885,12 +1885,12 @@ Module QR codes enable automatic sorting during production - staff simply scan a
 ---
 
 #### Rule 21: Order Completion Tracking & Shipping System Integration
-**Statement:** QPM shall track module completion status for each order and transition orders to "Process" (wc-process) when all modules are complete, integrating with the shipping batch system for order fulfillment.
+**Statement:** QMF shall track module completion status for each order and transition orders to "Process" (wc-process) when all modules are complete, integrating with the shipping batch system for order fulfillment.
 
 **Details:**
 
 **Module Completion Tracking:**
-- QPM tracks which modules have been built for each order
+- QMF tracks which modules have been built for each order
 - Tracks completion across multiple production batches
 - Aggregates module counts: "150 of 200 modules complete"
 - Automatically transitions order to "Process" (wc-process) when all modules complete
@@ -1906,18 +1906,18 @@ Status: Process (wc-process) - waiting for shipping batch
 ```
 
 **Shipping Batch System Integration:**
-- Shipping batch system queries QPM via API for module completion status
-- QPM confirms "all modules complete" before shipping processes order
+- Shipping batch system queries QMF via API for module completion status
+- QMF confirms "all modules complete" before shipping processes order
 - Shipping system handles order retrieval and packaging workflow
 - Module Data Matrix codes used for validation during packaging
 
 **Physical Workflow:**
 ```
-1. QPM transitions Order 12345: wc-in-production → wc-process
+1. QMF transitions Order 12345: wc-in-production → wc-process
    ↓
-2. Shipping batch system queries QPM: "Are all modules complete for Order 12345?"
+2. Shipping batch system queries QMF: "Are all modules complete for Order 12345?"
    ↓
-3. QPM responds: "Yes - 200/200 modules complete"
+3. QMF responds: "Yes - 200/200 modules complete"
    ↓
 4. Shipping batch system transitions order: wc-process → wc-processing (Ready to Ship)
    ↓
@@ -1930,17 +1930,17 @@ Status: Process (wc-process) - waiting for shipping batch
 ```
 
 **Rationale:**
-QPM's role is tracking module production completion status and providing this information to the shipping system. Physical tray retrieval is trivial (few dozen orders, QR-coded trays) and handled by shipping staff. Module QR codes handle all verification during packaging.
+QMF's role is tracking module production completion status and providing this information to the shipping system. Physical tray retrieval is trivial (few dozen orders, QR-coded trays) and handled by shipping staff. Module QR codes handle all verification during packaging.
 
 **System Impact:**
-- QPM tracks module completion counts by order
-- QPM provides API endpoint for shipping system to query completion status
-- QPM transitions orders to "Process" (wc-process) when all modules complete
+- QMF tracks module completion counts by order
+- QMF provides API endpoint for shipping system to query completion status
+- QMF transitions orders to "Process" (wc-process) when all modules complete
 - Shipping batch system transitions orders to "Processing" (wc-processing/Ready to Ship) when ready
 - No tray location tracking needed (QR codes + small order volume)
 
 **PM Actions:**
-- PM monitors order completion status in QPM dashboard
+- PM monitors order completion status in QMF dashboard
 - System automatically notifies shipping when orders complete (via status change)
 
 ---
@@ -2017,7 +2017,7 @@ Individual module labels (printed after build):
 Consistent labeling prevents confusion, enables QR Code scanning, supports accurate inventory tracking, and ensures modules can be located quickly during shipping.
 
 **System Impact:**
-- QPM generates printable labels in standard formats
+- QMF generates printable labels in standard formats
 - QR Code generation for scanning integration
 - Label templates stored in database for easy updates
 
@@ -2268,7 +2268,7 @@ The system balances **manufacturing efficiency** (batching by base type) with **
 
 ### CSV Engraving File
 
-- The QPM will generate a CSV file that is used to laser engrave the Module Serial Number and QR code onto the module
+- The QMF will generate a CSV file that is used to laser engrave the Module Serial Number and QR code onto the module
 - The CSV file will contain one row for each LED module in the batch
 - The order of the rows in the CSV file should be optimized so that unique LED SKUs are grouped together with the objective of minimizing LED retrieval and handling during the production process
 - Each row in the CSV file will include the following fields for each module:
@@ -2278,12 +2278,12 @@ The system balances **manufacturing efficiency** (batching by base type) with **
   - Module Serial Number (8-digit numeric)
 - Any number of rows can be included in the CSV file
 - The generated CSV file is saved to the `Quadica\Production\production list.csv` file on our Google shared drive, over-writing the existing file if one exists
-- The QPM will include functionality that allows production staff to re-generate a CSV file for a previous production batch at any time
+- The QMF will include functionality that allows production staff to re-generate a CSV file for a previous production batch at any time
 
 ### Base Engraving Process
 
 - The generated CSV file will be used by custom Python software to engrave the Module Serial Number and Data Matrix code onto each base using our Cloudray UV Laser Engraver
-- Other than producing the CSV file from the production batch, the QPM will have no interaction with the process that engraves the Serial Number or Data Matrix code onto the base
+- Other than producing the CSV file from the production batch, the QMF will have no interaction with the process that engraves the Serial Number or Data Matrix code onto the base
 - The UV Laser engraving software will manage the process of generating the Data Matrix Code that is engraved onto the carrier tab
 
 ---
@@ -2307,7 +2307,7 @@ TBC
    - How much detail in component lists?
 
 3. **Component Availability Alerts**
-   - Just visual indicators in QPM?
+   - Just visual indicators in QMF?
    - Or also email/notification when components arrive?
    - Threshold alerts for low stock?
 
@@ -2333,13 +2333,13 @@ TBC
    - What data needs to be migrated vs archived?
 
 8. **User Interface Mockups**
-   - QPM dashboard layout
+   - QMF dashboard layout
    - Tablet batch view
    - Component status widgets
    - Priority management interface
 
 9. **Integration Points**
-    - How does LMB plugin feed data to QPM?
+    - How does LMB plugin feed data to QMF?
     - Quadica Purchasing Management (BOM Module) integration
     - WooCommerce order updates
     - Stock level synchronization
@@ -2384,7 +2384,7 @@ This discovery session has successfully defined a comprehensive framework for mo
 7. **Production Capacity Focus** - No artificial tray limits; constrained by single-day build capacity
 8. **Simple Batch Priority** - Production builds batches by number (lower batch# first); no module prioritization within batches
 9. **PM Strategic Control** - Full visibility with ability to adjust priorities, reallocate components, and manually compose batches
-10. **Shipping Integration** - QPM tracks completion status and provides API; shipping system handles order fulfillment
+10. **Shipping Integration** - QMF tracks completion status and provides API; shipping system handles order fulfillment
 
 **The Path Forward:**
 

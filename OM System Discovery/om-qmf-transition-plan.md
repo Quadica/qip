@@ -1,4 +1,4 @@
-# OM to QPM Transition Plan
+# OM to QMF Transition Plan
 
 **Document Creation Date:** Nov 12, 2025
 **Last Update:** Nov 24, 2025

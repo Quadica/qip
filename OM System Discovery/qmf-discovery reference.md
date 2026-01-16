@@ -55,7 +55,7 @@ The **Quadica Production Manager** that provides continuous visibility:
 
 ### Core Strategy Shift
 
-**FUNDAMENTAL CHANGE:** The new QPM system moves from a **module-focused** batch generation approach to an **order-focused** approach. This represents a complete architectural change from the legacy system.
+**FUNDAMENTAL CHANGE:** The new QMF system moves from a **module-focused** batch generation approach to an **order-focused** approach. This represents a complete architectural change from the legacy system.
 
 **Legacy (Module-Based):**
 - "Show me all modules that can be built across all orders"
@@ -262,14 +262,14 @@ Shipping pulls tray(s) labeled "Order 12345"
 After shipping confirms → Trays reused for other orders
 ```
 
-**WooCommerce Order Statuses (QPM Perspective):**
+**WooCommerce Order Statuses (QMF Perspective):**
 - **"New" or "Process"** - Order in queue, waiting for PM to create batch
 - **"In Production"** (wc-in-production) - One or more batches in progress or complete, order not fully done
 - **"Process"** (wc-process) - All production batches complete, modules ready for shipping batch system
-- **"Ready to Ship"** (wc-processing) - Set by shipping batch system (NOT QPM) when entire order ready
+- **"Ready to Ship"** (wc-processing) - Set by shipping batch system (NOT QMF) when entire order ready
 - **"Shipped"** (wc-completed) - Order shipped, trays available for reuse
 
-**Note:** QPM does not create intermediate statuses for partial completion. Orders remain in "In Production" until all production batches are complete, then automatically return to "Process" status.
+**Note:** QMF does not create intermediate statuses for partial completion. Orders remain in "In Production" until all production batches are complete, then automatically return to "Process" status.
 
 **Special Cases:**
 
@@ -848,20 +848,20 @@ Batch Record:
 ---
 
 #### Rule 19: Production Completion & Order Status Update
-**Statement:** When all production batches for an order are complete, QPM automatically sets the order status back to "Process" to indicate module production is complete and the order is ready for the shipping batch system.
+**Statement:** When all production batches for an order are complete, QMF automatically sets the order status back to "Process" to indicate module production is complete and the order is ready for the shipping batch system.
 
 **Workflow:**
 ```
 All batches for Order 12345 complete
   ↓
-QPM automatically:
+QMF automatically:
   - Releases hard-locked components
   - Sets order status to "Process" (wc-process)
   - Flags order as "Module production complete"
   ↓
 Order now visible to shipping batch system
   ↓
-Shipping batch system (separate from QPM):
+Shipping batch system (separate from QMF):
   - Assembles complete order (modules + accessories + other items)
   - Creates shipping batch
   - Sets order to "Ready to Ship" (wc-processing)
@@ -870,7 +870,7 @@ Shipping batch system (separate from QPM):
 Shipping creates label and ships order
 ```
 
-**QPM Production Complete Indicator:**
+**QMF Production Complete Indicator:**
 ```
 ✅ PRODUCTION COMPLETE
 
@@ -888,7 +888,7 @@ Order Status: Automatically set to "Process" (ready for shipping batch)
 [View Order Details] [View Batch History]
 ```
 
-**IMPORTANT:** QPM does not manage the transition to "Ready to Ship" - that is handled by the shipping batch system which knows when ALL order items (modules + non-module items) are ready for shipment.
+**IMPORTANT:** QMF does not manage the transition to "Ready to Ship" - that is handled by the shipping batch system which knows when ALL order items (modules + non-module items) are ready for shipment.
 
 ---
 
@@ -902,42 +902,42 @@ Order Status: Automatically set to "Process" (ready for shipping batch)
 - Status is defined in WooCommerce via YITH Custom Order Status plugin
 - Status is included in legacy OM query filters
 - **Status is NOT actively set by legacy OM** (confirmed via code review)
-- Safe to repurpose for QPM without breaking existing system
+- Safe to repurpose for QMF without breaking existing system
 
-**QPM Will Use This Status:**
+**QMF Will Use This Status:**
 - Set when PM creates first batch for an order
 - Indicates order has entered active production
 - Remains set until all batches for order are complete
 
 ---
 
-#### Order Status Workflow for QPM
+#### Order Status Workflow for QMF
 
-**Orders That Enter QPM Production Queue:**
+**Orders That Enter QMF Production Queue:**
 
-The following WooCommerce statuses trigger soft-reservation and appear in QPM:
+The following WooCommerce statuses trigger soft-reservation and appear in QMF:
 
 1. **"New"** (`wc-on-hold`)
    - Order received from website, waiting for admin review
    - Stock allocated (decreased)
-   - **QPM Action:** Soft-reserve components automatically
+   - **QMF Action:** Soft-reserve components automatically
    - **Appears in queue:** Yes, with "New" flag
 
 2. **"Process"** (`wc-process`)
    - Order released for production and shipping
    - Stock allocated (decreased)
-   - **QPM Action:** Soft-reserve components automatically (if not already)
+   - **QMF Action:** Soft-reserve components automatically (if not already)
    - **Appears in queue:** Yes, ready for batching
 
 3. **"Hold"** (`wc-hold`)
    - Order on hold (waiting for customer confirmation, etc.)
    - Stock allocated (decreased)
-   - **QPM Action:** Soft-reserve components but flag as "On Hold"
+   - **QMF Action:** Soft-reserve components but flag as "On Hold"
    - **Appears in queue:** Yes, but visually flagged as "Hold"
 
-**Orders That QPM Should Ignore:**
+**Orders That QMF Should Ignore:**
 
-The following statuses do NOT appear in QPM queue:
+The following statuses do NOT appear in QMF queue:
 
 - ❌ **"Awaiting Payment"** (`wc-pending`) - Stock deallocated, waiting for wire/check
 - ❌ **"Quote"** (`wc-quote`) - Quote stage only
@@ -952,19 +952,19 @@ The following statuses do NOT appear in QPM queue:
 
 ---
 
-#### QPM Status Update Rules
+#### QMF Status Update Rules
 
-**When QPM Creates First Batch for Order:**
+**When QMF Creates First Batch for Order:**
 ```
 Current Status: "New" or "Process"
-QPM Action: Set order to "In Production" (wc-in-production)
+QMF Action: Set order to "In Production" (wc-in-production)
 Component Reservation: Soft-reserve → Hard lock (for batched modules)
 ```
 
 **While Batches Are In Progress or Partially Complete:**
 ```
 Current Status: "In Production" (wc-in-production)
-QPM Action: NO status change
+QMF Action: NO status change
 Order Remains: "In Production" until ALL batches complete
 
 Example: Order has 3 batches
@@ -977,14 +977,14 @@ Example: Order has 3 batches
 **When ALL Production Batches for Order Complete:**
 ```
 Current Status: "In Production" (wc-in-production)
-QPM Action: Set order back to "Process" (wc-process)
+QMF Action: Set order back to "Process" (wc-process)
 Rationale: Module production complete, order ready for shipping batch system
 Component Reservation: Hard lock released (modules built)
 PM Action: None required - automatic when last batch marked complete
 
-IMPORTANT: QPM does NOT set "Ready to Ship" status!
+IMPORTANT: QMF does NOT set "Ready to Ship" status!
 - Orders may contain non-module items (accessories, power supplies, etc.)
-- Shipping batch system (separate from QPM) handles final order assembly
+- Shipping batch system (separate from QMF) handles final order assembly
 - "Ready to Ship" triggers payment capture - only shipping system should set this
 ```
 
@@ -992,7 +992,7 @@ IMPORTANT: QPM does NOT set "Ready to Ship" status!
 ```
 Current Status: Any production status
 WooCommerce Action: Admin sets to "Cancelled" (wc-cancelled)
-QPM Action:
+QMF Action:
   - Release all soft-reserved components
   - Flag batches as "Order Cancelled - Requires PM Action"
   - PM decides disposition of any completed modules
@@ -1009,10 +1009,10 @@ Customer Places Order
 "New" (wc-on-hold)
   ↓ [Admin reviews, approves]
 "Process" (wc-process)
-  ↓ [PM creates batch in QPM]
-"In Production" (wc-in-production) ← QPM sets this
+  ↓ [PM creates batch in QMF]
+"In Production" (wc-in-production) ← QMF sets this
   ↓ [All production batches complete]
-"Process" (wc-process) ← QPM sets this (module production complete)
+"Process" (wc-process) ← QMF sets this (module production complete)
   ↓ [Shipping batch system creates shipping batch]
 "Ready to Ship" (wc-processing) ← Shipping system sets this (⚡ captures payment!)
   ↓ [Shipping creates label in Ordoro]
@@ -1033,7 +1033,7 @@ Customer Places Order
 - ⚡ **CRITICAL:** Automatically captures pre-authorized credit card and PayPal payments
 - Must ONLY be set when order is truly ready to ship (all items, not just modules)
 - Stock is guaranteed decreased (failsafe for shipping)
-- **Set by shipping batch system** (NOT QPM) - shipping system knows when entire order ready
+- **Set by shipping batch system** (NOT QMF) - shipping system knows when entire order ready
 
 **Stock Allocation:**
 - "New", "Process", "In Production", "Hold" = Stock DECREASED (allocated)
@@ -1049,7 +1049,7 @@ Customer Places Order
 
 **Problem:** Admin accidentally changes order status while production batches are active.
 
-**QPM Protection:**
+**QMF Protection:**
 ```
 Monitor: WooCommerce order status changes
 Detect: Order status changed FROM "In Production" TO any status (except "Hold")
@@ -1065,14 +1065,14 @@ Slack Message:
   Action: Automatically reverted back to "In Production"
 
   WHY THIS HAPPENED:
-  Order #12345 has active production batches in QPM.
+  Order #12345 has active production batches in QMF.
   Manually changing the status away from "In Production" while
   batches are active will cause production tracking issues.
 
   TO PROPERLY REMOVE ORDER FROM PRODUCTION:
-  1. Go to QPM dashboard
+  1. Go to QMF dashboard
   2. Mark all production batches as complete (or cancel batches)
-  3. QPM will automatically update order status to "Process"
+  3. QMF will automatically update order status to "Process"
 
   EXCEPTION: Orders can be manually set to "Hold" status if
   production needs to be suspended.
@@ -1081,18 +1081,18 @@ Slack Message:
 **Exception: "Hold" Status Is Allowed**
 - Admins CAN manually change "In Production" → "Hold"
 - This is intentional (suspend production on order)
-- QPM responds differently (see below)
+- QMF responds differently (see below)
 
 ---
 
 **Manual Status Changes TO "In Production" Without Batches**
 
-**Problem:** Admin manually sets order to "In Production" but order has no QPM batches.
+**Problem:** Admin manually sets order to "In Production" but order has no QMF batches.
 
-**QPM Protection:**
+**QMF Protection:**
 ```
 Monitor: WooCommerce order status changes
-Detect: Order status changed TO "In Production" but order has zero QPM batches
+Detect: Order status changed TO "In Production" but order has zero QMF batches
 Action:
   1. Automatically revert status to previous status (usually "Process" or "New")
   2. Post to Slack #production channel
@@ -1105,22 +1105,22 @@ Slack Message:
   Action: Automatically reverted (no production batches exist)
 
   WHY THIS HAPPENED:
-  The "In Production" status is managed exclusively by the QPM
+  The "In Production" status is managed exclusively by the QMF
   system and should only be set when production batches are
   created.
 
   TO START PRODUCTION FOR THIS ORDER:
-  1. Go to QPM dashboard
+  1. Go to QMF dashboard
   2. Create a production batch for this order
-  3. QPM will automatically set the order status to "In Production"
+  3. QMF will automatically set the order status to "In Production"
 
   DO NOT manually set orders to "In Production" status.
 ```
 
 **Rationale:**
-- "In Production" status should only be set by QPM when batches exist
+- "In Production" status should only be set by QMF when batches exist
 - Prevents confusion about what's actually being built
-- Maintains data integrity between WooCommerce and QPM system
+- Maintains data integrity between WooCommerce and QMF system
 
 ---
 
@@ -1130,7 +1130,7 @@ Slack Message:
 
 **Business Need:** Customer needs to pause order, payment issue, specification change, etc.
 
-**QPM Response:**
+**QMF Response:**
 ```
 Detect: Order status changed FROM "In Production" TO "Hold"
 Actions:
@@ -1149,7 +1149,7 @@ Slack Message:
 
   ACTION REQUIRED: Suspend all production work on this order.
 
-  The order will remain in QPM. Wait for order to return to
+  The order will remain in QMF. Wait for order to return to
   "Process" or "In Production" status before resuming work.
 ```
 
@@ -1186,12 +1186,12 @@ Slack Message:
 
 **Business Reality:** This would be highly unusual but can happen (including Hold → Cancelled transitions).
 
-**QPM Response:**
+**QMF Response:**
 ```
 Manual Management Only - No Automation
 
 When order is cancelled:
-  ✓ QPM flags batches as "Order Cancelled"
+  ✓ QMF flags batches as "Order Cancelled"
   ✓ Batches remain in system for PM to review
   ✓ Components remain locked until PM makes decision
 
@@ -1275,15 +1275,15 @@ The following questions were identified during the rule development process and 
 #### 5. WooCommerce Order Status Integration
 **Question:** Should batch completion trigger automatic WooCommerce order status changes, or remain completely decoupled?
 
-**ANSWER: QPM Updates Status Automatically (Limited Scope)**
+**ANSWER: QMF Updates Status Automatically (Limited Scope)**
 
-**Decision:** QPM will automatically update WooCommerce order statuses for module production milestones only.
+**Decision:** QMF will automatically update WooCommerce order statuses for module production milestones only.
 
-**Status Changes QPM Makes:**
+**Status Changes QMF Makes:**
 1. **First batch created** → Set order to "In Production" (wc-in-production)
 2. **All production batches complete** → Set order back to "Process" (wc-process)
 
-**Status Changes QPM Does NOT Make:**
+**Status Changes QMF Does NOT Make:**
 - ❌ **"Ready to Ship"** (wc-processing) - This is managed by the shipping batch system
 - ❌ **"Shipped"** (wc-completed) - This is managed by Ordoro
 
@@ -1291,17 +1291,17 @@ The following questions were identified during the rule development process and 
 - **Orders may contain non-module items** - accessories, power supplies, cables, etc.
 - **Shipping batch system has complete visibility** - knows when ALL items ready (modules + other items)
 - **Payment capture is critical** - "Ready to Ship" captures pre-authorized payments, should only happen when entire order ready
-- **QPM scope is module production only** - shipping/fulfillment is separate system
+- **QMF scope is module production only** - shipping/fulfillment is separate system
 
-**QPM's Responsibility:**
+**QMF's Responsibility:**
 - Track module production progress
 - Update status when module production starts ("In Production")
 - Update status when module production completes (back to "Process")
 - Hand off to shipping batch system for final order assembly
 
 **Implementation:**
-- QPM sets "In Production" automatically when first batch created
-- QPM sets back to "Process" automatically when last batch marked complete
+- QMF sets "In Production" automatically when first batch created
+- QMF sets back to "Process" automatically when last batch marked complete
 - No PM confirmation required (automatic state transitions)
 - Shipping batch system takes over from "Process" status
 
@@ -1310,7 +1310,7 @@ See "WooCommerce Order Status Integration" section above for complete workflow.
 ---
 
 #### 6. Historical Batch Data Migration
-**Question:** When transitioning from legacy OM to new QPM system, how do we handle active batches in the old system?
+**Question:** When transitioning from legacy OM to new QMF system, how do we handle active batches in the old system?
 
 **Answer:** There will be no active batches when we make the transition.
 
@@ -1592,7 +1592,7 @@ PM can reopen if needed (with warning)
 - But with warning, PM can override when needed
 
 **What happens when batch partially done?**
-- Module status updated in QPM
+- Module status updated in QMF
 - When qty_completed >= qty_required → module marked complete
 - Batch remains "In Progress" until ALL modules complete
 - PM can change qty_completed anytime while batch open
@@ -1781,7 +1781,7 @@ The system will store production-specific data (production queue, batches, compo
 
 **4. Component Procurement Integration**
 - How does this tie into purchase order system?
-- Should QPM suggest what to order?
+- Should QMF suggest what to order?
 - Minimum stock level alerting?
 
 **5. Performance Optimization**
@@ -1808,7 +1808,7 @@ Add batch generation directly to Quadica Purchasing Management plugin's BOM Modu
 - Simpler architecture
 
 **Cons:**
-- QPM plugin becomes complex/bloated
+- QMF plugin becomes complex/bloated
 - Mixing concerns (component definition vs production workflow)
 - Harder to evolve independently
 
@@ -1935,7 +1935,7 @@ Bringing it all together - why the Quadica Production Manager concept is the rig
 
 ### Fundamental Business Model Shift
 
-**Question Explored:** Should production batch functionality be a separate system like current OM, or integrated into QPM?
+**Question Explored:** Should production batch functionality be a separate system like current OM, or integrated into QMF?
 
 This led to discovering a fundamental shift in manufacturing approach:
 
@@ -2023,7 +2023,7 @@ With component reservation:
 
 1. **Soft Reservation** (Planning/Queue)
    - Status: Reserved but not in production
-   - Location: In QPM queue, no batch created yet
+   - Location: In QMF queue, no batch created yet
    - PM Can: Reallocate with impact warning
    - Purpose: Prevent accidental poaching, planning
 
@@ -2036,19 +2036,19 @@ With component reservation:
 
 ---
 
-## 16. Integrated QPM Architecture Decision
+## 16. Integrated QMF Architecture Decision
 
 ### Option A vs Option B Analysis
 
 **Option A: Separate Batch Management**
 ```
-QPM System (Queue)  +  Separate Batch System (Execution)
+QMF System (Queue)  +  Separate Batch System (Execution)
 ```
 - Two systems to navigate
 - Context switching
 - Duplicate data display
 
-**Option B: Integrated QPM** ✅ CHOSEN
+**Option B: Integrated QMF** ✅ CHOSEN
 ```
 Quadica Production Manager (One System)
 ├─ Production Queue Tab
@@ -2076,7 +2076,7 @@ Quadica Production Manager (One System)
 ### Role-Based Interface Views
 
 **Production Manager View (Desktop):**
-- Full QPM dashboard
+- Full QMF dashboard
 - Production queue + active batches + completed history
 - Create batches, manage priorities, monitor overall production
 - Component reservation management
@@ -2113,7 +2113,7 @@ Put in Warehouse Bins for Storage
 
 ### New Way (Build-to-Order)
 ```
-Create Batch from QPM Queue
+Create Batch from QMF Queue
   ↓
 View Digital Instructions (Tablet)
   ↓
@@ -2150,7 +2150,7 @@ Stock Status: Can build X, Y (not Z - waiting for components)
 
 ### Option Chosen: Hybrid - PM Decides Per Order
 
-**PM sees in QPM:**
+**PM sees in QMF:**
 ```
 Order A: Can build 2/3 modules (missing components for Z)
 ```
@@ -2201,7 +2201,7 @@ Batch Item Status:
 #### Tier 1: Soft Reservation (Queue/Planning)
 ```
 Status: Reserved but not in production
-Location: In QPM queue, no batch created yet
+Location: In QMF queue, no batch created yet
 PM Can: Steal/reallocate with impact warning
 Purpose: Prevent poaching, planning for future builds
 ```
@@ -2406,7 +2406,7 @@ System automatically:
 
 ### Component Release Happens Automatically
 
-**QPM Updates Immediately:**
+**QMF Updates Immediately:**
 ```
 LED-X Component Status:
   Physical Stock: 520
@@ -2488,7 +2488,7 @@ PM sees availability changed and can create new batches.
 - Static, can't update during production
 - Paper management required
 
-**New (QPM System):**
+**New (QMF System):**
 - Digital batch instructions on tablets
 - Always current, updates in real-time
 - Progressive disclosure (expand for details)
@@ -2555,7 +2555,7 @@ Progress:
 - ✅ Real-time progress tracking
 - ✅ No paper document version control
 - ✅ Can update instructions if needed
-- ✅ Automatic integration with QPM
+- ✅ Automatic integration with QMF
 
 ---
 
@@ -2585,7 +2585,7 @@ Order #     Module      Status        Components
 
 **Event:** PO #543 received, 100× LED-X added to stock
 
-**QPM Response:**
+**QMF Response:**
 ```
 Automatic Update:
   Module B: 🔴 Blocked → 🟢 Ready
@@ -2637,10 +2637,10 @@ The CSV file is saved to the Quadica\Production\production list.csv file in our 
 - The engraving target area on the bases for the 2 digit production codes is very small, requiring the process of engraving codes to be extremely precise
 - Each time we add a new array design we need to add positioning details for engraving production codes to the current process, which can be very challenging to set up
 
-### QPM UV Laser Engraver CSV Export File
+### QMF UV Laser Engraver CSV Export File
 
 **Proposed Revised Engraving Process**
-The new QPM production process will work differently than the existing system.
+The new QMF production process will work differently than the existing system.
 
 **Standardized Array Design** 
 - We will standardize the arrays so that every array is physically the same size with 6 bases in each array
@@ -2667,7 +2667,7 @@ The new QPM production process will work differently than the existing system.
 
 
 **UV Engraving Process**
-- Other than producing the CSV file from the production batch, the QPM will have no interaction with the process that engraves the module ID code or QR Code onto the base
+- Other than producing the CSV file from the production batch, the QMF will have no interaction with the process that engraves the module ID code or QR Code onto the base
 - The UV Laser engraver will manage the process of separating generating the QR Code that will be engraved on the base
 
 
@@ -2726,7 +2726,7 @@ The new QPM production process will work differently than the existing system.
    - How much detail in component lists?
 
 3. **Component Availability Alerts**
-   - Just visual indicators in QPM?
+   - Just visual indicators in QMF?
    - Or also email/notification when components arrive?
    - Threshold alerts for low stock?
 
@@ -2752,13 +2752,13 @@ The new QPM production process will work differently than the existing system.
    - What data needs to be migrated vs archived?
 
 8. **User Interface Mockups**
-   - QPM dashboard layout
+   - QMF dashboard layout
    - Tablet batch view
    - Component status widgets
    - Priority management interface
 
 9. **Integration Points**
-    - How does LMB plugin feed data to QPM?
+    - How does LMB plugin feed data to QMF?
     - Quadica Purchasing Management (BOM Module) integration
     - WooCommerce order updates
     - Stock level synchronization
@@ -2790,7 +2790,7 @@ This discovery session has explored the modernization of LED module production b
 
 **Key Architectural Decisions:**
 
-1. **Integrated System** - QPM handles both queue and batch management
+1. **Integrated System** - QMF handles both queue and batch management
 2. **Build-to-Order Model** - Minimal finished goods inventory, simplified workflow
 3. **Two-Tier Component Reservation** - Soft (PM can reallocate) vs Hard Lock (in production)
 4. **Digital-First** - Tablet-based batch instructions, not printed reports
