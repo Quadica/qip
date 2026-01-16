@@ -1,6 +1,6 @@
 # QIP - Quadica Integration Platform
 
-**Status:** Planning
+**Status:** Planning / Partial Implementation
 **Created:** January 2026
 
 ---
@@ -19,13 +19,14 @@ QIP modernizes this functionality with:
 
 ## Module Overview
 
-| Code | Module | Purpose |
-|------|--------|---------|
-| **QIM** | Quadica Inventory Management | Warehouse bins, stock visibility, component reservations |
-| **QPM** | Quadica Purchasing Management | Purchase orders, vendor management, receiving |
-| **QAM** | Quadica Assembly Management | Production batches, BOMs, serial numbers |
-| **QFM** | Quadica Fulfillment Management | Shipping batches, picklists, order completion |
-| **QMF** | Quadica Manufacturing | Overarching production system (discovery/planning) |
+| Code | Module | Status | Purpose |
+|------|--------|--------|---------|
+| **QIM** | Quadica Inventory Management | Planned | Warehouse bins, stock visibility, component reservations |
+| **QPM** | Quadica Purchasing Management | Planned | Purchase orders, vendor management, receiving |
+| **QAM** | Quadica Assembly Management | Planned | Production batches, BOMs, serial numbers |
+| **QSA** | Quadica Standard Array Engraving | In Development | Laser engraving SVG generation, serial tracking |
+| **QFM** | Quadica Fulfillment Management | Planned | Shipping batches, picklists, order completion |
+| **QMF** | Quadica Manufacturing | Discovery | Overarching production system planning |
 
 ---
 
@@ -50,13 +51,40 @@ QIP modernizes this functionality with:
 │        QPM (Purchasing)        │               │        QAM (Assembly)          │
 │  • Create POs for missing      │               │  • Create production batches   │
 │    components                  │               │  • Hard-lock components        │
-│  • Receive against POs         │               │  • Assign serial numbers       │
-│  • Update bin inventory        │◄──────────────│  • Generate build docs         │
-│                                │   Components   │  • Receive completed modules   │
+│  • Receive against POs         │               │  • Generate build docs         │
+│  • Update bin inventory        │◄──────────────│                                │
+│                                │   Components   │                                │
 └───────────────────────────────┘    received    └───────────────────────────────┘
                                                               │
-                                                              │ Modules
-                                                              │ completed
+                                                              │ Batch created
+                                                              ▼
+                                    ┌───────────────────────────────────────────┐
+                                    │            QSA (Engraving)                 │
+                                    │  • Generate serial numbers                 │
+                                    │  • Create SVG files for laser engraving    │
+                                    │  • Send to LightBurn via SFTP              │
+                                    │  • Track engraving completion              │
+                                    └───────────────────────────────────────────┘
+                                                              │
+                                                              │ Arrays engraved
+                                                              ▼
+                                    ┌───────────────────────────────────────────┐
+                                    │          Physical Assembly                 │
+                                    │  • Manual LED pick-and-place               │
+                                    │  • Module assembly on engraved arrays      │
+                                    │  • Quality inspection                      │
+                                    └───────────────────────────────────────────┘
+                                                              │
+                                                              │ Modules built
+                                                              ▼
+                                    ┌───────────────────────────────────────────┐
+                                    │        QAM (Assembly - Receiving)          │
+                                    │  • Receive completed modules               │
+                                    │  • Assign bin locations (QIM)              │
+                                    │  • Update WooCommerce stock                │
+                                    └───────────────────────────────────────────┘
+                                                              │
+                                                              │ Modules in stock
                                                               ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                           QFM (Fulfillment)                              │
@@ -101,9 +129,20 @@ QIP modernizes this functionality with:
 - Production batch creation from eligible orders
 - BOM (Bill of Materials) / Assembly definitions
 - "Can build" calculations based on component availability
-- Serial number assignment and tracking
 - Production documentation (reports, labels)
 - Component hard-lock reservations during production
+- Receiving completed modules into inventory
+
+### QSA - Quadica Standard Array Engraving
+**Depends on: QAM (production batches), Order BOM CPT, WooCommerce products**
+
+- Engraving batch creation from production batch modules
+- Serial number generation and lifecycle tracking (reserved/engraved/voided)
+- SVG file generation with Micro-ID, Data Matrix, module ID, LED codes
+- LightBurn integration via SFTP watcher
+- LED optimization sorting to minimize pick-and-place transitions
+- QSA position coordinate configuration and tweaking
+- Batch history for re-engraving workflows
 
 ### QFM - Quadica Fulfillment Management
 **Depends on: QIM, QAM**
@@ -118,12 +157,13 @@ QIP modernizes this functionality with:
 
 ## Integration Matrix
 
-|  | QIM | QPM | QAM | QFM | WooCommerce | ShipStation |
-|--|-----|-----|-----|-----|-------------|-------------|
-| **QIM** | - | Bin assignment | Hard locks | Stock queries | Stock sync | - |
-| **QPM** | Stock levels | - | PO visibility | - | Product SKUs | - |
-| **QAM** | Reservations | Incoming POs | - | Completion trigger | Orders, products | - |
-| **QFM** | Bin locations | - | Batch completion | - | Order status | Order export |
+|  | QIM | QPM | QAM | QSA | QFM | WooCommerce | External |
+|--|-----|-----|-----|-----|-----|-------------|----------|
+| **QIM** | - | Bin assignment | Hard locks | - | Stock queries | Stock sync | - |
+| **QPM** | Stock levels | - | PO visibility | - | - | Product SKUs | - |
+| **QAM** | Reservations | Incoming POs | - | Batch modules | Completion trigger | Orders, products | - |
+| **QSA** | - | - | Batch data | - | - | LED codes | LightBurn |
+| **QFM** | Bin locations | - | Batch completion | - | - | Order status | ShipStation |
 
 ---
 
@@ -133,10 +173,12 @@ QIP modernizes this functionality with:
 2. **Availability Check** - QIM calculates what components are available
 3. **Production Planning** - QAM identifies buildable modules, QPM identifies components to order
 4. **Purchasing** - QPM creates POs, receives against POs, updates QIM bins
-5. **Production** - QAM creates batches, hard-locks components, assigns serial numbers
-6. **Receiving** - QAM receives completed modules into QIM bins
-7. **Fulfillment** - QFM calculates "can ship", creates shipping batches
-8. **Shipping** - QFM syncs to ShipStation, updates WooCommerce order status
+5. **Batch Creation** - QAM creates production batches, hard-locks components
+6. **Engraving** - QSA generates serial numbers, creates SVG files, sends to LightBurn
+7. **Assembly** - Physical LED placement on engraved arrays (manual process)
+8. **Receiving** - QAM receives completed modules into QIM bins
+9. **Fulfillment** - QFM calculates "can ship", creates shipping batches
+10. **Shipping** - QFM syncs to ShipStation, updates WooCommerce order status
 
 ---
 
@@ -146,23 +188,36 @@ QIP modernizes this functionality with:
 |-------------|--------------|------------|
 | PO Management | `po-*.php`, `vendors-*.php` | QPM |
 | Inventory/Bins | `report-inventory.php`, `*bin*.php` | QIM |
-| Production | `prod-*.php`, `gen_asmlist.php`, `gen_batch.php` | QAM |
+| Production Batches | `prod-*.php`, `gen_asmlist.php`, `gen_batch.php` | QAM |
+| Engraving/Labels | Label generation, barcode files | QSA |
 | Shipping | `shipbatch*.php`, `gen_canship.php`, `gen_shipbatch.php` | QFM |
 
 ---
 
 ## Implementation Approach
 
+### Current Status
+
+| Module | Status | Notes |
+|--------|--------|-------|
+| QSA | In Development | Core functionality implemented, testing in progress |
+| QIM | Planned | Foundation module, high priority |
+| QPM | Planned | Depends on QIM |
+| QAM | Planned | Currently uses legacy `oms_batch_items` |
+| QFM | Planned | Final module in workflow |
+
 ### Recommended Build Order
 
-1. **QIM** - Foundation with no Q module dependencies
-2. **QPM** - Purchasing can work with just QIM
-3. **QAM** - Production needs QIM, benefits from QPM visibility
-4. **QFM** - Fulfillment needs QIM and QAM completion data
+1. **QSA** - Currently in development, can work with legacy batch tables
+2. **QIM** - Foundation with no Q module dependencies
+3. **QPM** - Purchasing can work with just QIM
+4. **QAM** - Production needs QIM, currently bridges to QSA
+5. **QFM** - Fulfillment needs QIM and QAM completion data
 
 ### Migration Strategy
 
-- Each module migrates its corresponding `oms_*` tables
+- QSA deployed first using legacy `oms_batch_items` for production batch data
+- Each subsequent module migrates its corresponding `oms_*` tables
 - Historical data preserved as read-only where practical
 - Parallel operation period before decommissioning legacy OM
 - WooCommerce remains source of truth for orders and products
@@ -176,6 +231,7 @@ QIP modernizes this functionality with:
 3. **Modular Independence** - Each module can function (with reduced capability) if others unavailable
 4. **Audit Trail** - All significant actions logged for traceability
 5. **Real-time Visibility** - Dashboard views show current state, not stale snapshots
+6. **Legacy Bridge** - New modules can integrate with legacy tables during transition
 
 ---
 
