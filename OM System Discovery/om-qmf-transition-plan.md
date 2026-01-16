@@ -2,7 +2,7 @@
 
 **Document Creation Date:** Nov 12, 2025
 **Last Update:** Nov 24, 2025
-**Purpose:** Planning document to transition away from the original OM to the new Quadica Production Management system
+**Purpose:** Planning document to transition away from the original OM to the new Quadica Manufacturing system
 
 ---
 ## Our Current Product Lines

@@ -1,4 +1,4 @@
-# Quadica Production Manager (QMF) - Discovery
+# Quadica Manufacturing (QMF) - Discovery
 
 **Last Update:** Nov 30, 2025  
 **Author:** Claude Code + Ron Warris  
@@ -12,7 +12,7 @@
 - This is not a technical document. It is a document that managers and users can review and provide feedback on.
 
 **Overview**
-This document captures the exploration and discovery process for modernizing the LED module production system. It documents the thinking process, questions asked, decisions made, and the emerging architecture for the Quadica Production Manager (QMF) system that will provide full integration into WooCommerce, continuous visibility into the entire production pipeline, production batch generation, production documentation, etc.
+This document captures the exploration and discovery process for modernizing the LED module production system. It documents the thinking process, questions asked, decisions made, and the emerging architecture for the Quadica Manufacturing (QMF) system that will provide full integration into WooCommerce, continuous visibility into the entire production pipeline, production batch generation, production documentation, etc.
 
 This system will include updated functionality for the following existing OM production related processes (Not an exhaustive list):
 - prod-batch-list.php - Batch List
@@ -2371,7 +2371,7 @@ The order is marked complete
 
 This discovery session has successfully defined a comprehensive framework for module-focused production batch creation. Through iterative refinement and deep exploration of actual production workflows, we've arrived at 24 well-defined rules that balance manufacturing efficiency with order fulfillment priorities.
 
-**The Vision:** A unified Quadica Production Manager system that handles both production planning (queue management, component reservation, priority optimization) and production execution (batch management, digital instructions, progress tracking) in a single integrated interface.
+**The Vision:** A unified Quadica Manufacturing system that handles both production planning (queue management, component reservation, priority optimization) and production execution (batch management, digital instructions, progress tracking) in a single integrated interface.
 
 **Key Architectural Decisions:**
 

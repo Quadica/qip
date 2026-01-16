@@ -1,4 +1,4 @@
-# Quadica Production Manager - Reference
+# Quadica Manufacturing - Reference
 
 # REFERENCE MATERIAL ONLY FROM PREVIOUS EXPLORATIONS
 
@@ -35,7 +35,7 @@ The current system generates a **snapshot** when PM clicks "Generate Batch":
 
 ### The Vision
 
-The **Quadica Production Manager** that provides continuous visibility:
+The **Quadica Manufacturing** that provides continuous visibility:
 - Shows EVERYTHING that needs to be built (not just buildable items)
 - Real-time component availability
 - Active batch status
@@ -1698,7 +1698,7 @@ These items identified but deferred:
 
 ### Plugin Structure
 
-**New Plugin: "Quadica Production Manager"**
+**New Plugin: "Quadica Manufacturing"**
 
 Separate plugin (not extension of BOM or LMB) because:
 - LMB = customer-facing module configuration
@@ -1889,7 +1889,7 @@ Understanding the business realities that shape these decisions:
 
 ## 13. Why This Approach Makes Sense
 
-Bringing it all together - why the Quadica Production Manager concept is the right direction:
+Bringing it all together - why the Quadica Manufacturing concept is the right direction:
 
 ### Solves Real Problems
 - PM currently lacks complete visibility
@@ -2050,7 +2050,7 @@ QMF System (Queue)  +  Separate Batch System (Execution)
 
 **Option B: Integrated QMF** ✅ CHOSEN
 ```
-Quadica Production Manager (One System)
+Quadica Manufacturing (One System)
 ├─ Production Queue Tab
 ├─ Active Batches Tab
 └─ Completed Batches Tab
@@ -2784,9 +2784,9 @@ The new QMF production process will work differently than the existing system.
 
 ## 27. Conclusion
 
-This discovery session has explored the modernization of LED module production batch generation. Through systematic analysis of the legacy system, understanding of the BOM infrastructure, deep exploration of the Quadica Production Manager concept, and now integration of production batch functionality, we've arrived at a clear architectural direction.
+This discovery session has explored the modernization of LED module production batch generation. Through systematic analysis of the legacy system, understanding of the BOM infrastructure, deep exploration of the Quadica Manufacturing concept, and now integration of production batch functionality, we've arrived at a clear architectural direction.
 
-**The Vision:** A unified Quadica Production Manager system that handles both production planning (queue management, component reservation, priority optimization) and production execution (batch management, digital instructions, progress tracking) in a single integrated interface.
+**The Vision:** A unified Quadica Manufacturing system that handles both production planning (queue management, component reservation, priority optimization) and production execution (batch management, digital instructions, progress tracking) in a single integrated interface.
 
 **Key Architectural Decisions:**
 
